@@ -1,60 +1,60 @@
 ==============================
-#         ARCH-8 SPEC       
+#         ARCH SPEC       
 ==============================
 
 ## OVERVIEW
-* 8-bit Reduced Instruction Set Computing (RISC) architecture
-* 16-bit memory address space (64 KiB accessible memory)
-* Unified memory model (instructions and data share the same memory space)
-* Supports a 5-stage pipeline: Fetch, Decode, Execute, Memory, Writeback
+* 8-bit Reduced Instruction Set Computing (RISC) architecture   # Simple and efficient CPU design
+* 16-bit memory address space (64 KiB accessible memory)        # Small but sufficient memory for simulation
+* Unified memory model (instructions and data share memory)     # No separation between instruction and data memory
+* Supports a 5-stage pipeline                                   # Fetch, Decode, Execute, Memory, Writeback
 
 ## INSTRUCTIONS
-0: ADD  Rd, Rs       -> Rd = Rd + Rs  
-1: SUB  Rd, Rs       -> Rd = Rd - Rs  
-2: AND  Rd, Rs       -> Rd = Rd & Rs  
-3: OR   Rd, Rs       -> Rd = Rd | Rs  
-4: LW   Rd, [Addr]   -> Rd = Memory[Addr]  
-5: SW   [Addr], Rs   -> Memory[Addr] = Rs  
-6: BEQ  Rs, Rt, imm  -> If Rs == Rt, PC += imm  
-7: BNE  Rs, Rt, imm  -> If Rs != Rt, PC += imm  
-8: J    Addr         -> PC = Addr  
+0: ADD  Rd, Rs       -> Rd = Rd + Rs            # Add two registers  
+1: SUB  Rd, Rs       -> Rd = Rd - Rs            # Subtract two registers  
+2: AND  Rd, Rs       -> Rd = Rd & Rs            # Bitwise AND operation  
+3: OR   Rd, Rs       -> Rd = Rd | Rs            # Bitwise OR operation  
+4: LW   Rd, [Addr]   -> Rd = Memory[Addr]       # Load word from memory into register  
+5: SW   [Addr], Rs   -> Memory[Addr] = Rs       # Store register value into memory  
+6: BEQ  Rs, Rt, imm  -> If Rs == Rt, PC += imm  # Branch if equal  
+7: BNE  Rs, Rt, imm  -> If Rs != Rt, PC += imm  # Branch if not equal  
+8: J    Addr         -> PC = Addr               # Unconditional jump  
 9: HALT              -> Stop execution  
 
 * `Addr` is a 16-bit memory address.  
 * `imm` is an 8-bit immediate value for branching.  
 
 ## REGISTERS
-R0  (zero): Always 0  
-R1  (v0): Function return value  
-R2  (a0): Function argument  
-R3  (a1): Function argument  
-R4  (t0): Temporary register  
-R5  (t1): Temporary register  
-R6  (sp): Stack pointer  
-R7  (sr): Status register (Zero, Carry, Overflow)  
-PC  (pc): Program Counter  
+R0  (zero): Always 0         # Hardwired to 0 for convenience  
+R1  (v0): Function return    # Holds function return values  
+R2  (a0): Function argument  # Used to pass function arguments  
+R3  (a1): Function argument  # Second argument register  
+R4  (t0): Temporary register # Used for calculations, scratch storage  
+R5  (t1): Temporary register # Another scratch register  
+R6  (sp): Stack pointer      # Tracks the top of the stack  
+R7  (sr): Status register    # Holds CPU flags (Zero, Carry, Overflow)  
+PC  (pc): Program Counter    # Stores the address of the current instruction  
 
 ## INSTRUCTION LAYOUT
 Instructions are **16-bit fixed length**, using two formats:
 
 1. **R-Type (Register-Register Instructions)**  
    - Format: `[Opcode(4)] [Rd(3)] [Rs(3)] [0000]`  
-   - Example: `ADD R1, R2` -> `0000 001 010 0000`  
+   - Example: `ADD R1, R2` -> `0000 001 010 0000`  # Adds R1 and R2  
 
 2. **I-Type (Immediate Instructions)**  
    - Format: `[Opcode(4)] [Rs(3)] [Rt(3)] [imm8(8)]`  
-   - Example: `BEQ R1, R2, 10` -> `0110 001 010 00001010`  
+   - Example: `BEQ R1, R2, 10` -> `0110 001 010 00001010`  # Branches if R1 == R2  
 
 ## MEMORY LAYOUT
-0x0000..0x3FFF: GENERAL PURPOSE ROM  
-0x4000..0x7FFF: GENERAL PURPOSE RAM  
-0x8000..0x8FFF: MEMORY-MAPPED I/O (MMIO)  
-0x9000..0x9FFF: STACK MEMORY  
+0x0000..0x3FFF: GENERAL PURPOSE ROM       # Stores program code (read-only)  
+0x4000..0x7FFF: GENERAL PURPOSE RAM       # Holds program variables and runtime data  
+0x8000..0x8FFF: MEMORY-MAPPED I/O (MMIO)  # Used for device interaction  
+0x9000..0x9FFF: STACK MEMORY              # Stores function call data, grows downward  
 
 ## MEMORY MANAGEMENT
-- Unified memory space for instructions and data  
-- Stack grows downward from `0x9000`  
-- Heap grows upward from `0x4000`  
+- Unified memory space for instructions and data  # No separate instruction and data memory  
+- Stack grows downward from `0x9000`              # Functions use stack for local storage  
+- Heap grows upward from `0x4000`                 # Dynamic memory allocation (if implemented)  
 
 ## PIPELINE DESIGN
 The CPU follows a 5-stage pipeline:  
@@ -65,9 +65,9 @@ The CPU follows a 5-stage pipeline:
 5. **Writeback (WB)**: Store results in registers  
 
 ## CACHE SYSTEM
-- Unified L1 Cache (4 KB, direct-mapped, 16-byte blocks)  
-- Write-through policy, no-allocate on write  
-- Cache line size: 2 words (8 bytes)  
+- Unified L1 Cache (4 KB, direct-mapped, 16-byte blocks)  # Small cache for quick access  
+- Write-through policy, no-allocate on write              # Cache writes go to memory immediately  
+- Cache line size: 2 words (8 bytes)                      # Cache fetches data in chunks  
 - Memory access latency: 100 cycles (without cache), 1-2 cycles (with cache hit)  
 
 ## SIMULATOR OVERVIEW
@@ -88,5 +88,5 @@ The ISA will be implemented in a software-based simulator that mimics CPU execut
 - Extend cache with **associative mapping**  
 
 ==============================
-#       END OF ARCH-8 SPEC   
+#       END SPEC   
 ==============================
