@@ -3,7 +3,6 @@
 ==============================
 
 ## OVERVIEW
-* 8-bit Reduced Instruction Set Computing (RISC) architecture   # Simple and efficient CPU design
 * 16-bit memory address space (64 KiB accessible memory)        # Small but sufficient memory for simulation
 * Unified memory model (instructions and data share memory)     # No separation between instruction and data memory
 * Supports a 5-stage pipeline                                   # Fetch, Decode, Execute, Memory, Writeback
