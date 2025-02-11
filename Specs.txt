@@ -3,9 +3,9 @@
 ==============================
 
 ## OVERVIEW
-* 16-bit memory address space (64 KiB accessible memory)        # Small but sufficient memory for simulation
-* Unified memory model (instructions and data share memory)     # No separation between instruction and data memory
-* Supports a 5-stage pipeline                                   # Fetch, Decode, Execute, Memory, Writeback
+* 16-bit (maybe 32) memory address space (64 KiB accessible memory)        # Small but sufficient memory for simulation
+* Unified memory model (instructions and data share memory)                # No separation between instruction and data memory
+* Supports a 5-stage pipeline                                              # Fetch, Decode, Execute, Memory, Writeback
 
 ## INSTRUCTIONS
 0: ADD  Rd, Rs       -> Rd = Rd + Rs            # Add two registers  
