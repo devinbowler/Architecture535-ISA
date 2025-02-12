@@ -19,7 +19,7 @@
 8: J    Addr         -> PC = Addr               # Unconditional jump  
 9: HALT              -> Stop execution  
 
-* `Addr` is a 16-bit memory address.  
+* `Addr` is a 32-bit memory address.  
 * `imm` is an 8-bit immediate value for branching.  
 
 ## REGISTERS
