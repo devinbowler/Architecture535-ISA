@@ -95,7 +95,7 @@
 ## Phase 6: Assembler Development (Week 6)
 **Goal:** Convert **assembly code → binary machine code**.
 
-### ✅ Tasks
+### Tasks
 #### **Instruction Encoding**
 - [ ] Define **instruction formats in the assembler**
 - [ ] Implement **binary encoding rules for each instruction**
