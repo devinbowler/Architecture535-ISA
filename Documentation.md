@@ -1,166 +1,203 @@
-# ARCH CPU Simulator - Project Timeline
+# ARCH CPU Simulator - Project Timeline (ISA First Approach)
 
 ---
 
-## Phase 1: Foundation & Documentation (Week 1)
-**Goal:** Define all specifications & ensure clarity before writing any code.
+## Phase 1: Design the Instruction Set
+Goal: Define the full ISA before writing any code.
 
 ### Tasks
-- [ ] Finish **ISA Specifications Document** (Register layout, opcode formats, memory organization)
-- [ ] Decide on **16-bit vs. 32-bit memory addressing**
-- [ ] Define **instruction encoding (binary representation)**
-- [ ] Create a **reference sheet** for all opcodes and instruction formats
-- [ ] Plan **how memory will be structured** (stack, heap, MMIO regions)
-- [ ] Assign **team responsibilities** (Devin & Owen)
-  
----
+- [ ] Write out all instructions (ADD, SUB, LW, etc.), ensuring a minimal yet functional instruction set.
+- [ ] Define binary encoding format for each instruction.
+  - Example:
+    - `ADD R1, R2` → `0000 001 010 0000`
+    - `LW R1, [0x1000]` → `0100 001 000000000100000`
+- [ ] Decide register layout (How many? What do they do?).
+  - Example:
+    - `R0`: Always zero
+    - `R1`: Function return value
+    - `R6`: Stack pointer (SP)
+    - `R7`: Status register (SR) for flags
+- [ ] Decide memory organization (Stack, Heap, ROM, MMIO).
+  - Example:
+    - `0x0000 - 0x3FFF`: ROM (read-only program code)
+    - `0x4000 - 0x7FFF`: General RAM
+    - `0x9000 - 0x9FFF`: Stack memory (grows downward)
+- [ ] Write an ISA Specification Document for reference.
 
-## Phase 2: Memory & Registers (Week 2)
-**Goal:** Set up the memory system & register file.
-
-### Tasks
-#### **Memory Implementation**
-- [ ] Create a **RAM array** to simulate memory (`uint16_t memory[65536]`)
-- [ ] Implement **load/store functions** for memory access
-- [ ] Ensure **word-alignment for memory accesses**
-- [ ] Implement **stack memory (growing downward)**
-
-#### **Register Implementation**
-- [ ] Define a **register file** (`uint16_t registers[8]`)
-- [ ] Initialize **special registers** (`PC`, `SP`, `SR`)
-- [ ] Create functions to **read/write registers**
-  
----
-
-## Phase 3: CPU Core - Basic Fetch/Decode/Execute (Week 3)
-**Goal:** Implement the **core execution loop**.
-
-### Tasks
-#### **Instruction Fetch**
-- [ ] Implement **instruction fetch from memory** (`fetch_instruction()`)
-
-#### **Instruction Decode**
-- [ ] Extract **opcode & register fields** (`decode_instruction()`)
-
-#### **Instruction Execution**
-- [ ] Implement **ADD instruction**
-- [ ] Implement **SUB instruction**
-- [ ] Implement **AND/OR logic operations**
-- [ ] Implement **LW (Load Word)**
-- [ ] Implement **SW (Store Word)**
-- [ ] Implement **BEQ (Branch if Equal)**
-- [ ] Implement **BNE (Branch if Not Equal)**
-- [ ] Implement **JUMP instruction**
-- [ ] Implement **HALT instruction**
-
-#### **Execution Loop**
-- [ ] Implement the **main CPU loop** (`while (running) { fetch → decode → execute }`)
+Deliverable: A document that describes the entire ISA, including:
+1. List of instructions.
+2. Binary encoding format.
+3. Register definitions and function.
+4. Memory layout and stack behavior.
 
 ---
 
-## Phase 4: Implement Pipeline (Week 4)
-**Goal:** Introduce **pipeline stages** for performance.
+## Phase 2: Implement the Assembler
+Goal: Create an assembler that converts human-readable instructions into binary machine code.
 
 ### Tasks
-#### **Pipeline Stages**
-- [ ] Implement **Fetch Stage (IF)**
-- [ ] Implement **Decode Stage (ID)**
-- [ ] Implement **Execute Stage (EX)**
-- [ ] Implement **Memory Stage (MEM)**
-- [ ] Implement **Writeback Stage (WB)**
+- [ ] Implement opcode translation (convert ADD, SUB, LW, etc., to binary).
+- [ ] Implement register translation (R1 → `001`, R2 → `010`, etc.).
+- [ ] Implement memory addressing translation for immediate values.
+  - Example:
+    ```
+    LW R1, [0x1000]  
+    ```
+    Converts to:
+    ```
+    0100 001 000000000100000
+    ```
+- [ ] Output binary machine code files that the simulator can run.
 
-#### **Pipeline Control**
-- [ ] Implement **pipeline registers** (storing intermediate results)
-- [ ] Implement **pipeline flushing on jumps/branches**
-- [ ] Implement **basic forwarding (if needed)**
+Deliverable: A working assembler that can take:
+- ADD R1, R2
+- And convert it into:
+- 000000101000
 
 ---
 
-## Phase 5: Implement Cache (Week 5)
-**Goal:** Implement a **basic direct-mapped cache**.
+## Phase 3: Implement CPU Core
+Goal: Create the basic CPU execution loop to process instructions.
 
 ### Tasks
-#### **Cache Structure**
-- [ ] Define a **direct-mapped cache** (`struct CacheLine { tag, data, valid }`)
-- [ ] Implement **cache read/write operations**
-- [ ] Implement **cache hit/miss logic**
-- [ ] Implement **write-through policy (no-allocate)**
+- [ ] Implement registers in software (`uint16_t registers[8]`).
+- [ ] Implement instruction fetch mechanism (`fetch_instruction()`).
+- [ ] Implement instruction decode mechanism (`decode_instruction()`).
+- [ ] Implement basic execution loop (`while (running) { fetch → decode → execute }`).
+- [ ] Implement a simple instruction execution function.
+  - Example:
+    ```cpp
+    switch (opcode) {
+        case 0x0: // ADD
+            registers[rd] = registers[rd] + registers[rs];
+            break;
+        case 0x4: // LW
+            registers[rd] = memory[address];
+            break;
+    }
+    ```
 
-#### **Cache Performance Tracking**
-- [ ] Implement **cache performance counters** (hit/miss tracking)
-- [ ] Compare **cache-enabled vs. no-cache execution times**
+Deliverable: A CPU that can fetch, decode, and execute ADD/SUB.
 
 ---
 
-## Phase 6: Assembler Development (Week 6)
-**Goal:** Convert **assembly code → binary machine code**.
+## Phase 4: Implement Memory System
+Goal: Add memory handling to support load/store instructions.
 
 ### Tasks
-#### **Instruction Encoding**
-- [ ] Define **instruction formats in the assembler**
-- [ ] Implement **binary encoding rules for each instruction**
+- [ ] Implement a RAM array (`uint16_t memory[65536]` to simulate 64KB memory).
+- [ ] Implement load-word (LW) instruction.
+- [ ] Implement store-word (SW) instruction.
+- [ ] Implement stack pointer (SP) and function call handling.
+  - Example:
+    ```cpp
+    void push(uint16_t value) {
+        memory[sp--] = value;
+    }
 
-#### **Assembler Implementation**
-- [ ] Implement **ADD/SUB assembler translation**
-- [ ] Implement **LW/SW assembler translation**
-- [ ] Implement **Branch/Jump assembler translation**
-- [ ] Implement **HALT assembler translation**
-- [ ] Implement **assembler output to binary file**
-  
----
+    uint16_t pop() {
+        return memory[++sp];
+    }
+    ```
 
-## Phase 7: CPU Simulation UI (Week 7)
-**Goal:** Create a **user interface** for debugging & visualization.
-
-### Tasks
-#### **UI Design**
-- [ ] Display **register contents**
-- [ ] Display **memory contents**
-- [ ] Display **pipeline stage information**
-- [ ] Display **cache hit/miss stats**
-
-#### **Simulation Controls**
-- [ ] Implement **single-step execution**
-- [ ] Implement **run to breakpoint**
-- [ ] Implement **execution logging (register/memory updates)**
+Deliverable: A CPU that can load and store data in memory.
 
 ---
 
-## Phase 8: Final Testing & Benchmarking (Week 8)
-**Goal:** Verify correctness using **benchmark programs**.
+## Phase 5: Implement Pipeline
+Goal: Introduce pipelining for parallel execution.
 
 ### Tasks
-#### **Run Benchmark Programs**
-- [ ] Implement **Exchange Sort (Sorting Algorithm)**
-- [ ] Implement **Matrix Multiplication**
-- [ ] Analyze **execution cycle counts (with/without cache & pipeline)**
+- [ ] Implement Fetch → Decode → Execute → Memory → Writeback stages.
+- [ ] Implement pipeline registers for each stage.
+- [ ] Implement flush mechanism for jumps/branches.
+- [ ] Implement data forwarding to reduce pipeline hazards.
+  - Example:
+    ```
+    ADD R1, R2
+    SUB R3, R1  // Needs R1 from previous instruction, potential hazard
+    ```
 
-#### **Final Debugging**
-- [ ] Fix **pipeline hazards**
-- [ ] Fix **branch mispredictions**
-- [ ] Fix **cache consistency issues**
+Deliverable: A pipelined CPU that executes multiple instructions in parallel.
 
-#### **Final Report & Presentation**
-- [ ] Prepare **demo & slides**
-- [ ] Write **final project report**
-- [ ] Practice **team presentation**
+---
+
+## Phase 6: Implement Cache
+Goal: Add a cache layer to optimize memory access.
+
+### Tasks
+- [ ] Implement a direct-mapped cache structure.
+  - Example:
+    ```cpp
+    struct CacheLine {
+        uint16_t tag;
+        uint16_t data;
+        bool valid;
+    };
+    ```
+- [ ] Implement hit/miss logic.
+  - Example:
+    ```cpp
+    if (cache[index].valid && cache[index].tag == address >> 4) {
+        return cache[index].data; // Cache hit
+    } else {
+        cache[index].data = memory[address]; // Cache miss, load from memory
+        cache[index].tag = address >> 4;
+        cache[index].valid = true;
+    }
+    ```
+- [ ] Implement write-through policy with no-allocate on writes.
+- [ ] Implement cache performance counters (hit/miss tracking).
+
+Deliverable: A cache that speeds up CPU execution.
+
+---
+
+## Phase 7: Testing and Benchmarking
+Goal: Validate performance using sorting and matrix multiplication.
+
+### Tasks
+- [ ] Implement sorting algorithm in assembly.
+  - Example (Exchange Sort):
+    ```
+    LW R1, [R2]
+    LW R3, [R4]
+    BNE R1, R3, SWAP
+    ADD R2, R2, 2
+    ADD R4, R4, 2
+    J LOOP
+    SWAP:
+    SW [R2], R3
+    SW [R4], R1
+    ```
+- [ ] Implement matrix multiplication in assembly.
+- [ ] Measure cycle counts with/without cache and pipeline.
+
+Deliverable: A final report with performance results.
+
+---
+
+## Phase 8: Final Debugging and Presentation
+Goal: Finalize the project, debug errors, and prepare a presentation.
+
+### Tasks
+- [ ] Fix bugs in the pipeline and cache.
+- [ ] Create demo programs to showcase CPU execution.
+- [ ] Prepare presentation slides explaining:
+  - ISA design choices.
+  - How the CPU executes instructions.
+  - Pipeline optimizations and cache performance.
+- [ ] Write the final project report.
+
+Deliverable: A fully working CPU simulator with test programs.
 
 ---
 
 ## Final Deliverables
-### **Project Completion Checklist**
-- [ ] **Working CPU Simulator**
-- [ ] **Assembler**
-- [ ] **Cache Simulation**
-- [ ] **Pipeline Execution**
-- [ ] **Final Report**
-- [ ] **Presentation**
-
----
-
-## Team Responsibilities
-### **Devin's Responsibilities**
-- [ ] TBD  
-
-### **Owen's Responsibilities**
-- [ ] TBD  
+- [ ] ISA Specification Document
+- [ ] Working CPU Simulator
+- [ ] Assembler
+- [ ] Cache Simulation
+- [ ] Pipeline Execution
+- [ ] Final Report
+- [ ] Presentation
