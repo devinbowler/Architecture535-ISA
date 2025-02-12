@@ -49,10 +49,7 @@ Goal: Create an assembler that converts human-readable instructions into binary 
     ```
 - [ ] Output binary machine code files that the simulator can run.
 
-Deliverable: A working assembler that can take:
-- ADD R1, R2
-- And convert it into:
-- 000000101000
+Deliverable: A working assembler that can take: ADD R1, R2. And convert it into: 000000101000
 
 ---
 
@@ -153,7 +150,33 @@ Deliverable: A cache that speeds up CPU execution.
 
 ---
 
-## Phase 7: Testing and Benchmarking
+## Phase 7: Implement User Interface
+Goal: Build a UI that provides visibility into CPU execution.
+
+### Tasks
+- [ ] Implement a **register viewer** that displays CPU register values in hexadecimal.
+- [ ] Implement a **memory viewer** that allows scrolling through RAM contents.
+- [ ] Implement a **pipeline visualization tool** to show instruction progress.
+- [ ] Implement a **cache viewer** to monitor cache hit/miss rates.
+- [ ] Implement step execution:
+  - Load binary programs and execute one instruction at a time.
+  - Show changes in registers and memory after each instruction.
+- [ ] Implement a mode selector:
+  - No pipeline, no cache.
+  - Pipeline only.
+  - Cache only.
+  - Full pipeline and cache enabled.
+- [ ] Implement program loading and execution controls.
+- [ ] Implement execution cycle count tracking.
+
+Deliverable: A UI that allows users to:
+1. Step through instructions and observe execution.
+2. Toggle pipeline and cache settings.
+3. View CPU state, memory, and execution statistics.
+
+---
+
+## Phase 8: Testing and Benchmarking
 Goal: Validate performance using sorting and matrix multiplication.
 
 ### Tasks
@@ -177,7 +200,7 @@ Deliverable: A final report with performance results.
 
 ---
 
-## Phase 8: Final Debugging and Presentation
+## Phase 9: Final Debugging and Presentation
 Goal: Finalize the project, debug errors, and prepare a presentation.
 
 ### Tasks
@@ -199,5 +222,6 @@ Deliverable: A fully working CPU simulator with test programs.
 - [ ] Assembler
 - [ ] Cache Simulation
 - [ ] Pipeline Execution
+- [ ] User Interface for CPU Monitoring
 - [ ] Final Report
 - [ ] Presentation
