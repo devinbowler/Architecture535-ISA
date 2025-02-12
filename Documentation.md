@@ -16,7 +16,7 @@
 ---
 
 ### Registers
-[ Not Done ] -  Define registers, and initalize them.
+[ Not Done ] -  Define registers, and initalize them.<br>
 [ Not Done ] -  Initalize each register for what it will be doing.
 
 ---
