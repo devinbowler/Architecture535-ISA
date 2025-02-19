@@ -16,11 +16,8 @@
 5: SW   [Addr], Rs   -> Memory[Addr] = Rs       # Store register value into memory  
 6: BEQ  Rs, Rt, imm  -> If Rs == Rt, PC += imm  # Branch if equal  
 7: BNE  Rs, Rt, imm  -> If Rs != Rt, PC += imm  # Branch if not equal  
-8: J    Addr         -> PC = Addr               # Unconditional jump  
-9: HALT              -> Stop execution  
+8: HALT              -> Stop execution  
 
-* `Addr` is a 32-bit memory address.  
-* `imm` is an 8-bit immediate value for branching.  
 
 ## REGISTERS
 R0  (zero): Always 0         # Hardwired to 0 for convenience  
