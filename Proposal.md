@@ -23,10 +23,17 @@ Our architecture includes the following registers:
 | R1       | v0   | Function return value |
 | R2       | a0   | Function argument |
 | R3       | a1   | Second function argument |
-| R4       | t0   | Temporary register |
-| R5       | t1   | Temporary register |
-| R6       | sp   | Stack pointer (grows downward) |
-| R7       | sr   | Status register (flags) |
+| R4       | g0   | General register |
+| R5       | g1   | General register |
+| R6       | g2   | General register |
+| R7       | g3   | General register |
+| R8       | g4   | General register |
+| R9       | g5   | General register |
+| R10      | g6   | General register |
+| R11      | g7   | General register |
+| R12      | g8   | General register |
+| R13      | g9   | General register |
+| R14      | sp   | Stack pointer (grows downward) |
 | PC       | pc   | Program Counter |
 
 ---
