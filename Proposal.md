@@ -69,7 +69,7 @@ Our architecture includes the following registers:
 |--------|----------|-------------|
 | 0x6    | BEQ R1, R2, imm  | Branch if R1 == R2 |
 | 0x7    | BNE R1, R2, imm  | Branch if R1 != R2 |
-| 0x8    | J Addr | Unconditional jump |
+| 0x8    | JMP Addr | Unconditional jump |
 
 ### Other Instructions  
 | Opcode | Mnemonic | Description |
