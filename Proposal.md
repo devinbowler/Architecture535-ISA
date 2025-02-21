@@ -54,7 +54,9 @@ Our architecture includes the following registers:
 | 0x0    | ADD Rd, Rs | Rd = Rd + Rs |
 | 0x1    | SUB Rd, Rs | Rd = Rd - Rs |
 | 0x2    | AND Rd, Rs | Rd = Rd & Rs |
-| 0x3    | OR Rd, Rs | Rd = Rd | Rs |
+| 0x3    | OR Rd, Rs  | Rd = Rd \| Rs |
+| 0xA    | LSH Rd, imm | Logical shift left/right Rd by imm bits (zero fill) |
+| 0xB    | ROT Rd, imm | Rotate left/right Rd by imm bits (wrap-around) |
 
 ### Load/Store Instructions  
 | Opcode | Mnemonic | Description |
