@@ -20,9 +20,9 @@ Our architecture includes the following registers:
 | Register | Name  | Purpose  |
 |----------|------|----------|
 | R0       | Zero | Always 0 (hardwired) |
-| R1       | v0   | Function return value |
-| R2       | a0   | Function argument |
-| R3       | a1   | Second function argument |
+| R1       | g0   | General register |
+| R2       | g0   | General register |
+| R3       | g0   | General register |
 | R4       | g0   | General register |
 | R5       | g1   | General register |
 | R6       | g2   | General register |
@@ -51,30 +51,38 @@ Our architecture includes the following registers:
 ### Integer ALU Instructions  
 | Opcode | Mnemonic | Description |
 |--------|----------|-------------|
-| 0x0    | ADD Rd, Rs | Rd = Rd + Rs |
-| 0x1    | SUB Rd, Rs | Rd = Rd - Rs |
-| 0x2    | AND Rd, Rs | Rd = Rd & Rs |
-| 0x3    | OR Rd, Rs  | Rd = Rd \| Rs |
-| 0xA    | LSH Rd, imm | Logical shift left/right Rd by imm bits (zero fill) |
-| 0xB    | ROT Rd, imm | Rotate left/right Rd by imm bits (wrap-around) |
+| 0000    | ADD Rd, Ra, Rb | Rd = Ra + Rb |
+| 0001    | SUB Rd, Ra, Rb | Rd = Ra - Rb |
+| 0010    | AND Rd, Ra, Rb | Rd = Ra & Rb |
+| 0011    | OR Rd, Ra, Rb  | Rd = Ra \| Rb |
+| 0100    | XOR Rd, Ra, Rb  | Rd = Ra ^ Rb |
+
+### Register-Type-Register-Immediate Instructions  
+| Opcode | Type | Source Register | Immediate | Mnemonic | Description |
+|--------|------|----------------|-----------|----------|-------------|
+| 0101   | 00   | Ra             | imm[5:0]  | LSL Ra, imm | Logical Shift Left |
+| 0101   | 01   | Ra             | imm[5:0]  | LSR Ra, imm | Logical Shift Right |
+| 0101   | 10   | Ra             | imm[5:0]  | ROL Ra, imm | Rotate Left |
+| 0101   | 11   | Ra             | imm[5:0]  | ROR Ra, imm | Rotate Right |
 
 ### Load/Store Instructions  
-| Opcode | Mnemonic | Description |
-|--------|----------|-------------|
-| 0x4    | LW R, [Addr]  | Load word from memory into register |
-| 0x5    | SW [Addr], R  | Store word from register into memory |
+| Opcode | Register | Immediate | Mnemonic | Description |
+|--------|----------|-----------|----------|-------------|
+| 0110   | Rd      | imm[7:0]   | LW Rd, imm  | Load word from memory into register |
+| 0111   | Rd      | imm[7:0]   | SW Rd, imm  | Store word from register into memory |
 
-### Control Flow Instructions  
-| Opcode | Mnemonic | Description |
-|--------|----------|-------------|
-| 0x6    | BEQ R1, R2, imm  | Branch if R1 == R2 |
-| 0x7    | BNE R1, R2, imm  | Branch if R1 != R2 |
-| 0x8    | JMP Addr | Unconditional jump |
+### Immediate Control Flow Instructions  
+| Opcode | Immediate | Mnemonic | Description |
+|--------|-----------|----------|-------------|
+| 1000   | Addr[11:0]  | JMP Addr  | Unconditional jump |
+| 1001   | Addr[11:0]  | CALL Addr | Function call |
 
-### Other Instructions  
-| Opcode | Mnemonic | Description |
-|--------|----------|-------------|
-| 0x9    | HALT  | Stop execution |
+### Special Instructions  
+| Opcode | Immediate | Mnemonic | Description |
+|--------|-----------|----------|-------------|
+| 1010   | -         | RET  | Return from function |
+| 1011   | -         | HALT | Stop execution |
+
 
 ---
 
@@ -84,7 +92,7 @@ Our architecture includes the following registers:
 - **Heap Memory**: Grows upward from `0x4000`  
 - **Cache**: 4 KB **direct-mapped** cache  
   - **Write-through policy**, no-allocate on writes  
-  - **Line size**: 2 words (8 bytes)  
+  - **Line size**: 4 words (8 bytes)  
   - **Latency**: **100 cycles (no cache)**, **1-2 cycles (cache hit)**  
 
 ---
