@@ -22,6 +22,7 @@
 
 // Testing function, this is just for testing, later this will come from the tests file.
 
+
 int main(void){
   printf("DRAM_SIZE: %d\n", DRAM_SIZE);
 
