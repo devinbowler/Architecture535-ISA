@@ -2,23 +2,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-// Define some variables that will be used for memeory.
-#define DRAM_SIZE 60000
-#define DRAM_DELAY 10
-
-// Define our types.
-typedef struct {
-  uint16_t memory[DRAM_SIZE];
-} DRAM;
+#include <stdbool.h>
+#include "memory.h"
 
 // A function to write into memory at a immediate address.
 void writeToMemory(DRAM *dram, int addr, uint16_t data) {
-  int delay = DRAM_DELAY;
-  while (delay){
-    delay -= 1;
-    printf("\rWrite Delay: %d\n", delay);
-  }
   if (addr >= 0 && addr < DRAM_SIZE) {
     dram->memory[addr] = (uint16_t) data;
   }
@@ -26,30 +14,24 @@ void writeToMemory(DRAM *dram, int addr, uint16_t data) {
 
 // A function to read from a immediate address in memeory.
 uint16_t readFromMemory(DRAM *dram, int addr) {
-  int delay = DRAM_DELAY;
-  while (delay){
-    delay -= 1;
-    printf("\rRead Delay: %d\n", delay);
-  }
-  int returnValue;
   if (addr >= 0 && addr < DRAM_SIZE) {
-      returnValue = dram->memory[addr];
+      return dram->memory[addr];
   }
-  return returnValue;
+  return 0;
 }
 
-// A function to clear memory fully. (This will come in once memory is dynamic.)
+// A function to clear memory fully.
+void clearMemory(DRAM *dram){
+  for (int i = 0; i < DRAM_SIZE; i++){
+    dram->memory[i] = 0;
+  }
+}
 
-
-// A function to print off memory, but only the lines that have addresses. (Once dynamic.)
-
-
-// Testing function, this is just for testing, later this will come from the tests file.
-int main(void){
-  DRAM dram;
-  writeToMemory(&dram, 50, 870);
-  uint16_t result = readFromMemory(&dram, 50);
-  printf("Value at memory address: %d\n", result);
-  printf("Size of DRAM: %d\n", sizeof(dram));
-  return 0;
+// A function to print off memory, but only the lines that have addresses.
+void viewRawMemory(DRAM *dram, int addr, char *outputStr){
+  uint16_t value = readFromMemory(dram, addr);
+  for (int i = 15; i >= 0; i--) {
+    outputStr[15 - i] = ((value >> i) & 1) ? '1' : '0';
+  }
+  outputStr[16] = '\0';
 }
