@@ -22,6 +22,40 @@
 
 // Testing function, this is just for testing, later this will come from the tests file.
 
+/**
+ * @brief Implements the Least Recently Used eviction policy for cache
+ *
+ * @param cache The cache
+ * @param element The element that is being added
+ *
+ * @return the evicted element if successful, -1 if unsuccessful
+ */
+int LRU(int* cache, int element) {
+  return 0;
+}
+
+/**
+ * @brief Implements the write-through, no-allocate policy
+ *
+ * @param element An element to be written
+ *
+ * @return 1 if successful, 0 if unsuccessful
+ */
+int write_through(int element) {
+  return -1;
+}
+
+/**
+ * @brief Initializes the cache with an array of -1s of size 64 (4 words)
+ * @param mode The mapping mode - 0 is Direct-Mapping and 1 is Two-Way Set Associative
+ * @return the initialized cache
+ */
+int* init_cache(int mode) {
+
+}
+
+
+
 int main(void){
   printf("DRAM_SIZE: %d\n", DRAM_SIZE);
 
