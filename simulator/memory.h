@@ -12,9 +12,16 @@ typedef struct {
   uint16_t memory[DRAM_SIZE];
 } DRAM;
 
-void writeToMemory(DRAM *dram, int addr, uint16_t data);
-uint16_t readFromMemory(DRAM *dram, int addr);
+typedef struct {
+  uint16_t clock = 0;
+  uint16_t delay = 0;
+  int16_t
+} STATUS;
+
+
+void writeToMemory(DRAM *dram, uint16_t addr, int16_t data);
+uint16_t readFromMemory(DRAM *dram, uint16_t addr);
 void clearMemory(DRAM *dram);
-void viewRawMemory(DRAM *dram, int addr, char *outputStr);
+void viewRawMemory(DRAM *dram, uint16_t addr, char *outputStr);
 
 #endif

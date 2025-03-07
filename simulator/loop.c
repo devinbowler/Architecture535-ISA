@@ -3,12 +3,9 @@
 #include <string.h>
 #include "memory.h"
 
-int cycle_count = 0;
-int delay = 0;
-
 void simulationLoop(DRAM *dram){
   char input[3];
-  int command;
+  int16_t command;
 
   while (true) {
     printf("ARCH-16> ");
@@ -27,8 +24,8 @@ void simulationLoop(DRAM *dram){
     }
 
     switch (command) {
-        int addr;
-        int variable;
+        uint16_t addr;
+        int16_t variable;
         uint16_t value;
 
       case 0:

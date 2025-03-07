@@ -6,14 +6,14 @@
 #include "memory.h"
 
 // A function to write into memory at a immediate address.
-void writeToMemory(DRAM *dram, int addr, uint16_t data) {
+void writeToMemory(DRAM *dram, uint16_t addr, int16_t data) {
   if (addr >= 0 && addr < DRAM_SIZE) {
-    dram->memory[addr] = (uint16_t) data;
+    dram->memory[addr] = (int16_t) data;
   }
 }
 
 // A function to read from a immediate address in memeory.
-uint16_t readFromMemory(DRAM *dram, int addr) {
+uint16_t readFromMemory(DRAM *dram, uint16_t addr) {
   if (addr >= 0 && addr < DRAM_SIZE) {
       return dram->memory[addr];
   }
@@ -28,7 +28,7 @@ void clearMemory(DRAM *dram){
 }
 
 // A function to print off memory, but only the lines that have addresses.
-void viewRawMemory(DRAM *dram, int addr, char *outputStr){
+void viewRawMemory(DRAM *dram, uint16_t addr, char *outputStr){
   uint16_t value = readFromMemory(dram, addr);
   for (int i = 15; i >= 0; i--) {
     outputStr[15 - i] = ((value >> i) & 1) ? '1' : '0';
