@@ -13,9 +13,8 @@ typedef struct {
 } DRAM;
 
 typedef struct {
-  uint16_t clock = 0;
-  uint16_t delay = 0;
-  int16_t
+  uint16_t clock;
+  uint16_t delay;
 } STATUS;
 
 
