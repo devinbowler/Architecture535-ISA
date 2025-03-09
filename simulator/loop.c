@@ -2,12 +2,13 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include "utilities.h"
 #include "memory.h"
 #include <regex.h>
 
 #define MAX_INPUT 100
 
-void simulationLoop(DRAM *dram){
+void simulationLoop(DRAM *dram, uint16_t *clockCycle, Queue *q){
   int16_t command = 5;
   char input[MAX_INPUT];
   char cmd[3] = "";
@@ -53,23 +54,35 @@ void simulationLoop(DRAM *dram){
     switch (command) {
       case 0:
         // Write to memory.
+        (*clockCycle)++;
+        cmdElement element;
+        strcpy(element.cmd, "SW");
+        element.execute = *clockCycle + 3;
+        element.addr = 50;
+        element.value = 12;
+
+        enqueue(q, &element);
+        displayQueue(q);
         writeToMemory(dram, addr, value);
-        printf("Wrote to memory.\n");
+        printf("Cycle: %d. Wrote to memory.\n", *clockCycle);
         break;
       case 1:
         // Read from memory.
+        (*clockCycle)++;
         value = readFromMemory(dram, addr);
-        printf("Read from address [ %d ], the value of: %d.\n", addr, value);
+        printf("Cycle: %d. Read from address [ %d ], the value of: %d.\n", *clockCycle, addr, value);
         break;
       case 2:
         // Show a line in memory.
+        (*clockCycle)++;
         char inputStr[16];
         viewRawMemory(dram, addr, inputStr);
-        printf("Showing line [ %d ] in memory: %s\n", addr, inputStr);
+        printf("Cycle: %d. Showing line [ %d ] in memory: %s\n", *clockCycle, addr, inputStr);
         break;
       case 3:
+        (*clockCycle)++;
         clearMemory(dram);
-        printf("Cleared Memory.");
+        printf("Cycle: %d. Cleared Memory.", *clockCycle);
       default:
         printf("Not a valid operation : %d.\n", command);
     }
@@ -79,11 +92,13 @@ void simulationLoop(DRAM *dram){
 int main(){
   // Initalize DRAM and Command Queue
   DRAM dram = {0};
-  // Queue q;
+  uint16_t clockCycle = 0;
+  Queue q;
+  initQueue(&q);
   clearMemory(&dram); // Good practice.
 
 
-  simulationLoop(&dram);
+  simulationLoop(&dram, &clockCycle, &q);
   return 0;
 }
 

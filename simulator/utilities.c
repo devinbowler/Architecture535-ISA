@@ -1,5 +1,7 @@
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "utilities.h"
 
 
@@ -17,12 +19,12 @@ bool isFull(Queue* q){
   return (q->rear == MAX_SIZE);
 }
 
-void enqueue(Queue* q, cmdElement *cmd){
+void enqueue(Queue* q, cmdElement* cmd){
   if (isFull(q)){
     printf("Queue is Full.\n");
     return;
   }
-  q->items[q->rear] = cmd;
+  q->items[q->rear] = *cmd;
   q->rear++;
 }
 
@@ -39,12 +41,12 @@ cmdElement dequeue(Queue* q){
 
 void displayQueue(Queue* q){
   if (isEmpty(q)){
-    printf("Queue is Empty"\n);
+    printf("Queue is Empty\n");
     return;
   }
   int16_t end = q->rear;
   for (int i = 0; i <= end; i++) {
-    printf("Element %d: {command: \"%s\", address: %d}\n", i, q->items[i].str, q->items[i].addr);
+    printf("Element %d: {command: \"%s\", execute: %d, address: %d, value: %d}\n", i, q->items[i].cmd, q->items[i].execute, q->items[i].addr, q->items[i].value);
   }
 }
 
