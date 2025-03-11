@@ -35,7 +35,7 @@ uint16_t LRU(Cache *cache, uint16_t element) {
  * @return 1 if successful, 0 if unsuccessful
  */
 uint16_t write_through(uint16_t element) {
-  return 0;
+  if()
 }
 
 /**
@@ -65,7 +65,7 @@ Cache *init_cache(uint16_t mode) {
  * @return the initialized set
  */
 Set *init_set(uint16_t mode) {
-  Set *set = malloc(sizeof(set));
+  Set *set = malloc(sizeof(Set));
   set->associativity = mode;
   if(mode == 2) {
     set->lines[0] = init_line();
@@ -94,15 +94,18 @@ Line *init_line() {
  * @param address the address to be read
  * @return the line in cache if successful, NULL otherwise
  */
-Line *read_line(Set *set, uint16_t address) {
+Line *read_line(Cache *cache, uint16_t address) {
   if(!set) return NULL;
-  Line *line = set[address];
+  Line *line = cache->sets[address]
   if(!line) return NULL;
   if(line->valid == 0) {
     line->valid = 1;
     line->data = readFromMemory(dram, address);
   }
-  line->lru = 0;
+  if(set->associativity == 2) {
+    line->lru = 0;
+    set->lines[1]->lru = 1;
+  }
   return line;
 }
 
