@@ -81,6 +81,7 @@ Line *init_line() {
   line->valid = 0;
   line->tag = 0;
   line->data = {0,0,0,0};
+  return line;
 }
 
 /**
@@ -102,12 +103,11 @@ Line *read_line(Set *set, uint16_t address) {
 }
 
 /**
- * @brief Clears the cache by setting all of it to 0.
+ * @brief Clears the cache by setting all of the line data to 0
  * @param cache The cache to be cleared
  */
 void clear_cache(Cache *cache) {
   for(uint16_t i = 0; i < cache->num_sets; i++) {
-    Set *set = cache->sets[i];
     cache->sets[i]->lines[0]->data = {0,0,0,0};
     cache->sets[i]->lines[0]->valid = 0;
     cache->sets[i]->lines[0]->tag = 0;
