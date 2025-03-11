@@ -21,6 +21,7 @@ typedef struct {
 // mode of 1 = direct-mapped, 2 = Two-Way Set Associative
 struct Cache {
   struct Set *sets;
+  uint16_t num_sets;
   uint16_t mode;
 };
 

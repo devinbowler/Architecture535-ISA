@@ -73,8 +73,7 @@ void clear_cache(Cache *cache) {
  */
 void destroy_cache(Cache *cache) {
   if(!cache) return;
-    uint16_t num_sets = (cache->mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2;
-    for (uint16_t i = 0; i < num_sets; i++) {
+    for (uint16_t i = 0; i < cache->num_sets; i++) {
         free(cache->sets[i].lines);
     }
     free(cache->sets);
