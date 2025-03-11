@@ -6,6 +6,8 @@
 // Define some variables that will be used for memeory.
 #define DRAM_SIZE 50000
 #define DRAM_DELAY 10
+#define MAX_MEM_VIEW 16
+#define MAX_VALUE_LENGTH 128
 
 // Define our types.
 typedef struct {
@@ -21,6 +23,7 @@ typedef struct {
 void writeToMemory(DRAM *dram, uint16_t addr, int16_t data);
 uint16_t readFromMemory(DRAM *dram, uint16_t addr);
 void clearMemory(DRAM *dram);
-void viewRawMemory(DRAM *dram, uint16_t addr, char *outputStr);
+void viewBlockMemory(DRAM *dram, uint16_t addr, char values[]);
+
 
 #endif

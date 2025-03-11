@@ -27,11 +27,12 @@ void clearMemory(DRAM *dram){
   }
 }
 
-// A function to print off memory, but only the lines that have addresses.
-void viewRawMemory(DRAM *dram, uint16_t addr, char *outputStr){
-  uint16_t value = readFromMemory(dram, addr);
-  for (int i = 15; i >= 0; i--) {
-    outputStr[15 - i] = ((value >> i) & 1) ? '1' : '0';
+// A function to print off a block of memory.
+void viewBlockMemory(DRAM *dram, uint16_t addr, char values[]){
+  // Loop to go through 16 values and add them to an array.
+  uint16_t start = (addr >= 7) ? addr - 7 : 0;
+  char *ptr = values;
+  for (int i = 0; i < 16; i++){
+    ptr += sprintf(ptr, "%04x ", dram->memory[start + i]);
   }
-  outputStr[16] = '\0';
 }

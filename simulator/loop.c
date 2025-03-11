@@ -1,3 +1,5 @@
+// gcc loop.c memory.c utilities.c -o ARCH-16 -lregex
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -25,7 +27,7 @@ void simulationLoop(DRAM *dram, uint16_t *clockCycle, Queue *q){
 
   while (true) {
     // Clear the entire screen
-    printf("\033[2J\033[H");
+    // printf("\033[2J\033[H");
 
     // Print ASCII header
     printf("=================================================================\n\n");
@@ -119,11 +121,9 @@ void simulationLoop(DRAM *dram, uint16_t *clockCycle, Queue *q){
         snprintf(message, sizeof(message), "Done, memory at address [%d] is: %d.", curr.addr, readValue);
         addCommandReturn(&returnBuffer, message);
       } else if (strcmp(curr.cmd, "V") == 0){
-        char memDetails[16];
-        viewRawMemory(dram, curr.addr, memDetails);
-        char message[128];
-        snprintf(message, sizeof(message), "Done, details of memory at [%d] are: %s.", curr.addr, memDetails);
-        addCommandReturn(&returnBuffer, message);
+        char memBlock[128];
+        viewBlockMemory(dram, curr.addr, memBlock);
+        printf("Memory Block: %s\n", memBlock);
       }
       dequeue(q);
     }

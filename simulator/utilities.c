@@ -90,7 +90,7 @@ void addCommandReturn(ReturnBuffer* rb, const char* message) {
 }
 
 void displayCommandReturns(ReturnBuffer* rb) {
-  printf("\n\n===================== Command Returns =====================\n");
+  printf("\n\n========================= Command Returns =========================\n");
   if (rb->count == 0) {
     printf("No command returns yet.\n");
   } else {
