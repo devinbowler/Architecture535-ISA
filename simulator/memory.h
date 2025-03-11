@@ -18,7 +18,7 @@ typedef struct {
   uint16_t memory[DRAM_SIZE];
 } DRAM;
 
-// mode of 1 = direct-mapped, 2 = Two-Way Set Associative
+// mode of 1 = Direct-Mapped, 2 = Two-Way Set Associative
 struct Cache {
   struct Set *sets;
   uint16_t num_sets;
@@ -44,6 +44,9 @@ void viewRawMemory(DRAM *dram, int addr, char *outputStr);
 uint16_t LRU(Cache *cache, uint16_t element);
 uint16_t write_through(uint16_t element);
 Cache *init_cache(uint16_t mode);
+Set *init_set(uint16_t mode);
+Line *init_line();
 void clear_cache(Cache *cache);
 void destroy_cache(Cache *cache);
+Line *read_line(Set *set, uint16_t address);
 #endif

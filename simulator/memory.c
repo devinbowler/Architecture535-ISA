@@ -51,9 +51,45 @@ Cache *init_cache(uint16_t mode) {
   Cache *cache = malloc(sizeof(Cache));
   if(!cache) return NULL;
   cache->num_sets = (cache->mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2
+  for(int i = 0; i < cache->num_sets; i++) {
+    cache->sets[i] = init_set(mode);
+  }
   clear_cache(cache);
   cache->mode = mode;
   return cache;
+}
+
+Set *init_set(uint16_t mode) {
+  Set *set = malloc(sizeof(set));
+  set->associativity = mode;
+  set->lines[0] = init_line();
+  set->lines[1] = init_line();
+  return set;
+}
+
+Line *init_line() {
+  Line *line = malloc(sizeof(Line));
+  line->valid = 0;
+  line->tag = 0;
+  line->data = {0,0,0,0};
+}
+
+/**
+ * @brief Reads the line in cache, changes lru and valid bit accordingly if applicable, and returns the line
+ * @param set the set in cache
+ * @param address the address to be read
+ * @return the line in cache if successful, NULL otherwise
+ */
+Line *read_line(Set *set, uint16_t address) {
+  if(!set) return NULL;
+  Line *line = set[address];
+  if(!line) return NULL;
+  if(line->valid == 0) {
+    line->valid = 1;
+    line->data = readFromMemory(dram, address);
+  }
+  line->lru = 0;
+  return line;
 }
 
 /**
@@ -74,11 +110,11 @@ void clear_cache(Cache *cache) {
  */
 void destroy_cache(Cache *cache) {
   if(!cache) return;
-    for (uint16_t i = 0; i < cache->num_sets; i++) {
-        free(cache->sets[i].lines);
-    }
-    free(cache->sets);
-    free(cache);
+  for (uint16_t i = 0; i < cache->num_sets; i++) {
+    free(cache->sets[i].lines);
+  }
+  free(cache->sets);
+  free(cache);
 }
 
 
