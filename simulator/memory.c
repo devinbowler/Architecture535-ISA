@@ -59,6 +59,11 @@ Cache *init_cache(uint16_t mode) {
   return cache;
 }
 
+/**
+ * @brief Initializes the associativity field and lines of a set and creates the line struct
+ * @param mode The associativity of the cache
+ * @return the initialized set
+ */
 Set *init_set(uint16_t mode) {
   Set *set = malloc(sizeof(set));
   set->associativity = mode;
@@ -67,6 +72,10 @@ Set *init_set(uint16_t mode) {
   return set;
 }
 
+/**
+ * @brief Initializes the fields and data of a line and creates the line struct
+ * @return the initialized line 
+ */
 Line *init_line() {
   Line *line = malloc(sizeof(Line));
   line->valid = 0;
@@ -97,10 +106,14 @@ Line *read_line(Set *set, uint16_t address) {
  * @param cache The cache to be cleared
  */
 void clear_cache(Cache *cache) {
-  for(uint16_t i = 0; i < CACHE_SIZE; i++) {
-    for(uint16_t j = 0; j < CACHE_SIZE; j++) {
-      cache->memory[i][j] = 0;
-    }
+  for(uint16_t i = 0; i < cache->num_sets; i++) {
+    Set *set = cache->sets[i];
+    cache->sets[i]->lines[0]->data = {0,0,0,0};
+    cache->sets[i]->lines[0]->valid = 0;
+    cache->sets[i]->lines[0]->tag = 0;
+    cache->sets[i]->lines[1]->data = {0,0,0,0};
+    cache->sets[i]->lines[1]->valid = 0;
+    cache->sets[i]->lines[1]->tag = 0;
   }
 }
 
