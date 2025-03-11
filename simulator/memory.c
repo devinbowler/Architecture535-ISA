@@ -28,11 +28,18 @@ void clearMemory(DRAM *dram){
 }
 
 // A function to print off a block of memory.
-void viewBlockMemory(DRAM *dram, uint16_t addr, char values[]){
-  // Loop to go through 16 values and add them to an array.
-  uint16_t start = (addr >= 7) ? addr - 7 : 0;
-  char *ptr = values;
-  for (int i = 0; i < 16; i++){
-    ptr += sprintf(ptr, "%04x ", dram->memory[start + i]);
-  }
+void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[]){
+    // For simplicity, assume a block is 4 words.
+    uint16_t blockSize = 4;
+    // Only view one block regardless of numBlocks.
+    char temp[128];
+    values[0] = '\0';
+
+    snprintf(temp, sizeof(temp), "Memory Block [ %d ]: %d %d %d %d", 
+             addr,
+             dram->memory[addr],
+             dram->memory[addr + 1],
+             dram->memory[addr + 2],
+             dram->memory[addr + 3]);
+    strcat(values, temp);
 }
