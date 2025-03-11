@@ -15,6 +15,7 @@ uint16_t readFromMemory(DRAM *dram, uint16_t addr) {
   if (addr >= 0 && addr < DRAM_SIZE) {
       return dram->memory[addr];
   }
+}
 
 /**
  * @brief Implements the Least Recently Used eviction policy for cache
@@ -37,8 +38,8 @@ uint16_t LRU(Cache *cache, uint16_t element) {
  * @return 0 if a miss, 1 if a hit
  */
 int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data) {
-    uint16_t index = (address / BLOCK_SIZE) % num_sets;
-    uint16_t tag = address / (BLOCK_SIZE * num_sets);
+    uint16_t index = (address / BLOCK_SIZE) % cache->num_sets;
+    uint16_t tag = address / (BLOCK_SIZE * cache->num_sets);
     uint16_t offset = address & (BLOCK_SIZE - 1);
     Set *set = &cache->sets[index];
     for (int i = 0; i < cache->mode; i++) {
@@ -64,7 +65,7 @@ Cache *init_cache(uint16_t mode) {
   }
   Cache *cache = (Cache*)malloc(sizeof(Cache));
   if(!cache) return NULL;
-  cache->num_sets = (cache->mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2
+  cache->num_sets = (cache->mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2;
   for(int i = 0; i < cache->num_sets; i++) {
     cache->sets[i] = *init_set(mode);
   }
@@ -106,8 +107,8 @@ Line *init_line() {
  * @return the line in cache if successful, NULL otherwise
  */
 Line *read_line(Cache *cache, DRAM *dram, uint16_t address) {
-    uint16_t index = (address / BLOCK_SIZE) % num_sets;
-    uint16_t tag = address / (BLOCK_SIZE * num_sets);
+    uint16_t index = (address / BLOCK_SIZE) % cache->num_sets;
+    uint16_t tag = address / (BLOCK_SIZE * cache->num_sets);
     uint16_t offset = address & (BLOCK_SIZE - 1);
     Set *set = &cache->sets[index];
     for (int i = 0; i < cache->mode; i++) {
@@ -141,8 +142,8 @@ void clear_cache(Cache *cache) {
   for(uint16_t i = 0; i < cache->num_sets; i++) {
     for(uint16_t j = 0; j < cache->mode; j++) {
       memset(cache->sets[i].lines[j].data, 0, sizeof(cache->sets[i].lines[j].data));
-      cache->sets[i]->lines[j]->valid = 0;
-      cache->sets[i]->lines[j]->tag = 0;
+      cache->sets[i].lines[j].valid = 0;
+      cache->sets[i].lines[j].tag = 0;
     }
   }
 }
