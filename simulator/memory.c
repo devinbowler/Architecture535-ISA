@@ -66,11 +66,9 @@ Cache *init_cache(uint16_t mode) {
 Set *init_set(uint16_t mode) {
   Set *set = malloc(sizeof(Set));
   set->associativity = mode;
+  set->lines[0] = init_line();
   if(mode == 2) {
-    set->lines[0] = init_line();
     set->lines[1] = init_line();
-  } else {
-    set->lines[0] = init_line();
   }
   return set;
 }
@@ -114,13 +112,10 @@ Line *read_line(Cache *cache, uint16_t address) {
  */
 void clear_cache(Cache *cache) {
   for(uint16_t i = 0; i < cache->num_sets; i++) {
-    cache->sets[i]->lines[0]->data = {0,0,0,0};
-    cache->sets[i]->lines[0]->valid = 0;
-    cache->sets[i]->lines[0]->tag = 0;
-    if(cache->mode == 2) {
-      cache->sets[i]->lines[1]->data = {0,0,0,0};
-      cache->sets[i]->lines[1]->valid = 0;
-      cache->sets[i]->lines[1]->tag = 0;
+    for(uint16_t j = 0; j < cache->mode; j++) {
+      cache->sets[i]->lines[j]->data = {0,0,0,0};
+      cache->sets[i]->lines[j]->valid = 0;
+      cache->sets[i]->lines[j]->tag = 0;
     }
   }
 }
