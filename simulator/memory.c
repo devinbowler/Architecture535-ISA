@@ -47,13 +47,12 @@ Cache *init_cache(uint16_t mode) {
     printf("Invalid mode.");
     return NULL;
   }
-  Cache *cache = malloc(sizeof(Cache));
+  Cache *cache = (Cache*)malloc(sizeof(Cache));
   if(!cache) return NULL;
   cache->num_sets = (cache->mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2
   for(int i = 0; i < cache->num_sets; i++) {
-    cache->sets[i] = init_set(mode);
+    cache->sets[i] = *init_set(mode);
   }
-  clear_cache(cache);
   cache->mode = mode;
   return cache;
 }
@@ -64,11 +63,10 @@ Cache *init_cache(uint16_t mode) {
  * @return the initialized set
  */
 Set *init_set(uint16_t mode) {
-  Set *set = malloc(sizeof(Set));
+  Set *set = (Set*)malloc(sizeof(Set));
   set->associativity = mode;
-  set->lines[0] = init_line();
-  if(mode == 2) {
-    set->lines[1] = init_line();
+  for(int i = 0; i < set->associativity; i++) {
+    set->lines[i] = *init_line();
   }
   return set;
 }
@@ -78,32 +76,46 @@ Set *init_set(uint16_t mode) {
  * @return the initialized line 
  */
 Line *init_line() {
-  Line *line = malloc(sizeof(Line));
+  Line *line = (Line*)malloc(sizeof(Line));
   line->valid = 0;
   line->tag = 0;
-  line->data = {0,0,0,0};
+  memset(line->data, 0, sizeof(line->data));
   return line;
 }
 
 /**
  * @brief Reads the line in cache, changes lru and valid bit accordingly if applicable, and returns the line
- * @param set the set in cache
+ * @param cache the cache
+ * @param dram the DRAM
  * @param address the address to be read
  * @return the line in cache if successful, NULL otherwise
  */
-Line *read_line(Cache *cache, uint16_t address) {
-  if(!set) return NULL;
-  Line *line = cache->sets[address]
-  if(!line) return NULL;
-  if(line->valid == 0) {
-    line->valid = 1;
-    line->data = readFromMemory(dram, address);
-  }
-  if(set->associativity == 2) {
-    line->lru = 0;
-    set->lines[1]->lru = 1;
-  }
-  return line;
+Line *read_line(Cache *cache, DRAM *dram, uint16_t address) {
+    uint16_t index = (address / BLOCK_SIZE) % num_sets;
+    uint16_t tag = address / (BLOCK_SIZE * num_sets);
+    uint16_t offset = address & (BLOCK_SIZE - 1);
+    Set *set = &cache->sets[index];
+    for (int i = 0; i < cache->mode; i++) {
+        if (set->lines[i].valid && set->lines[i].tag == tag) {
+            if (cache->mode == 2) {
+                set->lines[i].lru = 0;
+                set->lines[1 - i].lru = 1;
+            }
+            return &set->lines[i];
+        }
+    }
+    Line *line_to_replace = &set->lines[0];
+    if (cache->mode == 2) {
+        line_to_replace = (set->lines[0].lru == 1) ? &set->lines[0] : &set->lines[1];
+    }
+    line_to_replace->tag = tag;
+    line_to_replace->valid = 1;
+    uint16_t block_start = address - offset;
+    for (int i = 0; i < BLOCK_SIZE; i++) {
+        line_to_replace->data[i] = readFromMemory(dram, block_start + i);
+    }
+
+    return line_to_replace;
 }
 
 /**
@@ -113,7 +125,7 @@ Line *read_line(Cache *cache, uint16_t address) {
 void clear_cache(Cache *cache) {
   for(uint16_t i = 0; i < cache->num_sets; i++) {
     for(uint16_t j = 0; j < cache->mode; j++) {
-      cache->sets[i]->lines[j]->data = {0,0,0,0};
+      memset(cache->sets[i].lines[j].data, 0, sizeof(cache->sets[i].lines[j].data));
       cache->sets[i]->lines[j]->valid = 0;
       cache->sets[i]->lines[j]->tag = 0;
     }
