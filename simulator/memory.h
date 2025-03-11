@@ -7,32 +7,41 @@
 #define DRAM_SIZE 50000
 #define DRAM_DELAY 10
 #define CACHE_SIZE 64
+#define BLOCK_SIZE 4
+
+typedef struct Cache Cache;
+typedef struct Set Set;
+typedef struct Line Line;
 
 // Define our types.
 typedef struct {
   uint16_t memory[DRAM_SIZE];
-  uint16_t least_recently;
 } DRAM;
 
-typedef struct {
-  uint16_t cache[CACHE_SIZE][CACHE_SIZE];
+// mode of 1 = direct-mapped, 2 = Two-Way Set Associative
+struct Cache {
+  struct Set *sets;
   uint16_t mode;
-} Cache;
+};
 
-typedef struct {
+struct Set {
+  struct Line *lines;
+  uint16_t associativity;
+};
 
-} Set;
-
-typedef struct {
-
-} Line;
+struct Line {
+  uint16_t lru; //current # in least-recently used scheme - 0 indicates most-recently used. Does not apply for direct-mapped
+  uint16_t tag;
+  uint16_t valid;
+  uint16_t data[BLOCK_SIZE];
+};
 
 void writeToMemory(DRAM *dram, int addr, uint16_t data);
 uint16_t readFromMemory(DRAM *dram, int addr);
 void clearMemory(DRAM *dram);
 void viewRawMemory(DRAM *dram, int addr, char *outputStr);
-int LRU(Cache *cache, int element);
-int write_through(int element);
-Cache *init_cache(int mode);
-int clear_cache(Cache *cache);
+uint16_t LRU(Cache *cache, uint16_t element);
+uint16_t write_through(uint16_t element);
+Cache *init_cache(uint16_t mode);
+void clear_cache(Cache *cache);
 #endif
