@@ -50,6 +50,7 @@ Cache *init_cache(uint16_t mode) {
   }
   Cache *cache = malloc(sizeof(Cache));
   if(!cache) return NULL;
+  cache->num_sets = (cache->mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2
   clear_cache(cache);
   cache->mode = mode;
   return cache;

@@ -45,4 +45,5 @@ uint16_t LRU(Cache *cache, uint16_t element);
 uint16_t write_through(uint16_t element);
 Cache *init_cache(uint16_t mode);
 void clear_cache(Cache *cache);
+void destroy_cache(Cache *cache);
 #endif
