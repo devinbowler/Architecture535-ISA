@@ -67,6 +67,20 @@ void clear_cache(Cache *cache) {
   }
 }
 
+/**
+ * @brief Frees all of the associated with a cache, including the sets array, lines array, and the cache struct itself
+ * @param cache The cache to be destroyed
+ */
+void destroy_cache(Cache *cache) {
+  if(!cache) return;
+    uint16_t num_sets = (cache->mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2;
+    for (uint16_t i = 0; i < num_sets; i++) {
+        free(cache->sets[i].lines);
+    }
+    free(cache->sets);
+    free(cache);
+}
+
 
 int main(void){
   printf("DRAM_SIZE: %d\n", DRAM_SIZE);
