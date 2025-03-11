@@ -30,17 +30,32 @@ uint16_t LRU(Cache *cache, uint16_t element) {
 
 /**
  * @brief Implements the write-through, no-allocate policy
- * @param element An element to be written
- * @return 1 if successful, 0 if unsuccessful
+ * @param cache The cache
+ * @param dram The dram
+ * @param address the address in dram to be written
+ * @param data The data to be written
+ * @return 0 if a miss, 1 if a hit
  */
-uint16_t write_through(uint16_t element) {
-  if()
+int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data) {
+    uint16_t index = (address / BLOCK_SIZE) % num_sets;
+    uint16_t tag = address / (BLOCK_SIZE * num_sets);
+    uint16_t offset = address & (BLOCK_SIZE - 1);
+    Set *set = &cache->sets[index];
+    for (int i = 0; i < cache->mode; i++) {
+        if (set->lines[i].valid && set->lines[i].tag == tag) {
+            set->lines[i].data[offset] = data;
+            writeToMemory(dram, address, data);
+            return 1;
+        }
+    }
+    writeToMemory(dram, address, data);
+    return 0;
 }
 
 /**
  * @brief Initializes the cache with an array of 0s of size 64 (4 words)
  * @param mode The mapping mode - 1 is Direct-Mapping and 2 is Two-Way Set Associative
- * @return the initialized cache if successful, NULL otherwise
+ * @return The initialized cache if successful, NULL otherwise
  */
 Cache *init_cache(uint16_t mode) {
   if(mode != 1 && mode != 2) {
