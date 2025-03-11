@@ -49,7 +49,7 @@ uint16_t readFromMemory(DRAM *dram, uint16_t addr);
 void clearMemory(DRAM *dram);
 void viewBlockMemory(DRAM *dram, uint16_t addr, char values[]);
 uint16_t LRU(Cache *cache, uint16_t element);
-int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data)
+int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data);
 Cache *init_cache(uint16_t mode);
 Set *init_set(uint16_t mode);
 Line *init_line();
