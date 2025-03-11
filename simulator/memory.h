@@ -25,7 +25,6 @@ typedef struct {
   uint16_t delay;
 } STATUS;
 
-#endif
 // mode of 1 = Direct-Mapped, 2 = Two-Way Set Associative
 struct Cache {
   struct Set *sets;
