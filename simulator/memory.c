@@ -67,8 +67,12 @@ Cache *init_cache(uint16_t mode) {
 Set *init_set(uint16_t mode) {
   Set *set = malloc(sizeof(set));
   set->associativity = mode;
-  set->lines[0] = init_line();
-  set->lines[1] = init_line();
+  if(mode == 2) {
+    set->lines[0] = init_line();
+    set->lines[1] = init_line();
+  } else {
+    set->lines[0] = init_line();
+  }
   return set;
 }
 
