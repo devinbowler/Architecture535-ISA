@@ -18,21 +18,9 @@ uint16_t readFromMemory(DRAM *dram, uint16_t addr) {
 }
 
 /**
- * @brief Implements the Least Recently Used eviction policy for cache
- * @param cache The cache
- * @param element The element that is being added
- * @return the evicted element
- */
-uint16_t LRU(Cache *cache, uint16_t element) {
-  uint16_t index = cache->least_recently;
-  cache->least_recently = index+1 < CACHE_SIZE ? index+1 : 0;
-  cache->memory[index] = element;
-}
-
-/**
  * @brief Implements the write-through, no-allocate policy
  * @param cache The cache
- * @param dram The dram
+ * @param dram The DRAM
  * @param address the address in dram to be written
  * @param data The data to be written
  * @return 0 if a miss, 1 if a hit
@@ -43,11 +31,11 @@ int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data) {
     uint16_t offset = address & (BLOCK_SIZE - 1);
     Set *set = &cache->sets[index];
     for (int i = 0; i < cache->mode; i++) {
-        if (set->lines[i].valid && set->lines[i].tag == tag) {
-            set->lines[i].data[offset] = data;
-            writeToMemory(dram, address, data);
-            return 1;
-        }
+      if (set->lines[i].valid && set->lines[i].tag == tag) {
+          set->lines[i].data[offset] = data;
+          writeToMemory(dram, address, data);
+          return 1;
+      }
     }
     writeToMemory(dram, address, data);
     return 0;
@@ -100,11 +88,11 @@ Line *init_line() {
 }
 
 /**
- * @brief Reads the line in cache, changes lru and valid bit accordingly if applicable, and returns the line
+ * @brief Reads the line in cache, sets valid bit, and evicts the old/least recently used element
  * @param cache the cache
  * @param dram the DRAM
  * @param address the address to be read
- * @return the line in cache if successful, NULL otherwise
+ * @return the line in cache
  */
 Line *read_line(Cache *cache, DRAM *dram, uint16_t address) {
     uint16_t index = (address / BLOCK_SIZE) % cache->num_sets;
@@ -130,7 +118,6 @@ Line *read_line(Cache *cache, DRAM *dram, uint16_t address) {
     for (int i = 0; i < BLOCK_SIZE; i++) {
         line_to_replace->data[i] = readFromMemory(dram, block_start + i);
     }
-
     return line_to_replace;
 }
 
