@@ -2,13 +2,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-<<<<<<< HEAD
-#include <stdbool.h>
 #include "memory.h"
-
-=======
-#include "memory.h"
->>>>>>> origin/cache
 // A function to write into memory at a immediate address.
 void writeToMemory(DRAM *dram, uint16_t addr, int16_t data) {
   if (addr >= 0 && addr < DRAM_SIZE) {
@@ -17,21 +11,10 @@ void writeToMemory(DRAM *dram, uint16_t addr, int16_t data) {
 }
 
 // A function to read from a immediate address in memeory.
-<<<<<<< HEAD
 uint16_t readFromMemory(DRAM *dram, uint16_t addr) {
   if (addr >= 0 && addr < DRAM_SIZE) {
       return dram->memory[addr];
   }
-=======
-
-
-// A function to clear memory fully.
-
-
-// A function to print off memory, but only the lines that have addresses.
-
-
-// Testing function, this is just for testing, later this will come from the tests file.
 
 /**
  * @brief Implements the Least Recently Used eviction policy for cache
@@ -151,14 +134,6 @@ void destroy_cache(Cache *cache) {
   }
   free(cache->sets);
   free(cache);
-}
-
-
-int main(void){
-  printf("DRAM_SIZE: %d\n", DRAM_SIZE);
-
->>>>>>> origin/cache
-  return 0;
 }
 
 // A function to clear memory fully.
