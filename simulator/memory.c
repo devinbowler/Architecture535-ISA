@@ -117,9 +117,11 @@ void clear_cache(Cache *cache) {
     cache->sets[i]->lines[0]->data = {0,0,0,0};
     cache->sets[i]->lines[0]->valid = 0;
     cache->sets[i]->lines[0]->tag = 0;
-    cache->sets[i]->lines[1]->data = {0,0,0,0};
-    cache->sets[i]->lines[1]->valid = 0;
-    cache->sets[i]->lines[1]->tag = 0;
+    if(cache->mode == 2) {
+      cache->sets[i]->lines[1]->data = {0,0,0,0};
+      cache->sets[i]->lines[1]->valid = 0;
+      cache->sets[i]->lines[1]->tag = 0;
+    }
   }
 }
 
