@@ -8,16 +8,22 @@
 #include <stdint.h>
 
 #define MAX_SIZE 100
-#define CMD_SIZE 3
+#define CMD_SIZE 7
+#define STAGE_SIZE 3
 #define MAX_COMMAND_RETURNS 50
 #define MAX_RETURN_LENGTH 128
 
 typedef struct {
   char cmd[CMD_SIZE];
-  uint16_t execute;
+  char stage[STAGE_SIZE];
   uint16_t addr;
   int16_t value;
 } cmdElement;
+
+typedef struct {
+  uint16_t delay;
+  char stage[STAGE_SIZE];
+} stageStatus;
 
 typedef struct {
   cmdElement items[MAX_SIZE];
@@ -31,7 +37,7 @@ bool isFull(Queue* q);
 void enqueue(Queue* q, cmdElement* cmd);
 cmdElement dequeue(Queue* q);
 void displayQueue(Queue* q);
-bool checkQueue(Queue* q, int16_t* cycle);
+
 
 // Return Buffer
 
@@ -43,5 +49,7 @@ typedef struct {
 void initReturnBuffer(ReturnBuffer* rb);
 void addCommandReturn(ReturnBuffer* rb, const char* message);
 void displayCommandReturns(ReturnBuffer* rb);
+bool cmdElementsEqual(cmdElement *a, cmdElement *b);
+bool isElementInQueue(Queue *q, cmdElement *element);
 
 #endif

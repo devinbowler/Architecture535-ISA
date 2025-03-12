@@ -47,22 +47,12 @@ void displayQueue(Queue* q){
     }
 
     for (int i = q->front; i < q->rear; i++) {
-        printf("Element %d: {command: \"%s\", execute: %d, address: %d, value: %d}\n",
-               i, q->items[i].cmd, q->items[i].execute, q->items[i].addr, q->items[i].value);
+        printf("Element %d: {command: \"%s\", stage: \"%s\" address: %d, value: %d}\n",
+               i, q->items[i].cmd, q->items[i].stage, q->items[i].addr, q->items[i].value);
     }
 }
 
 
-// Function to check the queue for any command that may be ready to execute.
-bool checkQueue(Queue* q, int16_t* cycle){
-  cmdElement currentCmd = q->items[q->front];
-
-  if (currentCmd.execute == *cycle){
-    return true;
-  }
-
-  return false;
-}
 
 // Functions to keep track of returns, and current cycle.
 
@@ -98,4 +88,22 @@ void displayCommandReturns(ReturnBuffer* rb) {
       printf("%s\n", rb->returns[i]);
     }
   }
+}
+
+bool cmdElementsEqual(cmdElement *a, cmdElement *b) {
+  return (strcmp(a->cmd, b->cmd) == 0) &&
+         (strcmp(a->stage, b->stage) == 0) &&
+         (a->addr == b->addr) &&
+         (a->value == b->value);
+}
+
+
+// Returns true if element exists anywhere in the queue
+bool isElementInQueue(Queue *q, cmdElement *element){
+    for(int i = q->front; i != q->rear; i = (i + 1) % MAX_SIZE){
+        if (cmdElementsEqual(&q->items[i], element)){
+            return true;
+        }
+    }
+    return false;
 }
