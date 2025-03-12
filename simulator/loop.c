@@ -10,7 +10,9 @@
 
 #define MAX_INPUT 100
 
-void simulationLoop(DRAM *dram, uint16_t *clockCycle, Queue *q){
+uint16_t cache_enabled = 1;
+
+void simulationLoop(DRAM *dram, Cache *cache, uint16_t *clockCycle, Queue *q){
   int16_t command = -1;
   char input[MAX_INPUT];
   char cmd[3] = "";
@@ -71,6 +73,8 @@ void simulationLoop(DRAM *dram, uint16_t *clockCycle, Queue *q){
       command = 2;
     } else if (strcmp(cmd, "C") == 0) {
       command = 3;
+    } else if (strcmp(cmd, "CACHE") == 0) {
+      command = 4;
     } else {
       addCommandReturn(&returnBuffer, "Not a valid input.");
       continue;
@@ -101,11 +105,16 @@ void simulationLoop(DRAM *dram, uint16_t *clockCycle, Queue *q){
 
       case 3: // C
         clearMemory(dram);
+        clear_cache(cache);
         {
           char message[128];
           snprintf(message, sizeof(message), "Cycle: %d. Cleared Memory.", *clockCycle);
           addCommandReturn(&returnBuffer, message);
         }
+        break;
+      
+      case 4: //cache enable/disable
+        cache_enabled = !cache_enabled;
         break;
     }
 
@@ -114,9 +123,13 @@ void simulationLoop(DRAM *dram, uint16_t *clockCycle, Queue *q){
       cmdElement curr = q->items[q->front];
       if (strcmp(curr.cmd, "SW") == 0){
         addCommandReturn(&returnBuffer, "Done, wrote to memory.");
-        writeToMemory(dram, curr.addr, curr.value);
+        if(cache_enabled) {
+          write_through(cache, dram, curr.addr, curr.value);
+        } else {
+          writeToMemory(dram, curr.addr, curr.value);
+        }
       } else if (strcmp(curr.cmd, "SR") == 0){
-        int16_t readValue = readFromMemory(dram, curr.addr);
+        int16_t readValue = cache_enabled == 1 ? read_cache(cache, dram, curr.addr) : readFromMemory(dram, curr.addr);
         char message[128];
         snprintf(message, sizeof(message), "Done, memory at address [%d] is: %d.", curr.addr, readValue);
         addCommandReturn(&returnBuffer, message);

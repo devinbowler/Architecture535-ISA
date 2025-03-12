@@ -32,9 +32,9 @@ int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data) {
     Set *set = &cache->sets[index];
     for (int i = 0; i < cache->mode; i++) {
       if (set->lines[i].valid && set->lines[i].tag == tag) {
-          set->lines[i].data[offset] = data;
-          writeToMemory(dram, address, data);
-          return 1;
+        set->lines[i].data[offset] = data;
+        writeToMemory(dram, address, data);
+        return 1;
       }
     }
     writeToMemory(dram, address, data);
@@ -94,7 +94,7 @@ Line *init_line() {
  * @param address the address to be read
  * @return the line in cache
  */
-Line *read_line(Cache *cache, DRAM *dram, uint16_t address) {
+int16_t read_cache(Cache *cache, DRAM *dram, uint16_t address) {
     uint16_t index = (address / BLOCK_SIZE) % cache->num_sets;
     uint16_t tag = address / (BLOCK_SIZE * cache->num_sets);
     uint16_t offset = address & (BLOCK_SIZE - 1);
@@ -118,7 +118,7 @@ Line *read_line(Cache *cache, DRAM *dram, uint16_t address) {
     for (int i = 0; i < BLOCK_SIZE; i++) {
         line_to_replace->data[i] = readFromMemory(dram, block_start + i);
     }
-    return line_to_replace;
+    return line_to_replace->data[offset];
 }
 
 /**
