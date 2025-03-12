@@ -10,42 +10,6 @@
 #define MAX_INPUT 100
 uint16_t cache_enabled = 1;
 
-// DRAM update: if DRAM is busy, decrement the delay counter and add "wait".
-// When the counter reaches 0, perform the requested access and add "done".
-void updateDRAM(DRAM *dram, ReturnBuffer *rb) {
-    if (dram->state != DRAM_IDLE) {
-        // Decrement delay counter and respond with "wait".
-        if (dram->delayCounter > 0) {
-            dram->delayCounter--;
-            addCommandReturn(rb, "wait");
-        }
-        // When delay reaches 0, finish the access.
-        if (dram->delayCounter == 0) {
-            // Check for valid address.
-            if (dram->pendingAddr >= DRAM_SIZE) {
-                addCommandReturn(rb, "Error: address out-of-range.");
-            } else {
-                if (strcmp(dram->pendingCmd, "SW") == 0) {
-                    writeToMemory(dram, dram->pendingAddr, dram->pendingValue);
-                    addCommandReturn(rb, "done");
-                } else if (strcmp(dram->pendingCmd, "LW") == 0) {
-                    int16_t readValue = readFromMemory(dram, dram->pendingAddr);
-                    char message[128];
-                    snprintf(message, sizeof(message), "done %d", readValue);
-                    addCommandReturn(rb, message);
-                } else {
-                    addCommandReturn(rb, "Error: unknown DRAM command.");
-                }
-            }
-            // Reset DRAM state.
-            dram->state = DRAM_IDLE;
-            dram->pendingAddr = 0;
-            dram->pendingValue = 0;
-            strcpy(dram->pendingCmd, "");
-        }
-    }
-}
-
 void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
     char input[MAX_INPUT];
     char cmd[CMD_SIZE] = "";
@@ -127,14 +91,31 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
             addCommandReturn(&returnBuffer, "Memory cleared.");
         } else if (strcmp(element.cmd, "CACHE") == 0) {
             addCommandReturn(&returnBuffer, "CACHE command executed.");
+        } else if (strcmp(element.cmd, "VCACHE") == 0) {
+            // For VCACHE, return the entire cache line info.
+            if (cache == NULL) {
+                addCommandReturn(&returnBuffer, "Cache disabled.");
+            } else {
+                uint16_t index = (addr / BLOCK_SIZE) % cache->num_sets;
+                uint16_t tag = addr / (BLOCK_SIZE * cache->num_sets);
+                uint16_t offset = addr % BLOCK_SIZE;
+                Set *set = &cache->sets[index];
+                // Direct mapped means one line per set:
+                Line *line = &set->lines[0];
+                char buffer[256];
+                snprintf(buffer, sizeof(buffer),
+                         "Cache Line Info:\nIndex: %d\nTag: %d\nOffset: %d\nValid: %d\nData: %d %d %d %d",
+                         index, tag, offset, line->valid,
+                         line->data[0], line->data[1], line->data[2], line->data[3]);
+                addCommandReturn(&returnBuffer, buffer);
+            }
         }
-        // --- Process queued commands: SW, LW, VCACHE.
+        // --- Process queued commands: SW, LW.
         else {
             if (!isEmpty(q)) {
                 // There is an active command.
                 if (cmdElementsEqual(&element, &q->items[q->front])) {
                     // The input matches the active (front) command.
-                    // Process it: if DRAM is idle, load the active command.
                     if (dram->state == DRAM_IDLE) {
                         cmdElement curr = q->items[q->front];
                         if (strcmp(curr.cmd, "SW") == 0) {
@@ -150,14 +131,11 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
                             strcpy(dram->pendingCmd, curr.cmd);
                         }
                     }
-                    updateDRAM(dram, &returnBuffer);
-                    // Only dequeue if the active command completes.
+                    updateDRAM(dram, cache, &returnBuffer);
                     if (dram->state == DRAM_IDLE) {
                         dequeue(q);
                     }
                 } else {
-                    // The input does NOT match the active command.
-                    // Check if this exact command (cmd, stage, addr, value) is already in queue (excluding active).
                     bool exists = false;
                     for (int i = q->front + 1; i < q->rear; i++) {
                         if (cmdElementsEqual(&element, &q->items[i])) {
@@ -168,19 +146,15 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
                     if (exists) {
                         addCommandReturn(&returnBuffer, "Command already in queue. Wait for completion.");
                     } else {
-                        // Enqueue the new command.
                         enqueue(q, &element);
                         addCommandReturn(&returnBuffer, "Added to Queue.");
                     }
                 }
             } else {
-                // No active command; simply enqueue.
                 enqueue(q, &element);
                 addCommandReturn(&returnBuffer, "Added to Queue.");
             }
         }
-
-        // --- Reset temporary variables for the next iteration.
         cmd[0] = '\0';
         stage[0] = '\0';
         addr = 0;
@@ -190,9 +164,10 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
 }
 
 int main(int argc, char *argv[]){
-  if(argc < 3) {
-    fprintf(stderr, "Usage: %s <some_arg> <associativity>\n", argv[0]);
-    return 1;
+  // If no argument is provided, default to mode 1 (direct mapped cache).
+  uint16_t mode = 1;
+  if(argc >= 2) {
+    mode = atoi(argv[1]);
   }
   
   // Initialize DRAM.
@@ -204,10 +179,11 @@ int main(int argc, char *argv[]){
   dram.pendingValue = 0;
   strcpy(dram.pendingCmd, "");
   
-  uint16_t mode = atoi(argv[2]);
+  // Set up the cache pointer.
   Cache *cache = NULL;
   if (mode != 0) {  // mode 0 means "no cache"
-    cache = init_cache(mode);
+    // For now, we only support direct mapped, which is mode 1.
+    cache = init_cache(1);
     if (!cache) {
       fprintf(stderr, "Error initializing cache\n");
       return 1;

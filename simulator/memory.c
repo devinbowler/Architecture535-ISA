@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "memory.h"
+
+
+// DRAM FUNCTIONS
+
 // A function to write into memory at a immediate address.
 void writeToMemory(DRAM *dram, uint16_t addr, int16_t data) {
   if (addr >= 0 && addr < DRAM_SIZE) {
@@ -16,6 +20,78 @@ uint16_t readFromMemory(DRAM *dram, uint16_t addr) {
       return dram->memory[addr];
   }
 }
+
+// A function to clear memory fully.
+void clearMemory(DRAM *dram){
+  for (int i = 0; i < DRAM_SIZE; i++){
+    dram->memory[i] = 0;
+  }
+}
+
+// A function to print off a block of memory.
+void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[]){
+    // For simplicity, assume a block is 4 words.
+    uint16_t blockSize = 4;
+    // Only view one block regardless of numBlocks.
+    char temp[128];
+    values[0] = '\0';
+
+    snprintf(temp, sizeof(temp), "Memory Block [ %d ]: %d %d %d %d", 
+             addr,
+             dram->memory[addr],
+             dram->memory[addr + 1],
+             dram->memory[addr + 2],
+             dram->memory[addr + 3]);
+    strcat(values, temp);
+}
+
+
+// Updated DRAM update function with cache support.
+void updateDRAM(DRAM *dram, Cache *cache, ReturnBuffer *rb) {
+    if (dram->state != DRAM_IDLE) {
+        // Decrement delay counter and respond with "wait".
+        if (dram->delayCounter > 0) {
+            dram->delayCounter--;
+            addCommandReturn(rb, "wait");
+        }
+        // When delay reaches 0, finish the access.
+        if (dram->delayCounter == 0) {
+            if (dram->pendingAddr >= DRAM_SIZE) {
+                addCommandReturn(rb, "Error: address out-of-range.");
+            } else {
+                if (strcmp(dram->pendingCmd, "SW") == 0) {
+                    // If cache is enabled, perform a write-through.
+                    if (cache != NULL) {
+                        write_through(cache, dram, dram->pendingAddr, dram->pendingValue);
+                    } else {
+                        writeToMemory(dram, dram->pendingAddr, dram->pendingValue);
+                    }
+                    addCommandReturn(rb, "done");
+                } else if (strcmp(dram->pendingCmd, "LW") == 0) {
+                    int16_t readValue;
+                    if (cache != NULL) {
+                        readValue = read_cache(cache, dram, dram->pendingAddr);
+                    } else {
+                        readValue = readFromMemory(dram, dram->pendingAddr);
+                    }
+                    char message[128];
+                    snprintf(message, sizeof(message), "done %d", readValue);
+                    addCommandReturn(rb, message);
+                } else {
+                    addCommandReturn(rb, "Error: unknown DRAM command.");
+                }
+            }
+            // Reset DRAM state.
+            dram->state = DRAM_IDLE;
+            dram->pendingAddr = 0;
+            dram->pendingValue = 0;
+            strcpy(dram->pendingCmd, "");
+        }
+    }
+}
+
+
+// CACHE FUNCTIONS
 
 /**
  * @brief Implements the write-through, no-allocate policy
@@ -51,13 +127,31 @@ Cache *init_cache(uint16_t mode) {
     printf("Invalid mode.");
     return NULL;
   }
-  Cache *cache = (Cache*)malloc(sizeof(Cache));
-  if(!cache) return NULL;
-  cache->num_sets = (cache->mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2;
-  for(int i = 0; i < cache->num_sets; i++) {
-    cache->sets[i] = *init_set(mode);
+  Cache *cache = malloc(sizeof(Cache));
+  if (!cache) return NULL;
+  
+  cache->mode = mode;  // Set the mode first
+  cache->num_sets = (mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2;
+  
+  // Allocate memory for the sets array.
+  cache->sets = malloc(cache->num_sets * sizeof(Set));
+  if (!cache->sets) {
+    free(cache);
+    return NULL;
   }
-  cache->mode = mode;
+  
+  // Initialize each set.
+  for (int i = 0; i < cache->num_sets; i++) {
+    Set *set = init_set(mode);
+    if (!set) {
+      // Free any allocated sets here
+      free(cache->sets);
+      free(cache);
+      return NULL;
+    }
+    cache->sets[i] = *set;
+    free(set);  // We copy the struct so we can free the temporary pointer
+  }
   return cache;
 }
 
@@ -67,10 +161,28 @@ Cache *init_cache(uint16_t mode) {
  * @return the initialized set
  */
 Set *init_set(uint16_t mode) {
-  Set *set = (Set*)malloc(sizeof(Set));
+  Set *set = malloc(sizeof(Set));
+  if (!set) return NULL;
+  
   set->associativity = mode;
-  for(int i = 0; i < set->associativity; i++) {
-    set->lines[i] = *init_line();
+  // Allocate memory for the lines array based on the associativity.
+  set->lines = malloc(mode * sizeof(Line));
+  if (!set->lines) {
+    free(set);
+    return NULL;
+  }
+  
+  // Initialize each line.
+  for (int i = 0; i < set->associativity; i++) {
+    Line *line = init_line();
+    if (!line) {
+      // Free allocated lines here (omitted for brevity)
+      free(set->lines);
+      free(set);
+      return NULL;
+    }
+    set->lines[i] = *line;
+    free(line);
   }
   return set;
 }
@@ -80,9 +192,11 @@ Set *init_set(uint16_t mode) {
  * @return the initialized line 
  */
 Line *init_line() {
-  Line *line = (Line*)malloc(sizeof(Line));
+  Line *line = malloc(sizeof(Line));
+  if (!line) return NULL;
   line->valid = 0;
   line->tag = 0;
+  line->lru = 0;
   memset(line->data, 0, sizeof(line->data));
   return line;
 }
@@ -146,28 +260,4 @@ void destroy_cache(Cache *cache) {
   }
   free(cache->sets);
   free(cache);
-}
-
-// A function to clear memory fully.
-void clearMemory(DRAM *dram){
-  for (int i = 0; i < DRAM_SIZE; i++){
-    dram->memory[i] = 0;
-  }
-}
-
-// A function to print off a block of memory.
-void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[]){
-    // For simplicity, assume a block is 4 words.
-    uint16_t blockSize = 4;
-    // Only view one block regardless of numBlocks.
-    char temp[128];
-    values[0] = '\0';
-
-    snprintf(temp, sizeof(temp), "Memory Block [ %d ]: %d %d %d %d", 
-             addr,
-             dram->memory[addr],
-             dram->memory[addr + 1],
-             dram->memory[addr + 2],
-             dram->memory[addr + 3]);
-    strcat(values, temp);
 }

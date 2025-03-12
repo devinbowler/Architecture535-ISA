@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include "utilities.h"
 
 #define DRAM_SIZE 50000
 #define DRAM_DELAY 2        // Delay cycles for DRAM operations set to 1
@@ -58,6 +59,7 @@ void writeToMemory(DRAM *dram, uint16_t addr, int16_t data);
 uint16_t readFromMemory(DRAM *dram, uint16_t addr);
 void clearMemory(DRAM *dram);
 void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[]);
+void updateDRAM(DRAM *dram, Cache *cache, ReturnBuffer *rb);
 
 int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data);
 Cache *init_cache(uint16_t mode);
