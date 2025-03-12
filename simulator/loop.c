@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <regex.h>
+#include <ctype.h> 
 #include "utilities.h"
 #include "memory.h"
 
@@ -28,6 +29,9 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
         // --- Display the UI.
         printf("\033[2J\033[H");
         printf("=================================================================\n\n");
+        printf("---------------- SW : Store Word | LW: Load Word ----------------\n");
+        printf("------------ VMEM : View Memory | VCACHE : View Cache -----------\n");
+        printf("---------------------- Clear : Clear Memory ---------------------\n");
         printf("\n"
                " ______    ______    ______    __  __               __    ____    \n"
                "/\\  _  \\  /\\  _  \\  /\\  _  \\  /\\ \\/\\ \\             /  \\  / ___\\   \n"
@@ -40,7 +44,6 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
                "                                                                  \n");
         displayQueue(q);
         displayCommandReturns(&returnBuffer);
-
         // --- Prompt for user input.
         printf("\n\nARCH-16> ");
         fflush(stdout);
@@ -48,30 +51,55 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
             break;
         input[strcspn(input, "\n")] = '\0';
 
-        // --- Validate and parse input.
-        if (!regexec(&regex, input, 0, NULL, 0)) {
-            // For VMEM/VCACHE, no stage is required.
-            if (strncmp(input, "VMEM", 4) == 0 || strncmp(input, "VCACHE", 6) == 0) {
-                sscanf(input, "%s %hu %hd", cmd, &addr, &value);
-                stage[0] = '\0';
-            } else {
-                sscanf(input, "%s %2s %hu %hd", cmd, stage, &addr, &value);
-            }
-        } else {
+        // --- Validate input (basic regex check).
+        if (regexec(&regex, input, 0, NULL, 0) != 0) {
             addCommandReturn(&returnBuffer, "Invalid input format.");
-            cmd[0] = '\0'; stage[0] = '\0'; addr = 0; value = 0;
             continue;
         }
 
-        // --- Check if the command is allowed.
-        if (strcmp(cmd, "SW") != 0 &&
-            strcmp(cmd, "LW") != 0 &&
-            strcmp(cmd, "VMEM") != 0 &&
-            strcmp(cmd, "VCACHE") != 0 &&
-            strcmp(cmd, "Clear") != 0 &&
-            strcmp(cmd, "CACHE") != 0) {
+        // Extract the command token.
+        if (sscanf(input, "%s", cmd) != 1) {
+            addCommandReturn(&returnBuffer, "Invalid input.");
+            continue;
+        }
+
+        // --- Parse input based on the command.
+        if (strcmp(cmd, "VMEM") == 0 || strcmp(cmd, "VCACHE") == 0) {
+            // Expect exactly two tokens: command and address.
+            int tokens = sscanf(input, "%s %hu", cmd, &addr);
+            if (tokens != 2) {
+                addCommandReturn(&returnBuffer, "Invalid input format for VMEM/VCACHE.");
+                continue;
+            }
+            stage[0] = '\0';
+            value = 0;
+        } else if (strcmp(cmd, "LW") == 0) {
+            // Expect exactly three tokens: command, stage, address.
+            int tokens = sscanf(input, "%s %2s %hu", cmd, stage, &addr);
+            if (tokens != 3) {
+                addCommandReturn(&returnBuffer, "Invalid input format for LW.");
+                continue;
+            }
+            value = 0;  // For LW, value is not provided.
+            if (!isalpha(stage[0])) {
+                addCommandReturn(&returnBuffer, "Invalid stage for LW.");
+                continue;
+            }
+        } else if (strcmp(cmd, "SW") == 0) {
+            // Expect exactly four tokens: command, stage, address, and value.
+            int tokens = sscanf(input, "%s %2s %hu %hd", cmd, stage, &addr, &value);
+            if (tokens != 4) {
+                addCommandReturn(&returnBuffer, "Invalid input format for SW.");
+                continue;
+            }
+            if (!isalpha(stage[0])) {
+                addCommandReturn(&returnBuffer, "Invalid stage for SW.");
+                continue;
+            }
+        } else if (strcmp(cmd, "Clear") == 0) {
+            // No additional tokens needed.
+        } else {
             addCommandReturn(&returnBuffer, "Invalid command.");
-            cmd[0] = '\0'; stage[0] = '\0'; addr = 0; value = 0;
             continue;
         }
 
@@ -84,15 +112,9 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
         // --- Process instant commands.
         if (strcmp(element.cmd, "VMEM") == 0) {
             char memBlock[128];
-            viewBlockMemory(dram, element.addr, element.value, memBlock);
+            viewBlockMemory(dram, element.addr, 1, memBlock);
             addCommandReturn(&returnBuffer, memBlock);
-        } else if (strcmp(element.cmd, "Clear") == 0) {
-            clearMemory(dram);
-            addCommandReturn(&returnBuffer, "Memory cleared.");
-        } else if (strcmp(element.cmd, "CACHE") == 0) {
-            addCommandReturn(&returnBuffer, "CACHE command executed.");
         } else if (strcmp(element.cmd, "VCACHE") == 0) {
-            // For VCACHE, return the entire cache line info.
             if (cache == NULL) {
                 addCommandReturn(&returnBuffer, "Cache disabled.");
             } else {
@@ -100,7 +122,7 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
                 uint16_t tag = addr / (BLOCK_SIZE * cache->num_sets);
                 uint16_t offset = addr % BLOCK_SIZE;
                 Set *set = &cache->sets[index];
-                // Direct mapped means one line per set:
+                // Direct mapped: one line per set.
                 Line *line = &set->lines[0];
                 char buffer[256];
                 snprintf(buffer, sizeof(buffer),
@@ -109,33 +131,78 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
                          line->data[0], line->data[1], line->data[2], line->data[3]);
                 addCommandReturn(&returnBuffer, buffer);
             }
-        }
-        // --- Process queued commands: SW, LW.
+        } else if (strcmp(element.cmd, "Clear") == 0) {
+            clearMemory(dram);
+            addCommandReturn(&returnBuffer, "Memory cleared.");
+        }         
+        // --- Process queued commands: SW and LW.
         else {
-            if (!isEmpty(q)) {
-                // There is an active command.
-                if (cmdElementsEqual(&element, &q->items[q->front])) {
-                    // The input matches the active (front) command.
-                    if (dram->state == DRAM_IDLE) {
-                        cmdElement curr = q->items[q->front];
-                        if (strcmp(curr.cmd, "SW") == 0) {
+            if (isEmpty(q)) {
+                enqueue(q, &element);
+                addCommandReturn(&returnBuffer, "Added to Queue.");
+            } else {
+                cmdElement curr = q->items[q->front];
+                if (cmdElementsEqual(&element, &curr)) {
+                    // The new input exactly matches the active command.
+                    if (strcmp(curr.cmd, "LW") == 0) {
+                        if (cache != NULL) {
+                            uint16_t index = (curr.addr / BLOCK_SIZE) % cache->num_sets;
+                            uint16_t tag = curr.addr / (BLOCK_SIZE * cache->num_sets);
+                            Set *set = &cache->sets[index];
+                            Line *line = &set->lines[0];
+                            if (line->valid && line->tag == tag) {
+                                // Cache hit: immediately return cached value.
+                                char message[128];
+                                snprintf(message, sizeof(message), "done %d", line->data[curr.addr % BLOCK_SIZE]);
+                                addCommandReturn(&returnBuffer, message);
+                                dequeue(q);
+                                goto loop_end;
+                            } else {
+                                // Cache miss: if DRAM idle, initialize DRAM read.
+                                if (dram->state == DRAM_IDLE) {
+                                    dram->state = DRAM_READ;
+                                    dram->delayCounter = DRAM_DELAY;
+                                    dram->pendingAddr = curr.addr;
+                                    strcpy(dram->pendingCmd, curr.cmd);
+                                }
+                            }
+                        } else {
+                            if (dram->state == DRAM_IDLE) {
+                                dram->state = DRAM_READ;
+                                dram->delayCounter = DRAM_DELAY;
+                                dram->pendingAddr = curr.addr;
+                                strcpy(dram->pendingCmd, curr.cmd);
+                            }
+                        }
+                    } else if (strcmp(curr.cmd, "SW") == 0) {
+                        if (cache != NULL) {
+                            uint16_t index = (curr.addr / BLOCK_SIZE) % cache->num_sets;
+                            uint16_t tag = curr.addr / (BLOCK_SIZE * cache->num_sets);
+                            Set *set = &cache->sets[index];
+                            Line *line = &set->lines[0];
+                            if (line->valid && line->tag == tag) {
+                                // Write hit: update the cache line with the new value.
+                                uint16_t offset = curr.addr % BLOCK_SIZE;
+                                line->data[offset] = curr.value;
+                                addCommandReturn(&returnBuffer, "Wrote to Cache.");
+                            }
+                        }
+                        if (dram->state == DRAM_IDLE) {
+                            // Initialize DRAM write (write-through).
                             dram->state = DRAM_WRITE;
                             dram->delayCounter = DRAM_DELAY;
                             dram->pendingAddr = curr.addr;
                             dram->pendingValue = curr.value;
                             strcpy(dram->pendingCmd, curr.cmd);
-                        } else if (strcmp(curr.cmd, "LW") == 0) {
-                            dram->state = DRAM_READ;
-                            dram->delayCounter = DRAM_DELAY;
-                            dram->pendingAddr = curr.addr;
-                            strcpy(dram->pendingCmd, curr.cmd);
                         }
                     }
+                    // Call updateDRAM so that the delay counter is decremented.
                     updateDRAM(dram, cache, &returnBuffer);
                     if (dram->state == DRAM_IDLE) {
                         dequeue(q);
                     }
                 } else {
+                    // New command does not match active one.
                     bool exists = false;
                     for (int i = q->front + 1; i < q->rear; i++) {
                         if (cmdElementsEqual(&element, &q->items[i])) {
@@ -150,11 +217,10 @@ void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
                         addCommandReturn(&returnBuffer, "Added to Queue.");
                     }
                 }
-            } else {
-                enqueue(q, &element);
-                addCommandReturn(&returnBuffer, "Added to Queue.");
             }
         }
+    loop_end:
+        // Reset temporary variables for the next iteration.
         cmd[0] = '\0';
         stage[0] = '\0';
         addr = 0;

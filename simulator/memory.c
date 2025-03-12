@@ -75,7 +75,7 @@ void updateDRAM(DRAM *dram, Cache *cache, ReturnBuffer *rb) {
                         readValue = readFromMemory(dram, dram->pendingAddr);
                     }
                     char message[128];
-                    snprintf(message, sizeof(message), "done %d", readValue);
+                    snprintf(message, sizeof(message), "done. value : [ %d ].", readValue);
                     addCommandReturn(rb, message);
                 } else {
                     addCommandReturn(rb, "Error: unknown DRAM command.");
