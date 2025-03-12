@@ -54,5 +54,5 @@ Set *init_set(uint16_t mode);
 Line *init_line();
 void clear_cache(Cache *cache);
 void destroy_cache(Cache *cache);
-Line *read_line(Cache *cache, DRAM *dram, uint16_t address);
+uint16_t read_cache(Cache *cache, DRAM *dram, uint16_t address);
 #endif

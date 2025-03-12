@@ -94,7 +94,7 @@ Line *init_line() {
  * @param address the address to be read
  * @return the line in cache
  */
-int16_t read_cache(Cache *cache, DRAM *dram, uint16_t address) {
+uint16_t read_cache(Cache *cache, DRAM *dram, uint16_t address) {
     uint16_t index = (address / BLOCK_SIZE) % cache->num_sets;
     uint16_t tag = address / (BLOCK_SIZE * cache->num_sets);
     uint16_t offset = address & (BLOCK_SIZE - 1);
@@ -105,7 +105,7 @@ int16_t read_cache(Cache *cache, DRAM *dram, uint16_t address) {
                 set->lines[i].lru = 0;
                 set->lines[1 - i].lru = 1;
             }
-            return &set->lines[i];
+            return set->lines[i].data[offset];
         }
     }
     Line *line_to_replace = &set->lines[0];

@@ -129,7 +129,7 @@ void simulationLoop(DRAM *dram, Cache *cache, uint16_t *clockCycle, Queue *q){
           writeToMemory(dram, curr.addr, curr.value);
         }
       } else if (strcmp(curr.cmd, "SR") == 0){
-        int16_t readValue = cache_enabled == 1 ? read_cache(cache, dram, curr.addr) : readFromMemory(dram, curr.addr);
+        int16_t readValue = cache_enabled == 1 ? read_cache(cache, &dram, curr.addr) : readFromMemory(dram, curr.addr);
         char message[128];
         snprintf(message, sizeof(message), "Done, memory at address [%d] is: %d.", curr.addr, readValue);
         addCommandReturn(&returnBuffer, message);
@@ -147,12 +147,13 @@ void simulationLoop(DRAM *dram, Cache *cache, uint16_t *clockCycle, Queue *q){
 
 int main(){
   DRAM dram = {0};
+  Cache *cache = init_cache(1);
   uint16_t clockCycle = 0;
   Queue q;
   initQueue(&q);
   clearMemory(&dram);
 
-  simulationLoop(&dram, &clockCycle, &q);
+  simulationLoop(&dram, cache, &clockCycle, &q);
   return 0;
 }
 
