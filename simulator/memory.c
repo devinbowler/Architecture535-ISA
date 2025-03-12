@@ -88,11 +88,11 @@ Line *init_line() {
 }
 
 /**
- * @brief Reads the line in cache, sets valid bit, and evicts the old/least recently used element
+ * @brief Reads cache, sets valid bit, and evicts the old/least recently used element
  * @param cache the cache
  * @param dram the DRAM
  * @param address the address to be read
- * @return the line in cache
+ * @return The data at the calculated offset
  */
 uint16_t read_cache(Cache *cache, DRAM *dram, uint16_t address) {
     uint16_t index = (address / BLOCK_SIZE) % cache->num_sets;
