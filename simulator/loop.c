@@ -46,7 +46,7 @@ void updateDRAM(DRAM *dram, ReturnBuffer *rb) {
     }
 }
 
-void simulationLoop(DRAM *dram, Queue *q) {
+void simulationLoop(DRAM *dram, Cache *cache, Queue *q) {
     char input[MAX_INPUT];
     char cmd[CMD_SIZE] = "";
     char stage[STAGE_SIZE] = "";
@@ -205,13 +205,13 @@ int main(int argc, char *argv[]){
   strcpy(dram.pendingCmd, "");
 
   uint16_t mode = atoi(argv[2]);
-  Cache *cache = init_cache(mode);
+  Cache cache = init_cache(mode);
 
 
   // Initialize the command queue.
   Queue q;
   initQueue(&q);
 
-  simulationLoop(&dram, cache, &q);
+  simulationLoop(&dram, &cache, &q);
   return 0;
 }
