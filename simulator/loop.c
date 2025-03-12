@@ -194,7 +194,7 @@ int main(int argc, char *argv[]){
     fprintf(stderr, "Usage: %s <some_arg> <associativity>\n", argv[0]);
     return 1;
   }
-
+  
   // Initialize DRAM.
   DRAM dram;
   clearMemory(&dram);
@@ -203,15 +203,22 @@ int main(int argc, char *argv[]){
   dram.pendingAddr = 0;
   dram.pendingValue = 0;
   strcpy(dram.pendingCmd, "");
-
+  
   uint16_t mode = atoi(argv[2]);
-  Cache cache = init_cache(mode);
-
-
+  Cache *cache = NULL;
+  if (mode != 0) {  // mode 0 means "no cache"
+    cache = init_cache(mode);
+    if (!cache) {
+      fprintf(stderr, "Error initializing cache\n");
+      return 1;
+    }
+  }
+  
   // Initialize the command queue.
   Queue q;
   initQueue(&q);
-
-  simulationLoop(&dram, &cache, &q);
+  
+  simulationLoop(&dram, cache, &q);
   return 0;
 }
+
