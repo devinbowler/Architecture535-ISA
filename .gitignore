@@ -1,1 +1,5 @@
 .vscode/
+utilities.o
+loop.o
+memory.o
+ARCH-16
