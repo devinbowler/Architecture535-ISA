@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
-#include "utilities.h"
 
 #define DRAM_SIZE 50000
 #define DRAM_DELAY 2        // Delay cycles for DRAM operations set to 1
@@ -18,6 +17,26 @@
 typedef struct Cache Cache;
 typedef struct Set Set;
 typedef struct Line Line;
+
+typedef struct {
+  const uint16_t R0;
+  uint16_t R1;
+  uint16_t R2;
+  uint16_t R3;
+  uint16_t R4;
+  uint16_t R5;
+  uint16_t R6;
+  uint16_t R7;
+  uint16_t R8;
+  uint16_t R9;
+  uint16_t R10;
+  uint16_t R11;
+  uint16_t R12;
+  uint16_t LR;
+  uint16_t SR;
+  uint16_t PC;
+} REGISTERS;
+
 
 // DRAM state enum.
 typedef enum {
@@ -55,11 +74,13 @@ struct Line {
   uint16_t data[BLOCK_SIZE];
 };
 
+REGISTERS *init_registers();
+
 void writeToMemory(DRAM *dram, uint16_t addr, int16_t data);
 uint16_t readFromMemory(DRAM *dram, uint16_t addr);
 void clearMemory(DRAM *dram);
 void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[]);
-void updateDRAM(DRAM *dram, Cache *cache, ReturnBuffer *rb);
+void updateDRAM(DRAM *dram, Cache *cache);
 
 int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data);
 Cache *init_cache(uint16_t mode);
