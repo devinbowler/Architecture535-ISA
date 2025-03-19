@@ -4,6 +4,31 @@
 #include <string.h>
 #include "memory.h"
 
+// REGISTER FUNCTIONS
+REGISTERS *init_registers() {
+  REGISTERS *registers = malloc(sizeof(REGISTERS));
+
+  registers->R1 = 0;
+  registers->R2 = 3;
+  registers->R3 = 4;
+  registers->R4 = 0;
+  registers->R5 = 0;
+  registers->R6 = 0;
+  registers->R7 = 0;
+  registers->R8 = 0;
+  registers->R9 = 0;
+  registers->R10 = 0;
+  registers->R11 = 0;
+  registers->R12 = 0;
+  registers->R3 = 0;
+  registers->LR = 0;
+  registers->SR = 100;
+  registers->PC = 0;
+
+  return registers;
+}
+
+
 
 // DRAM FUNCTIONS
 
@@ -47,17 +72,16 @@ void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[
 
 
 // Updated DRAM update function with cache support.
-void updateDRAM(DRAM *dram, Cache *cache, ReturnBuffer *rb) {
+void updateDRAM(DRAM *dram, Cache *cache) {
     if (dram->state != DRAM_IDLE) {
         // Decrement delay counter and respond with "wait".
         if (dram->delayCounter > 0) {
             dram->delayCounter--;
-            addCommandReturn(rb, "wait");
         }
         // When delay reaches 0, finish the access.
         if (dram->delayCounter == 0) {
             if (dram->pendingAddr >= DRAM_SIZE) {
-                addCommandReturn(rb, "Error: address out-of-range.");
+                printf("Error: address out-of-range.");
             } else {
                 if (strcmp(dram->pendingCmd, "SW") == 0) {
                     // If cache is enabled, perform a write-through.
@@ -66,7 +90,6 @@ void updateDRAM(DRAM *dram, Cache *cache, ReturnBuffer *rb) {
                     } else {
                         writeToMemory(dram, dram->pendingAddr, dram->pendingValue);
                     }
-                    addCommandReturn(rb, "done");
                 } else if (strcmp(dram->pendingCmd, "LW") == 0) {
                     int16_t readValue;
                     if (cache != NULL) {
@@ -74,11 +97,8 @@ void updateDRAM(DRAM *dram, Cache *cache, ReturnBuffer *rb) {
                     } else {
                         readValue = readFromMemory(dram, dram->pendingAddr);
                     }
-                    char message[128];
-                    snprintf(message, sizeof(message), "done. value : [ %d ].", readValue);
-                    addCommandReturn(rb, message);
                 } else {
-                    addCommandReturn(rb, "Error: unknown DRAM command.");
+                    printf("Error: unknown DRAM command.");
                 }
             }
             // Reset DRAM state.
