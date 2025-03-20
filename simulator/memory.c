@@ -11,7 +11,7 @@ REGISTERS *init_registers() {
   registers->R1 = 0;
   registers->R2 = 3;
   registers->R3 = 4;
-  registers->R4 = 0;
+  registers->R4 = 5;
   registers->R5 = 0;
   registers->R6 = 0;
   registers->R7 = 0;
@@ -20,7 +20,6 @@ REGISTERS *init_registers() {
   registers->R10 = 0;
   registers->R11 = 0;
   registers->R12 = 0;
-  registers->R3 = 0;
   registers->LR = 0;
   registers->SR = 100;
   registers->PC = 0;
