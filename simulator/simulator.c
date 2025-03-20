@@ -2,35 +2,47 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <regex.h>
-#include <ctype.h> 
 #include "memory.h"
 
-void test(REGISTERS *registers, DRAM *dram, Cache *cache){
-  printf("Test for register 0 : %d.\n", registers->R0);
-  printf("Test for register 1 : %d.\n", registers->R1);
-  printf("Test for register 2 : %d.\n", registers->R2);
-  printf("Test for register SR : %d.\n", registers->SR);
+DRAM dram;
+REGISTERS *registers;
+Cache *cache;
+
+void init_system(){
+    clearMemory(&dram);
+    dram.state = DRAM_IDLE;
+    dram.delayCounter = 0;
+    dram.pendingAddr = 0;
+    dram.pendingValue = 0;
+    strcpy(dram.pendingCmd, "");
+
+    registers = init_registers();
+    cache = init_cache(1);
+
+    printf("System is Initialized\n");
+    fflush(stdout);
+}
+
+void storeInstructions(){
+    printf("Ready to read Instructions.\n");
+    fflush(stdout);
 }
 
 int main(){
-  REGISTERS *registers;
-  registers = init_registers();
+    setvbuf(stdout, NULL, _IONBF, 0);  // Disable buffering for instant output
+    init_system();
+  
+    char command[256];
 
-  // Initialize DRAM.
-  DRAM dram;
-  clearMemory(&dram);
-  dram.state = DRAM_IDLE;
-  dram.delayCounter = 0;
-  dram.pendingAddr = 0;
-  dram.pendingValue = 0;
-  strcpy(dram.pendingCmd, "");
-  
-  // Set up the cache pointer.
-  Cache *cache = NULL;
-  cache = init_cache(1);
-  
-  test(registers, &dram, cache);
-  return 0;
+    while (fgets(command, sizeof(command), stdin)) {
+        command[strcspn(command, "\n")] = 0;
+        printf("Received Command: %s\n", command);
+        fflush(stdout);
+
+        if (strcmp(command, "store") == 0) {
+            storeInstructions();
+        }
+    }
+
+    return 0;
 }
-

@@ -2,9 +2,11 @@ import sys
 import os
 import time
 import subprocess
+import requests
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSpacerItem,
-    QTableWidget, QTabWidget, QSpinBox, QCheckBox, QComboBox, QGridLayout, QLineEdit, QHeaderView
+    QTableWidget, QTabWidget, QSpinBox, QCheckBox, QComboBox, QGridLayout, QLineEdit, QHeaderView,
+    QFileDialog, QMessageBox
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPalette, QColor
@@ -45,6 +47,7 @@ def start_application():
 class ISASimulatorUI(QWidget):
     def __init__(self):
         super().__init__()
+        self.api_url = "http://127.0.0.1:5000"
         self.setWindowTitle("ARCH-16: Instruction Set Architecture")
         self.setGeometry(100, 100, 1200, 800)
         self.apply_dark_mode()
@@ -161,6 +164,9 @@ class ISASimulatorUI(QWidget):
         button_layout.setSpacing(5)
 
         load_button = QPushButton("Load Instructions")
+        load_button.clicked.connect(self.load_instructions)
+        
+
         clear_button = QPushButton("Clear Instructions")
         step_button = QPushButton("Step 1 Cycle")
         run_button = QPushButton("Run Instructions")
@@ -187,6 +193,20 @@ class ISASimulatorUI(QWidget):
 
         table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)  # Make table expand fully
         return table
+
+
+    # Functions for UI functionality.
+    def load_instructions(self):
+        file_dialog = QFileDialog
+        file_path, _ = file_dialog.getOpenFileName(self, "Select Instruction File", "", "Text Files (*.txt)")
+
+        if file_path:  # If a file was selected
+            with open(file_path, "r") as file:
+                file_contents = file.read()
+            
+            response = requests.post(f"{self.api_url}/load_instructions", json={"file_contents": file_contents})
+            QMessageBox.information(self, "File Loaded", response.json().get("message"))
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--watch":
