@@ -1,166 +1,142 @@
-# ARCH-16 CPU Simulator
+# ARCH-16 Specification
 
-## General Purpose and Features  
-Our architecture is a **general-purpose** RISC-based design. Its distinguishing features include a **16-bit word size**, and a **unified memory model**. The instruction set is designed for simplicity and efficiency, incorporating basic **arithmetic, logical operations, memory access, and control flow instructions**.  
+## General Features
 
-Our simulator will provide **step-by-step execution visualization** via a **graphical user interface (GUI)**. The GUI will support **register viewing, memory monitoring, cycle counting, and execution control**.  
+We decided to go for a general-purpose architecture. Its distinguishing features include memory encryption support and possibly branch prediction. This ISA will support:
 
----
+| Feature | Description |
+|---------|-------------|
+| **Word Size** | 16-bit |
+| **Breakpoint Support** | Allows stopping the program at specific points |
+| **Instructions** | ADD, SUB, MUL, DIVMOD, AND, OR, XOR, LSH, LW, SW, BEQ, BLT, CMP, CALL, JMP, RET |
+| **Encryption Instructions** | AESENC, AESDEC, AESKEY (Not included currently) |
 
-## Word Size and Data Types  
-- **Word Size**: **16-bit**
-- **Data Types Supported**: 16-bit signed integers  
-- **Addressing**: Word-addressable memory  
+### **Registers**
 
----
-
-## Registers  
-Our architecture includes the following registers:  
-
-| Register | Name  | Purpose  |
-|----------|------|----------|
-| R0       | Zero | Always 0 (hardwired) |
-| R1       | g0   | General register |
-| R2       | g0   | General register |
-| R3       | g0   | General register |
-| R4       | g0   | General register |
-| R5       | g1   | General register |
-| R6       | g2   | General register |
-| R7       | g3   | General register |
-| R8       | g4   | General register |
-| R9       | g5   | General register |
-| R10      | g6   | General register |
-| R11      | g7   | General register |
-| R12      | g8   | General register |
-| R13      | g9   | General register |
-| R14      | sp   | Stack pointer (grows downward) |
-| PC       | pc   | Program Counter |
+| Register | Description |
+|----------|-------------|
+| **R0**  | Always 0 |
+| **R1**  | Always 1 |
+| **R2-R12** | General Purpose |
+| **R13** | Link Register (LR) (convention) |
+| **R14** | Status Register (SR) (Handles comparison results) |
+| **R15** | Program Counter (PC) |
 
 ---
+## Simulation
 
-## Execution Model  
-- **Instruction Fetch Model**: One instruction per word  
-- **Memory Organization**: **Unified memory model** (Princeton Architecture)  
-- **Memory Addressing**: Direct memory addressing using **16-bit addresses**  
-- **Addressable Memory Space**: **64 KiB (0x0000 to 0xFFFF)**  
+We will develop a GUI supporting various functions and multiple display modes categorized as follows:
 
----
+### **Controls (Inputs):**
+| Control | Description |
+|---------|-------------|
+| Upload File | Uploads a program for execution |
+| Run | Runs the entire program from start to finish |
+| Step | Manually step through instructions |
+| Breakpoint | Run until a specified instruction number |
+| Run With | Run without cache or pipeline |
+| Clear | Clears the specified memory (Cache, DRAM) |
+| Delay | Set access delays for different pipeline stages |
 
-## Instruction Set  
+### **Instructions Display (3 Tabs):**
+| Tab | Description |
+|-----|-------------|
+| **Code View** | Lists source code of the input |
+| **Instruction View** | Shows current text and binary instructions |
+| **Pipeline View** | Displays the state of each part of the pipeline |
 
-### Integer ALU Instructions  
-| Opcode | Mnemonic | Description |
-|--------|----------|-------------|
-| 0000    | ADD Rd, Ra, Rb | Rd = Ra + Rb |
-| 0001    | SUB Rd, Ra, Rb | Rd = Ra - Rb |
-| 0010    | AND Rd, Ra, Rb | Rd = Ra & Rb |
-| 0011    | OR Rd, Ra, Rb  | Rd = Ra \| Rb |
-| 0100    | XOR Rd, Ra, Rb  | Rd = Ra ^ Rb |
+### **Memory Display (3 Tabs):**
+| Tab | Description |
+|-----|-------------|
+| **Registers** | Shows the current data within registers |
+| **Cache** | Displays current data inside the cache |
+| **DRAM** | Displays current data inside DRAM |
 
-### Register-Type-Register-Immediate Instructions  
-| Opcode | Type | Source Register | Immediate | Mnemonic | Description |
-|--------|------|----------------|-----------|----------|-------------|
-| 0101   | 00   | Ra             | imm[5:0]  | LSL Ra, imm | Logical Shift Left |
-| 0101   | 01   | Ra             | imm[5:0]  | LSR Ra, imm | Logical Shift Right |
-| 0101   | 10   | Ra             | imm[5:0]  | ROL Ra, imm | Rotate Left |
-| 0101   | 11   | Ra             | imm[5:0]  | ROR Ra, imm | Rotate Right |
+The GUI updates when one of the following occurs:
+1. User selects 'Run' and execution completes.
+2. User takes a 'Step'.
+3. User sets a Breakpoint and hits 'Run'.
 
-### Load/Store Instructions  
-| Opcode | Register | Immediate | Mnemonic | Description |
-|--------|----------|-----------|----------|-------------|
-| 0110   | Rd      | imm[7:0]   | LW Rd, imm  | Load word from memory into register |
-| 0111   | Rd      | imm[7:0]   | SW Rd, imm  | Store word from register into memory |
-
-### Immediate Control Flow Instructions  
-| Opcode | Immediate | Mnemonic | Description |
-|--------|-----------|----------|-------------|
-| 1000   | Addr[11:0]  | JMP Addr  | Unconditional jump |
-| 1001   | Addr[11:0]  | CALL Addr | Function call |
-
-### Special Instructions  
-| Opcode | Immediate | Mnemonic | Description |
-|--------|-----------|----------|-------------|
-| 1010   | -         | RET  | Return from function |
-| 1011   | -         | HALT | Stop execution |
-
+The source code updates in the GUI upon file upload, allowing full control and a clear view of how the ISA and program execution work at a low level.
 
 ---
+## Instruction Details
 
-## Memory Subsystem  
-- **Memory Size**: 64 KiB  
-- **Stack Memory**: Grows downward from `0x9000`  
-- **Heap Memory**: Grows upward from `0x4000`  
-- **Cache**: 4 KB **direct-mapped** cache  
-  - **Write-through policy**, no-allocate on writes  
-  - **Line size**: 4 words (8 bytes)  
-  - **Latency**: **100 cycles (no cache)**, **1-2 cycles (cache hit)**  
+The instructions for ARCH-16 are categorized as follows:
 
----
+### **RRR-Type (Register Operations)**
+| OpCode | Instruction | Encoding | Description |
+|--------|------------|----------|-------------|
+| 0000 | ADD | Rd, Ra, Rb | Rd = Ra + Rb |
+| 0001 | SUB | Rd, Ra, Rb | Rd = Ra - Rb |
+| 1100 | MUL | Rd, Ra, Rb | Rd = Ra * Rb |
+| 1101 | DIVMOD | Rd, Ra, Rb | Rd = Ra / Rb, Rb = Ra % Rb |
+| 0010 | AND | Rd, Ra, Rb | Rd = Ra & Rb |
+| 0011 | OR | Rd, Ra, Rb | Rd = Ra | Rb |
+| 0100 | XOR | Rd, Ra, Rb | Rd = Ra ^ Rb |
+| 1011 | CMP | Rd, Ra, Rb (ignored) | SR = Rd - Ra |
 
-## Pipeline Design  
-The CPU follows a **5-stage pipeline**:  
-1. **Instruction Fetch (IF)** - Retrieve instruction from memory  
-2. **Instruction Decode (ID)** - Determine operation and fetch registers  
-3. **Execute (EX)** - Perform ALU operation or branch decision  
-4. **Memory (MEM)** - Load/store memory if applicable  
-5. **Writeback (WB)** - Store results in registers  
+### **Control Flow Instructions**
+| Instruction | Description |
+|------------|-------------|
+| CALL R12 | ADD R13, PC, R1; OR PC, R12, R0 |
+| RET | OR R15, R13, R0 |
+| JMP R12 | OR R15, R12, R0 |
 
----
+### **RTRI-Type (Register-Type-Register Operations)**
+| OpCode | Type | Source Register | Destination Register | Description |
+|--------|------|----------------|----------------------|-------------|
+| 0101 | Shift Type | Rd | Ra | LSL Rd, Ra → Rd = Rd << Ra |
 
-## Simulator Features  
-The simulator will provide:  
-- **Graphical User Interface (GUI)** for easy execution tracking  
-- **Register and Memory Display** (view registers in hexadecimal)  
-- **Execution Control**:  
-  - Single-step execution  
-  - Run to completion  
-  - Breakpoints  
-- **Pipeline Execution Mode**:  
-  - No cache, no pipeline  
-  - Cache only  
-  - Pipeline only  
-  - Full cache and pipeline  
+Types: [LSL] : 00, [LSR] : 01, [ROL] : 10, [ROR] : 11
 
----
+### **RRI-Type (Register-Register-Immediate Operations)**
+| OpCode | Instruction | Encoding | Description |
+|--------|------------|----------|-------------|
+| 0110 | LW | Rd, [Ra + imm] | Load word |
+| 0111 | SW | [Ra + imm], Rd | Store word |
+| 1000 | BEQ | Rd, Ra, imm | Rd == Ra ? PC += imm : PC++ |
+| 1111 | BLT | Rd, Ra, imm | Rd < Ra ? PC += imm : PC++ |
 
-## Benchmarks  
-The simulator will be tested with:  
-1. **Exchange Sort** (to evaluate memory and ALU performance)  
-2. **Matrix Multiplication** (to stress cache and pipeline performance)  
+Note: BEQ/BLT is PC-relative, so the immediate is an offset to R15.
 
 ---
+## Memory System
 
-## Project Management Plan  
-### Development Tools  
-- **Programming Language**: C
-- **GUI Framework**: Qt (Maybe nuetron)  
-- **Version Control**: GitHub  
-- **Collaboration Tools**: GitHub, Email 
+The ARCH-16 includes an L1 cache and DRAM with the following specifications:
 
-### Development Timeline  
-#### **Phase 1: Define ISA and Write Specification**  
-- Finalize instruction set, memory layout, and execution model  
-- Write documentation  
+### **Cache:**
+| Feature | Specification |
+|---------|---------------|
+| Mapping | Direct-mapping & 2-way set-associative |
+| Replacement Policy | Least Recently Used (LRU) |
+| Write Policy | Write-through, no-allocate |
+| Size | 64 words, line length of 4 words |
+| Benchmarking | Planned for cache efficiency |
 
-#### **Phase 2: Implement Assembler**  
-- Convert assembly code to binary format  
-
-#### **Phase 3: Implement CPU Core**  
-- Implement register file, memory, and execution loop  
-
-#### **Phase 4: Implement Pipelining and Cache**  
-- Implement pipeline and cache logic  
-
-#### **Phase 5: Implement GUI**  
-- Display CPU state (registers, memory, pipeline visualization)  
-
-#### **Phase 6: Run Benchmarks and Debug**  
-- Execute sorting and matrix multiplication programs  
+### **DRAM:**
+| Feature | Specification |
+|---------|---------------|
+| Simulation | Models real-world latencies |
+| Adjustable Memory | Supports encryption and extras |
+| Size | 50K words |
 
 ---
+## Project Approach
 
-## Responsibilities  
-| Team Member | Responsibilities |
-|-------------|----------------|
-| [Team Member 1] | TBD |
-| [Team Member 2] | TBD |
+We will implement this project using **C** for simulation and **Qt or JavaFX** for the GUI. Development will be managed via **GitHub** (for documentation, code, and issues), and we will communicate through **weekly Friday meetings and Google Chat**.
+
+### **Development Plan:**
+1. **Complete Planning** - Finalize the system design.
+2. **Memory System Implementation** - Develop the cache and DRAM.
+3. **Basic UI Development** - Create an interface for ease of testing.
+4. **Pipeline Implementation** - Develop and test each pipeline stage in sections.
+5. **Instruction Implementation** - Define and implement the ISA instructions.
+6. **Assembler Development** - Create an assembler for the ARCH-16 ISA.
+7. **Full Pipeline Testing** - Ensure correct execution of sample programs.
+8. **GUI Enhancements** - Improve UI functionality and polish visuals.
+9. **Benchmark Testing** - Measure performance with test programs.
+10. **Final Features (if time permits)** - Implement **AES encryption** and **branch prediction**.
+
+AES encryption and branch prediction are optional features we will decide on within the next few weeks, depending on time availability.
+
