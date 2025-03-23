@@ -202,9 +202,16 @@ class ISASimulatorUI(QWidget):
 
         if file_path:  # If a file was selected
             with open(file_path, "r") as file:
-                file_contents = file.read()
+                lines = file.readlines()
+
+            instructions = []
+            for line in lines:
+                instructions.append(line)
             
-            response = requests.post(f"{self.api_url}/load_instructions", json={"file_contents": file_contents})
+            response = requests.post(f"{self.api_url}/load_instructions", json={"instructions": instructions})
+            # Update code table with raw assebmly code.
+
+            # Success print
             QMessageBox.information(self, "File Loaded", response.json().get("message"))
 
 

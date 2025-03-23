@@ -23,9 +23,15 @@ void init_system(){
     fflush(stdout);
 }
 
-void storeInstructions(){
-    printf("Ready to read Instructions.\n");
+void storeInstruction(uint16_t value){
+    // Store the binary encoding in DRAM at the PC address.
+    writeToMemory(&dram, registers->PC, value); 
+    
+    // Update DRAM with each of these instructions, update PC.
+    printf("Stored Instruction [ %hu ] . At address [ %hu ].\n", value, registers->PC);
     fflush(stdout);
+    
+    registers->PC = PC++;
 }
 
 int main(){
@@ -39,8 +45,10 @@ int main(){
         printf("Received Command: %s\n", command);
         fflush(stdout);
 
-        if (strcmp(command, "store") == 0) {
-            storeInstructions();
+        if (strcmp(command, "write", 5) == 0) {
+            uint16_t value;
+            if (sscanf(command, "write %hu", &value) == 1) {
+              storeInstruction(value);
         }
     }
 
