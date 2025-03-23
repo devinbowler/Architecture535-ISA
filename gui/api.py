@@ -35,12 +35,18 @@ def send_command(command):
 def loadInstructions():
     """Loads instruction contents from UI into the simulator."""
     data = request.json
-    file_contents = data.get("file_contents")
+    instructions = data.get("instructions")
 
-    if not file_contents:
+    print(instructions)
+
+    if not instructions:
         return jsonify({"error": "No file contents provided."}), 400
+    
+    results = []
+    for instruction in instructions:
+        response = send_command(f"write {instruction}")
+        results.append(response)
 
-    response = send_command("store")  # Sends the 'store' command to C
     return jsonify({"message": response})
 
 if __name__ == "__main__":
