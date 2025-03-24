@@ -27,13 +27,31 @@ uint16_t RRRTypeEncode(RRRinstr *instr){
 }
 
 uint16_t RRTypeEncode(RRinstr *instr){
-  uint16_t null = 0;
-  return null;
+ printf("Passed instruction: opcode=%u, type=%u, regA=%u, regB=%u\n",
+          instr->opcode, instr->type, instr->regA, instr->regB);
+
+ uint16_t encoded = 0;
+ encoded |= (instr->opcode & 0xF) << 12; // top 4 bits   | Opcode
+ encoded |= (instr->type & 0xF) << 8;    // next 4 bits  | Type
+ encoded |= (instr->regA & 0xF) << 4;    // top 4 bits   | Source Register A
+ encoded |= (instr->regB & 0xF);         // last 4 bits  | Source Register B
+
+
+ return encoded;
 }
 
 uint16_t RRITypeEncode(RRIinstr *instr){
-  uint16_t null = 0;
-  return null;
+ printf("Passed instruction: opcode=%u, regD=%u, regA=%u, imm=%u\n",
+          instr->opcode, instr->regD, instr->regA, instr->imm);
+
+ uint16_t encoded = 0;
+ encoded |= (instr->opcode & 0xF) << 12; // top 4 bits  | Opcode
+ encoded |= (instr->regD & 0xF) << 8;    // next 4 bits | Destination Regsiter
+ encoded |= (instr->regA & 0xF) << 4;    // top 4 bits  | Source Register A
+ encoded |= (instr->imm & 0xF);          // last 4 bits | Immediate
+
+
+ return encoded;
 }
 
 
@@ -74,37 +92,102 @@ uint16_t loadInstruction(const char *line){
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "SUB") == 0){
       rrr.opcode = 0001;
+      rrr.regD = rd;
+      rrr.regA = ra;
+      rrr.regB = rb;
 
+      return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "AND") == 0){
       rrr.opcode = 0010;
+      rrr.regD = rd;
+      rrr.regA = ra;
+      rrr.regB = rb;
 
+      return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "OR") == 0) {
       rrr.opcode = 0011;
+      rrr.regD = rd;
+      rrr.regA = ra;
+      rrr.regB = rb;
 
+      return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "XOR") == 0){
       rrr.opcode = 0100;
+      rrr.regD = rd;
+      rrr.regA = ra;
+      rrr.regB = rb;
 
+      return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "DIVMOD") == 0){
       rrr.opcode = 0101;
+      rrr.regD = rd;
+      rrr.regA = ra;
+      rrr.regB = rb;
 
-    } else if (strcmp(opcode, "MUL") == 0){ // RR Types
-      rr.opcode = 0110;
+      return RRRTypeEncode(&rrr);
+    } else if (strcmp(opcode, "MUL") == 0){ 
+      rrr.opcode = 0110;
+      rrr.regD = rd;
+      rrr.regA = ra;
+      rrr.regB = rb;
 
+      return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "CMP") == 0){
       rrr.opcode = 0111;
+      rrr.regD = rd;
+      rrr.regA = ra;
+      rrr.regB = rb;
 
-    } else if (strcmp(opcode, "ROT") == 0){
-      rrr.opcode = 1000;
+      return RRRTypeEncode(&rrr);
+    } else if (strcmp(opcode, "LSL") == 0){ // RR Types
+      rr.opcode = 1000;
+      rr.type = 0000;
+      rr.regA = ra;
+      rr.regB = rb;
 
+      return RRTypeEncode(&rr);
+    } else if (strcmp(opcode, "LSR") == 0){
+      rr.opcode = 1000;
+      rr.type = 0001;
+      rr.regA = ra;
+      rr.regB = rb;
+
+      return RRTypeEncode(&rr);
+    } else if (strcmp(opcode, "ROL") == 0){
+      rr.opcode = 1000;
+      rr.type = 0010;
+      rr.regA = ra;
+      rr.regB = rb;
+
+      return RRTypeEncode(&rr);
+    } else if (strcmp(opcode, "ROR") == 0){
+      rr.opcode = 1000;
+      rr.type = 0011;
+      rr.regA = ra;
+      rr.regB = rb;
+
+      return RRTypeEncode(&rr);
     } else if (strcmp(opcode, "LW") == 0) { // RRI Types
-      rrr.opcode = 1001;
+      rri.opcode = 1001;
+      rri.regD = rd;
+      rri.regA = ra;
+      rri.imm = rb;
 
+      return RRITypeEncode(&rri);
     } else if (strcmp(opcode, "SW") == 0) {
-      rrr.opcode = 1010;
+      rri.opcode = 1010;
+      rri.regD = rd;
+      rri.regA = ra;
+      rri.imm = rb;
 
+      return RRITypeEncode(&rri);
     } else if (strcmp(opcode, "BEQ") == 0){
-      rrr.opcode = 1011;
+      rri.opcode = 1011;
+      rri.regD = rd;
+      rri.regA = ra;
+      rri.imm = rb;
 
+      return RRITypeEncode(&rri);
     }
   } else {
     printf("Invalid instruction, [ %s ].\n", line);
@@ -113,7 +196,7 @@ uint16_t loadInstruction(const char *line){
 
 
 int main() {
-  const char *line = "ADD R3 R2 R1";
+  const char *line = "LW R3 R2 0001";
   uint16_t encoded = loadInstruction(line);
   printf("Encoded Instruction: 0x%04X\n", encoded);
   return 0;
