@@ -1,11 +1,12 @@
 from flask import Flask, request, jsonify
 import subprocess
+import os
 
 app = Flask(__name__)
 
 # Start the C simulator in the background with unbuffered output
 simulator_process = subprocess.Popen(
-    ["../simulator/simulator"],
+    ["../simulator/simulator.exe"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,

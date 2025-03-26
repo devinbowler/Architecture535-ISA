@@ -8,6 +8,7 @@
 #include "assembler.h"
 
 
+
 // Each function will take in its own type and make the binary encoding.
 // This uses the bit operation of & to check the opcode to 00001111, this not
 // only ensures this field is 4 bits, but also copys the code correctly. Then
@@ -66,7 +67,7 @@ uint16_t loadInstruction(const char *line){
   strncpy(lineCopy, line, sizeof(lineCopy));
   lineCopy[sizeof(lineCopy)-1] = '\0';
 
-  printf("Instruction Line: %s\n.", lineCopy);
+  printf("Instruction Line: %s.\n", lineCopy);
 
   char *values[4];
   char *value = strtok(lineCopy, " ");
@@ -80,109 +81,110 @@ uint16_t loadInstruction(const char *line){
   if (valueCount == 4){
     char *opcode = values[0];
     uint16_t rd = atoi(values[1] + 1);
+    uint16_t type = atoi(values[1]);
     uint16_t ra = atoi(values[2] + 1);
     uint16_t rb = atoi(values[3] + 1);
 
     if (strcmp(opcode, "ADD") == 0){        // RRR Types
-      rrr.opcode = 0000;
+      rrr.opcode = 0b0000;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
 
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "SUB") == 0){
-      rrr.opcode = 0001;
+      rrr.opcode = 0b0001;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
 
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "AND") == 0){
-      rrr.opcode = 0010;
+      rrr.opcode = 0b0010;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
 
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "OR") == 0) {
-      rrr.opcode = 0011;
+      rrr.opcode = 0b0011;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
 
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "XOR") == 0){
-      rrr.opcode = 0100;
+      rrr.opcode = 0b0100;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
 
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "DIVMOD") == 0){
-      rrr.opcode = 0101;
+      rrr.opcode = 0b0101;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
 
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "MUL") == 0){ 
-      rrr.opcode = 0110;
+      rrr.opcode = 0b0110;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
 
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "CMP") == 0){
-      rrr.opcode = 0111;
+      rrr.opcode = 0b0111;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
 
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "LSL") == 0){ // RR Types
-      rr.opcode = 1000;
-      rr.type = 0000;
+      rr.opcode = 0b1000;
+      rr.type = type;
       rr.regA = ra;
       rr.regB = rb;
 
       return RRTypeEncode(&rr);
     } else if (strcmp(opcode, "LSR") == 0){
-      rr.opcode = 1000;
-      rr.type = 0001;
+      rr.opcode = 0b1000;
+      rr.type = type;
       rr.regA = ra;
       rr.regB = rb;
 
       return RRTypeEncode(&rr);
     } else if (strcmp(opcode, "ROL") == 0){
-      rr.opcode = 1000;
-      rr.type = 0010;
+      rr.opcode = 0b1000;
+      rr.type = type;
       rr.regA = ra;
       rr.regB = rb;
 
       return RRTypeEncode(&rr);
     } else if (strcmp(opcode, "ROR") == 0){
-      rr.opcode = 1000;
-      rr.type = 0011;
+      rr.opcode = 0b1000;
+      rr.type = type;
       rr.regA = ra;
       rr.regB = rb;
 
       return RRTypeEncode(&rr);
     } else if (strcmp(opcode, "LW") == 0) { // RRI Types
-      rri.opcode = 1001;
-      rri.regD = rd;
+      rri.opcode = 0b1001;
+      rri.regD = type;
       rri.regA = ra;
       rri.imm = rb;
 
       return RRITypeEncode(&rri);
     } else if (strcmp(opcode, "SW") == 0) {
-      rri.opcode = 1010;
+      rri.opcode = 0b1010;
       rri.regD = rd;
       rri.regA = ra;
       rri.imm = rb;
 
       return RRITypeEncode(&rri);
     } else if (strcmp(opcode, "BEQ") == 0){
-      rri.opcode = 1011;
+      rri.opcode = 0b1011;
       rri.regD = rd;
       rri.regA = ra;
       rri.imm = rb;
@@ -194,10 +196,20 @@ uint16_t loadInstruction(const char *line){
   }
 }
 
+/* void printBinary16(uint16_t value) {
+  printf("Encoded Instruction (Binary): ");
+  for (int i = 15; i >= 0; i--) {
+    printf("%u", (value >> i) & 1);
+    if (i % 4 == 0 && i != 0) printf(" "); // Space between 4 bits.
+  }
+  printf("\n");
+}
+
 
 int main() {
-  const char *line = "LW R3 R2 0001";
+  const char *line = "LSL 4 R2 R3";
   uint16_t encoded = loadInstruction(line);
-  printf("Encoded Instruction: 0x%04X\n", encoded);
+  printf("Encoded Instruction (Hex): 0x%04X\n", encoded);
+  printBinary16(encoded);
   return 0;
-}
+} */
