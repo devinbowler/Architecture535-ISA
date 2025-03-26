@@ -1,3 +1,6 @@
+#ifndef ASSEMBLER_H
+#define ASSEMBLER_H
+
 #include <stdint.h>
 
 typedef struct {
@@ -20,3 +23,11 @@ typedef struct {
   uint16_t   regA;
   uint16_t    imm;
 } RRIinstr;
+
+uint16_t loadInstruction(const char *line);
+
+uint16_t RRRTypeEncode(RRRinstr *instr);
+uint16_t RRTypeEncode(RRinstr *instr);
+uint16_t RRITypeEncode(RRIinstr *instr);
+
+#endif

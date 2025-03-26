@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include "memory.h"
+#include "../assembler/assembler.h"
 
 DRAM dram;
 REGISTERS *registers;
@@ -23,7 +24,13 @@ void init_system(){
     fflush(stdout);
 }
 
-void storeInstruction(uint16_t value){
+void storeInstruction(const char *command){
+    printf("Command to SI : %s\n", command);
+    fflush(stdout);
+
+    const char *instruction = command + 6;
+    uint16_t value = loadInstruction(instruction);
+
     // Store the binary encoding in DRAM at the PC address.
     writeToMemory(&dram, registers->PC, value); 
     
@@ -31,7 +38,7 @@ void storeInstruction(uint16_t value){
     printf("Stored Instruction [ %hu ] . At address [ %hu ].\n", value, registers->PC);
     fflush(stdout);
     
-    registers->PC = PC++;
+    registers->PC++;
 }
 
 int main(){
@@ -43,14 +50,12 @@ int main(){
     while (fgets(command, sizeof(command), stdin)) {
         command[strcspn(command, "\n")] = 0;
         printf("Received Command: %s\n", command);
+        printf("Current DRAM [ 0 ] : %d\n", dram.memory[0]);
         fflush(stdout);
 
-        if (strcmp(command, "write", 5) == 0) {
-            uint16_t value;
-            if (sscanf(command, "write %hu", &value) == 1) {
-              storeInstruction(value);
+        if (strncmp(command, "write", 5) == 0) {
+          storeInstruction(command);
         }
     }
-
-    return 0;
+  return 0;
 }
