@@ -9,7 +9,7 @@ DRAM dram;
 REGISTERS *registers;
 Cache *cache;
 
-void init_system(){
+void init_system() {
     clearMemory(&dram);
     dram.state = DRAM_IDLE;
     dram.delayCounter = 0;
@@ -20,42 +20,38 @@ void init_system(){
     registers = init_registers();
     cache = init_cache(1);
 
-    printf("System is Initialized\n");
+    printf("[LOG] System is Initialized\n");
     fflush(stdout);
 }
 
-void storeInstruction(const char *command){
-    printf("Command to SI : %s\n", command);
-    fflush(stdout);
-
+void storeInstruction(const char *command) {
     const char *instruction = command + 6;
     uint16_t value = loadInstruction(instruction);
 
-    // Store the binary encoding in DRAM at the PC address.
-    writeToMemory(&dram, registers->PC, value); 
-    
-    // Update DRAM with each of these instructions, update PC.
-    printf("Stored Instruction [ %hu ] . At address [ %hu ].\n", value, registers->PC);
+    writeToMemory(&dram, registers->PC, value);
+
+    printf("[BIN]%u\n", value);
+    printf("[MEM]%d:%d\n", registers->PC, value);
+    printf("[END]\n");
     fflush(stdout);
-    
+
     registers->PC++;
 }
 
-int main(){
-    setvbuf(stdout, NULL, _IONBF, 0);  // Disable buffering for instant output
+
+int main() {
+    setvbuf(stdout, NULL, _IONBF, 0);  // Disable buffering
     init_system();
-  
+
     char command[256];
 
     while (fgets(command, sizeof(command), stdin)) {
         command[strcspn(command, "\n")] = 0;
-        printf("Received Command: %s\n", command);
-        printf("Current DRAM [ 0 ] : %d\n", dram.memory[0]);
-        fflush(stdout);
-
         if (strncmp(command, "write", 5) == 0) {
-          storeInstruction(command);
+            storeInstruction(command);
         }
     }
-  return 0;
+
+    return 0;
 }
+
