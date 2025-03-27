@@ -6,14 +6,37 @@ import requests
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QSpacerItem,
     QTableWidget, QTabWidget, QSpinBox, QCheckBox, QComboBox, QGridLayout, QLineEdit, QHeaderView,
-    QFileDialog, QMessageBox
+    QFileDialog, QMessageBox, QTableWidgetItem
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QPalette, QColor
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 SCRIPT_PATH = os.path.abspath(__file__)
+
+# Run request in a thread to prevent freezing
+class load_instructionsThread(QThread):
+    finished = pyqtSignal(dict)
+    error = pyqtSignal(str)
+
+    def __init__(self, api_url, instructions):
+        super().__init__()
+        self.api_url = api_url
+        self.instructions = instructions
+
+    def run(self):
+        import requests
+        try:
+            response = requests.post(
+                f"{self.api_url}/load_instructions",
+                json={"instructions": self.instructions},
+                timeout=10 
+            )
+            result = response.json()
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
 
 class FileChangeHandler(FileSystemEventHandler):
     """ Watches for file changes and restarts the application """
@@ -195,24 +218,70 @@ class ISASimulatorUI(QWidget):
         return table
 
 
+    def handle_instruction_error(self, result):
+        print("RESULT FROM API:", result)
+
+        if "error" in result:
+            QMessageBox.information(self, "Error", result["error"])
+            return
+
+
     # Functions for UI functionality.
     def load_instructions(self):
-        file_dialog = QFileDialog
-        file_path, _ = file_dialog.getOpenFileName(self, "Select Instruction File", "", "Text Files (*.txt)")
+        file_path, _ = QFileDialog.getOpenFileName(self, "Select Instruction File", "", "Text Files (*.txt)")
 
         if file_path:  # If a file was selected
             with open(file_path, "r") as file:
-                lines = file.readlines()
+                instructions = [line.strip() for line in file.readlines()]
 
-            instructions = []
-            for line in lines:
-                instructions.append(line)
-            
-            response = requests.post(f"{self.api_url}/load_instructions", json={"instructions": instructions})
-            # Update code table with raw assebmly code.
+            self.thread = load_instructionsThread(self.api_url, instructions)
+            self.thread.finished.connect(self.handle_instruction_result)
+            self.thread.error.connect(self.handle_instruction_error)
+            self.thread.start()
 
-            # Success print
-            QMessageBox.information(self, "File Loaded", response.json().get("message"))
+    def handle_instruction_result(self, result):
+        # Error print
+        if "error" in result:
+            QMessageBox.information(self, "Error", result["error"])
+            return
+
+        binary = result.get("binary", [])
+        raw = result.get("raw", [])
+        memory = result.get("memory", [])
+
+        self.code_table.setRowCount(len(raw))
+        self.instruction_table.setRowCount(len(raw))
+        for i, (asm, bin_val) in enumerate(zip(raw, binary)):
+            self.code_table.setItem(i, 0, QTableWidgetItem(asm))
+            self.instruction_table.setItem(i, 0, QTableWidgetItem(str(i)))
+            self.instruction_table.setItem(i, 1, QTableWidgetItem(asm))
+            self.instruction_table.setItem(i, 2, QTableWidgetItem(bin_val))
+
+        # Clear memory table first (optional, prevents ghost rows)
+        self.memory_table.setRowCount(0)
+
+        for addr, val in memory:
+            try:
+                addr = int(addr)
+                val = int(val)
+                binary_val = format(val & 0xFFFF, "016b")
+
+                # Debug print
+                print(f"[UI] Setting memory[{addr}] = {binary_val}")
+
+                # Ensure enough rows
+                if addr >= self.memory_table.rowCount():
+                    self.memory_table.setRowCount(addr + 1)
+
+                self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+            except Exception as e:
+                print(f"[UI ERROR] Failed to set memory[{addr}]: {e}")
+
+
+
+        QMessageBox.information(self, "file loaded", result["message"])
+
+
 
 
 if __name__ == "__main__":
@@ -223,3 +292,4 @@ if __name__ == "__main__":
         window = ISASimulatorUI()
         window.show()
         sys.exit(app.exec())
+
