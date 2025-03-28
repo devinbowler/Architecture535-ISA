@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # Launch C simulator executable
 simulator_process = subprocess.Popen(
-    ["../simulator/simulator.exe"],
+    ["../simulator/simulator"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -68,6 +68,27 @@ def loadInstructions():
         "raw": raw_lines,
         "memory": memory_content
     })
+
+@app.route("/run_instructions", methods=["POST"])
+def executeInstructions():
+    memory_content = []
+    register_contents = []
+
+    response = send_command("start")
+
+    for output in response.splitlines():
+        if output.startswith("[MEM)"):
+            addr, val = output[5:].split(":")
+            memory_content.append((int(addr), int(val)))
+        elif output.startswith("[REG]"):
+            reg, val = output[2:].split(":")
+
+    return jsonify({
+        "message": "Execution Finished.",
+        "memory": memory_content,
+        "registers": register_contents
+    })
+
 
 
 if __name__ == "__main__":

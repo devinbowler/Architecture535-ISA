@@ -38,6 +38,9 @@ class load_instructionsThread(QThread):
         except Exception as e:
             self.error.emit(str(e))
 
+  class execute_instructionsThread(self, api_url):
+    
+
 class FileChangeHandler(FileSystemEventHandler):
     """ Watches for file changes and restarts the application """
     def __init__(self, process):
@@ -131,7 +134,7 @@ class ISASimulatorUI(QWidget):
         tab_widget = QTabWidget()
         self.instruction_table = self.create_table(16, ["Memory Address", "Text Instruction", "Hex Instruction"])
         self.code_table = self.create_table(16, ["Code"])
-        self.pipeline_table = self.create_table(5, ["Cycle", "Stage", "Instruction"])
+        self.pipeline_table = self.create_table(5, ["Fetch", "Decode", "Execute", "Memory", "Writeback"])
         
         tab_widget.addTab(self.instruction_table, "Instructions")
         tab_widget.addTab(self.code_table, "Code")
@@ -238,6 +241,9 @@ class ISASimulatorUI(QWidget):
             self.thread.finished.connect(self.handle_instruction_result)
             self.thread.error.connect(self.handle_instruction_error)
             self.thread.start()
+
+    def execute_instructions(self):
+        self.thread = 
 
     def handle_instruction_result(self, result):
         # Error print
