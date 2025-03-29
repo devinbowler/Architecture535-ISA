@@ -20,7 +20,7 @@ typedef struct Line Line;
 
 typedef struct {
   const uint16_t R0;
-  uint16_t R1;
+  const uint16_t R1;
   uint16_t R2;
   uint16_t R3;
   uint16_t R4;

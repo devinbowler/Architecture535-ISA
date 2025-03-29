@@ -38,8 +38,24 @@ class load_instructionsThread(QThread):
         except Exception as e:
             self.error.emit(str(e))
 
-  class execute_instructionsThread(self, api_url):
-    
+class execute_instructionsThread(QThread):
+    finished = pyqtSignal(dict)
+    error = pyqtSignal(str)
+
+    def __init__(self, api_url):
+        super().__init__()
+        self.api_url = api_url
+
+    def run(self):
+        import requests
+        try:
+            response = requests.post(
+                f"{self.api_url}/execute_instructions"
+            )
+            result = response.json()
+            self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
 
 class FileChangeHandler(FileSystemEventHandler):
     """ Watches for file changes and restarts the application """
@@ -196,6 +212,7 @@ class ISASimulatorUI(QWidget):
         clear_button = QPushButton("Clear Instructions")
         step_button = QPushButton("Step 1 Cycle")
         run_button = QPushButton("Run Instructions")
+        run_button.clicked.connect(self.execute_instructions)
 
         button_layout.addWidget(load_button)
         button_layout.addWidget(clear_button)
@@ -243,7 +260,46 @@ class ISASimulatorUI(QWidget):
             self.thread.start()
 
     def execute_instructions(self):
-        self.thread = 
+        self.thread = execute_instructionsThread(self.api_url)
+        self.thread.finished.connect(self.handle_execution_result)
+        self.thread.error.connect(self.handle_instruction_error)
+        self.thread.start()
+
+    def handle_execution_result(self, result):
+        # Error handling
+        if "error" in result:
+            QMessageBox.information(self, "Error", result["error"])
+            return
+
+        memory = result.get("memory", [])
+        registers = result.get("registers", [])
+
+        # Update memory table
+        for addr, val in memory:
+            try:
+                addr = int(addr)
+                val = int(val)
+                binary_val = format(val & 0xFFFF, "016b")
+
+                # Ensure enough rows
+                if addr >= self.memory_table.rowCount():
+                    self.memory_table.setRowCount(addr + 1)
+
+                self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+            except Exception as e:
+                print(f"[UI ERROR] Failed to set memory[{addr}]: {e}")
+
+        # Update register table
+        for reg, val in registers:
+            try:
+                reg = int(reg)
+                val = int(val)
+                binary_val = format(val & 0xFFFF, "016b")
+                self.register_table.setItem(reg, 0, QTableWidgetItem(binary_val))
+            except Exception as e:
+                print(f"[UI ERROR] Failed to set register[{reg}]: {e}")
+
+        QMessageBox.information(self, "Execution Complete", result["message"])
 
     def handle_instruction_result(self, result):
         # Error print

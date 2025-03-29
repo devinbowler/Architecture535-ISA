@@ -69,7 +69,7 @@ def loadInstructions():
         "memory": memory_content
     })
 
-@app.route("/run_instructions", methods=["POST"])
+@app.route("/execute_instructions", methods=["POST"])
 def executeInstructions():
     memory_content = []
     register_contents = []
@@ -77,11 +77,12 @@ def executeInstructions():
     response = send_command("start")
 
     for output in response.splitlines():
-        if output.startswith("[MEM)"):
+        if output.startswith("[MEM]"):
             addr, val = output[5:].split(":")
             memory_content.append((int(addr), int(val)))
         elif output.startswith("[REG]"):
-            reg, val = output[2:].split(":")
+            reg, val = output[4:].split(":")
+            register_contents.append((int(reg), int(val)))
 
     return jsonify({
         "message": "Execution Finished.",
