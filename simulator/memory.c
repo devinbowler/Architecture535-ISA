@@ -8,10 +8,9 @@
 REGISTERS *init_registers() {
   REGISTERS *registers = malloc(sizeof(REGISTERS));
 
-  registers->R1 = 0;
-  registers->R2 = 3;
-  registers->R3 = 4;
-  registers->R4 = 5;
+  registers->R2 = 0;
+  registers->R3 = 0;
+  registers->R4 = 0;
   registers->R5 = 0;
   registers->R6 = 0;
   registers->R7 = 0;
