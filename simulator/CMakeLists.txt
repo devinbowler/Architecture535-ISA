@@ -7,7 +7,16 @@ project(ARCH-16)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -O2")
 
 # Source files
-set(SOURCES loop.c memory.c utilities.c)
+set(SOURCES 
+    simulator.c 
+    memory.c 
+    pipeline.c 
+    pipeline/fetch.c 
+    pipeline/decode.c 
+    pipeline/execute.c 
+    pipeline/memory_access.c 
+    pipeline/write_back.c
+    )
 
 # Add executable target
 add_executable(ARCH-16 ${SOURCES})
