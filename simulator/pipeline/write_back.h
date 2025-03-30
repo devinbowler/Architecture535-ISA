@@ -3,6 +3,7 @@
 
 #include "../pipeline.h"
 
-void write_back(PipelineState pipeline)
+void write_back(PipelineState *pipeline);
+bool write_back_ready(PipelineState *pipeline);
 
 #endif

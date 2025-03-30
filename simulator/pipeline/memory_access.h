@@ -3,6 +3,7 @@
 
 #include "../pipeline.h"
 
-void memory_access(PipelineState pipeline)
+void memory_access(PipelineState *pipeline);
+bool memory_ready(PipelineState *pipeline);
 
 #endif

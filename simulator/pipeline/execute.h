@@ -3,6 +3,6 @@
 
 #include "../pipeline.h"
 
-void execute(PipelineState pipeline)
+void execute(PipelineState *pipeline);
 
 #endif

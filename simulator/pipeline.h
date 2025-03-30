@@ -22,12 +22,38 @@ typedef struct {
 } ID_EX_Register;
 
 typedef struct {
+    bool valid;
+    uint16_t pc;
+    uint16_t regD;
+    uint16_t regA;
+    uint16_t regB;
+    uint16_t imm;
+    uint16_t res;
+    uint16_t resMod;
+} EX_MEM_Register;
+
+typedef struct {
+    bool valid;
+    uint16_t pc;
+} MEM_WB_Register;
+
+typedef struct {
+  bool valid;
+  uint16_t pc;
+} WB_Register;
+
+typedef struct {
     IF_ID_Register IF_ID;
     ID_EX_Register ID_EX;
-
+    EX_MEM_Register EX_MEM;
+    MEM_WB_Register MEM_WB;
+    WB_Register WB;
     // Registers for next cycles values.
     IF_ID_Register IF_ID_next;
     ID_EX_Register ID_EX_next;
+    EX_MEM_Register EX_MEM_next;
+    MEM_WB_Register MEM_WB_next;
+    WB_Register WB_next;
 } PipelineState;
 
 extern PipelineState pipeline;
