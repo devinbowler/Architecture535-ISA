@@ -47,14 +47,21 @@ class execute_instructionsThread(QThread):
         self.api_url = api_url
 
     def run(self):
-        import requests
+        print("[DEBUG] execute_instructionsThread running")
         try:
-            response = requests.post(
-                f"{self.api_url}/execute_instructions"
-            )
+            # Increase the timeout value
+            response = requests.post(f"{self.api_url}/execute_instructions", timeout=30)
             result = response.json()
-            self.finished.emit(result)
+            print("[DEBUG] Full API response:", result)
+            if "error" in result:
+                self.error.emit(result["error"])
+            else:
+                self.finished.emit(result)
+        except requests.exceptions.Timeout:
+            print("[DEBUG] Request timed out")
+            self.error.emit("Request timed out")
         except Exception as e:
+            print("[DEBUG] API call failed:", str(e))
             self.error.emit(str(e))
 
 class FileChangeHandler(FileSystemEventHandler):
@@ -260,21 +267,23 @@ class ISASimulatorUI(QWidget):
             self.thread.start()
 
     def execute_instructions(self):
+        print("[DEBUG] Starting execute_instructions")
         self.thread = execute_instructionsThread(self.api_url)
         self.thread.finished.connect(self.handle_execution_result)
         self.thread.error.connect(self.handle_instruction_error)
         self.thread.start()
+        print("[DEBUG] execute_instructionsThread started")
 
     def handle_execution_result(self, result):
-        # Error handling
+        print("[DEBUG] handle_execution_result called with result:", result)
+        
+        # Check for errors
         if "error" in result:
             QMessageBox.information(self, "Error", result["error"])
             return
 
-        memory = result.get("memory", [])
-        registers = result.get("registers", [])
-
         # Update memory table
+        memory = result.get("memory", [])
         for addr, val in memory:
             try:
                 addr = int(addr)
@@ -289,17 +298,17 @@ class ISASimulatorUI(QWidget):
             except Exception as e:
                 print(f"[UI ERROR] Failed to set memory[{addr}]: {e}")
 
-        # Update register table
-        for reg, val in registers:
-            try:
-                reg = int(reg)
-                val = int(val)
-                binary_val = format(val & 0xFFFF, "016b")
-                self.register_table.setItem(reg, 0, QTableWidgetItem(binary_val))
-            except Exception as e:
-                print(f"[UI ERROR] Failed to set register[{reg}]: {e}")
+        # Update register table with zeros
+        for reg in range(16):  # Assuming 16 registers
+            binary_val = format(0, "016b")  # Set to zero for now
+            self.register_table.setItem(reg, 0, QTableWidgetItem(binary_val))
+            print(f"[DEBUG] Setting register[{reg}] to {binary_val}")
 
-        QMessageBox.information(self, "Execution Complete", result["message"])
+        # Check if 'message' key exists
+        if "message" in result:
+            QMessageBox.information(self, "Execution Complete", result["message"])
+        else:
+            QMessageBox.information(self, "Execution Complete", "Execution finished without a message.")
 
     def handle_instruction_result(self, result):
         # Error print
