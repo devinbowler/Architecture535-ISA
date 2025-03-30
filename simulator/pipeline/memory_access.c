@@ -1,9 +1,9 @@
-#include "pipeline.h"
+#include "memory_access.h"
 
 /**
  * @brief Implements the memory access stage of the pipeline. This will just use our existing cache and DRAM functions
- * @param instruction the instruction to access memory
+ * @param pipeline the pipeline
  */
-void memory_access(char[] instruction) {
+void memory_access(PipelineState pipeline) {
 
 }
