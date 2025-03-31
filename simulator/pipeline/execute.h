@@ -4,5 +4,6 @@
 #include "../pipeline.h"
 
 void execute(PipelineState *pipeline);
+void execute_ready(PipelineState *pipeline);
 
 #endif

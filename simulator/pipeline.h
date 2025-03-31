@@ -19,6 +19,7 @@ typedef struct {
     uint16_t regA;
     uint16_t regB;
     uint16_t imm;
+    uint16_t opcode;
 } ID_EX_Register;
 
 typedef struct {
@@ -28,6 +29,7 @@ typedef struct {
     uint16_t regA;
     uint16_t regB;
     uint16_t imm;
+    uint16_t opcode;
     uint16_t res;
     uint16_t resMod;
 } EX_MEM_Register;
