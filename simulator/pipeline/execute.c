@@ -14,12 +14,10 @@ void execute(PipelineState *pipeline) {
   uint16_t imm = pipeline->ID_EX.imm;
   uint16_t opcode = pipeline->ID_EX.opcode;
   uint16_t result = 0;
-  uint16_t resMod = 0;
   pipeline->EX_MEM_next.valid = true;
-  
-  switch(pipeline->ID_EX.opcode) {
+  switch(opcode) {
     case 0b0000: //ADD
-      result = pipeline->ID_EX.regA + pipeline->ID_EX.regB;
+      result = regA + regB;
       break;
     case 0b0001: //SUB
       result = regA - regB;
@@ -74,7 +72,7 @@ void execute(PipelineState *pipeline) {
     default: //NOOP, probably shouldn't happen at this stage
       printf("[EXECUTE] Unknown opcode: %u\n", pipeline->ID_EX.opcode);
       while(true) {
-        
+
       }
   }
   pipeline->EX_MEM_next.res = result;
