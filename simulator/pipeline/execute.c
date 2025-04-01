@@ -12,7 +12,7 @@ extern REGISTERS *registers;
  */
 void execute(PipelineState *pipeline) {
   if(!execute_ready(pipeline)) return;
-  uint16_t PC = pipeline->ID_EX.pc;
+  uint16_t PC = registers[pipeline->ID_EX.pc];
   uint16_t regD = registers[pipeline->ID_EX.regD];
   uint16_t regA = registers[pipeline->ID_EX.regA];
   uint16_t regB = registers[pipeline->ID_EX.regB];
@@ -49,16 +49,16 @@ void execute(PipelineState *pipeline) {
       break;
     case 0b1000: //SHIFT
       switch(pipeline->ID_EX.type) {
-        case(0b0000): //LSL
+        case 0b0000: //LSL
           result = regD << regA;
           break;
-        case(0b0001): //LSR
+        case 0b0001: //LSR
           result = regD >> regA;
           break;
-        case(0b0010): //ROR
+        case 0b0010: //ROR
           result = (regA << (regB % 16)) | (regA >> (16 - (regB % 16)));
           break;
-        case(0b0011): //ROL
+        case 0b0011: //ROL
           result = (regA >> (regB % 16)) | (regA << (16 - (regB % 16)));
           break;
         default: //Unsupported Type
@@ -73,10 +73,10 @@ void execute(PipelineState *pipeline) {
       result = pipeline->ID_EX.regA + imm; 
       break;
     case 0b1011: //BEQ
-      result = regD == regA ? PC + imm : PC + 1;
+      registers[15] = regD == regA ? PC + imm : PC + 1;
       break;
     case 0b1111: //BLT
-      result = regD < regA ? PC + imm : PC + 1;
+      registers[15] = regD < regA ? PC + imm : PC + 1;
       break;
     default: //NOOP, probably shouldn't happen at this stage
       printf("[EXECUTE] Unknown opcode: %u\n", opcode);
