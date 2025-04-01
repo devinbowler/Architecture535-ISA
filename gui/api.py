@@ -16,26 +16,33 @@ simulator_process = subprocess.Popen(
 
 def read_output():
     output = []
+    print("[DEBUG] Starting to read simulator output")
     while True:
         line = simulator_process.stdout.readline()
         if not line:
+            print("[DEBUG] No more output from simulator")
             break
         line = line.strip()
         print(f"[C OUTPUT]: {line}")
         output.append(line)
 
         if line == "[END]":
+            print("[DEBUG] Found [END] marker")
             break
 
+    print(f"[DEBUG] Collected output: {output}")
     return "\n".join(output)
 
 
 
 def send_command(command):
     """Send a command to the simulator and return output."""
+    print(f"[DEBUG] Sending command: {command}")
     simulator_process.stdin.write(command + "\n")
     simulator_process.stdin.flush()
-    return read_output()
+    output = read_output()
+    print(f"[DEBUG] Command output: {output}")
+    return output
 
 @app.route("/load_instructions", methods=["POST"])
 def loadInstructions():
@@ -71,19 +78,25 @@ def loadInstructions():
 
 @app.route("/execute_instructions", methods=["POST"])
 def executeInstructions():
+    print("[DEBUG] Starting execute_instructions")
     memory_content = []
     register_contents = []
 
     response = send_command("start")
+    print(f"[DEBUG] Got response: {response}")
 
     for output in response.splitlines():
+        print(f"[DEBUG] Processing line: {output}")
         if output.startswith("[MEM]"):
             addr, val = output[5:].split(":")
             memory_content.append((int(addr), int(val)))
         elif output.startswith("[REG]"):
-            reg, val = output[4:].split(":")
-            register_contents.append((int(reg), int(val)))
+            # Remove the [REG] prefix and split the rest
+            reg_val = output[5:].split(":")
+            register_contents.append((int(reg_val[0]), int(reg_val[1])))
+            print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
 
+    print(f"[DEBUG] Final register contents: {register_contents}")
     return jsonify({
         "message": "Execution Finished.",
         "memory": memory_content,

@@ -12,6 +12,7 @@ void write_back(PipelineState *pipeline) {
   // if (!write_back_ready(pipeline)) return;
   uint16_t opcode = pipeline->MEM_WB.opcode;
   uint16_t regD = pipeline->MEM_WB.regD;
+  uint16_t regB = pipeline->MEM_WB.regB;
   uint16_t result = pipeline->MEM_WB.res;  
   
   // Print write back info
@@ -29,7 +30,7 @@ void write_back(PipelineState *pipeline) {
         opcode == 0b1001) { // LW
         registers->R[regD] = result;
         if (opcode == 0b0101) { // DIVMOD
-            registers->R[regD + 1] = pipeline->MEM_WB.resMod;
+            registers->R[regB] = pipeline->MEM_WB.resMod;
         }
     }
     fflush(stdout);
