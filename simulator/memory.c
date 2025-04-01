@@ -8,20 +8,15 @@
 REGISTERS *init_registers() {
   REGISTERS *registers = malloc(sizeof(REGISTERS));
 
-  registers->R2 = 0;
-  registers->R3 = 0;
-  registers->R4 = 0;
-  registers->R5 = 0;
-  registers->R6 = 0;
-  registers->R7 = 0;
-  registers->R8 = 0;
-  registers->R9 = 0;
-  registers->R10 = 0;
-  registers->R11 = 0;
-  registers->R12 = 0;
-  registers->LR = 0;
-  registers->SR = 100;
-  registers->PC = 0;
+  // Initialize all registers to 0
+  for (int i = 0; i < 16; i++) {
+    registers->R[i] = 0;
+  }
+  
+  // Initialize special registers
+  registers->R[13] = 0;  // LR (Link Register)
+  registers->R[14] = 100;  // SR (Status Register)
+  registers->R[15] = 0;  // PC (Program Counter)
 
   return registers;
 }

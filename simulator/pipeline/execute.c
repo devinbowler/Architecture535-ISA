@@ -119,4 +119,3 @@ void execute(PipelineState *pipeline) {
  */
 bool execute_ready(PipelineState *pipeline) {
     return pipeline->EX_MEM.valid; 
-}
