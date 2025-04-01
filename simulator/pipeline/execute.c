@@ -1,13 +1,42 @@
 #include "execute.h"
-
+extern REGISTERS *registers
 /**
  * @brief Implements the execute stage of the pipeline. This includes ALU operations and address calculations
  * @param pipeline the pipeline
  */
 void execute(PipelineState *pipeline) {
+  uint16_t regD = pipeline->ID_EX.regD;
+  uint16_t functional_unit;
+  switch(pipeline->ID_EX.opcode) {
+    case 0b0000: // ADD
+    case 0b0001: // SUB
+    case 0b0010: // AND
+    case 0b0011: // OR
+    case 0b0100: // XOR
+      functional_unit = 0;
+      break;
+    case 0b0101: // DIVMOD
+      functional_unit = 1;
+      break;
+    case 0b0110: // MUL
+      functional_unit = 2;
+      break;
+    case 0b1000: // SHIFT
+      functional_unit = 3;
+      break;
+    default:
+      functional_unit = 0;
+      break;
+    }
+    
+  if (!can_issue_instruction(scoreboard, regD, functional_unit)) {
+    pipeline->EX_MEM_next.valid = false;
+    return;
+  }
+    
+  issue_instruction(scoreboard, regD, functional_unit);
   if(!execute_ready(pipeline)) return;
   uint16_t PC = pipeline->ID_EX.pc;
-  uint16_t regD = pipeline->ID_EX.regD;
   uint16_t regA = pipeline->ID_EX.regA;
   uint16_t regB = pipeline->ID_EX.regB;
   uint16_t imm = pipeline->ID_EX.imm;
@@ -90,4 +119,3 @@ void execute(PipelineState *pipeline) {
  */
 bool execute_ready(PipelineState *pipeline) {
     return pipeline->EX_MEM.valid; 
-}

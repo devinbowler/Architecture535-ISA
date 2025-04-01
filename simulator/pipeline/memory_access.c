@@ -1,11 +1,13 @@
 #include "memory_access.h"
+extern DRAM dram
+extern Cache *cache
+extern REGISTERS *registers
+
 /**
  * @brief Implements the memory access stage of the pipeline. This will just use our existing cache and DRAM functions
  * @param pipeline the pipeline
- * @param dram the DRAM
- * @param cache the cache
  */
-void memory_access(PipelineState *pipeline, DRAM *dram, Cache *cache) {
+void memory_access(PipelineState *pipeline) {
   if(!memory_ready(pipeline)) return;
   pipeline->MEM_WB_next.valid = true;
   pipeline->MEM_WB_next.pc = pipeline->EX_MEM.pc;
@@ -20,12 +22,9 @@ void memory_access(PipelineState *pipeline, DRAM *dram, Cache *cache) {
   } else if(opcode == 0b1010) { // SW
     write_through(cache, dram, address, regD);
     printf("[MEMORY] SW: Wrote value %u to address %u\n", regD, address);
-  } else {
-    pipeline->MEM_WB_next.res = address;
-    if(opcode == 0b0101) { // DIVMOD
-      pipeline->MEM_WB_next.resMod = pipeline->EX_MEM.resMod;
-    }
   }
+  pipeline->MEM_WB_next.res = address;
+  pipeline->MEM_WB_next.resMod = pipeline->EX_MEM.resMod;
   pipeline->MEM_WB_next.opcode = opcode;
   pipeline->MEM_WB_next.regD = regD;
   pipeline->MEM_WB_next.regB = pipeline->EX_MEM.regB;

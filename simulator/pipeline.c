@@ -6,9 +6,9 @@
 #include "pipeline.h"
 #include "pipeline/fetch.h"
 #include "pipeline/decode.h"
-// #include "pipeline/execute.h"
-// #include "pipeline/memory_stage.h"
-// #include "pipeline/writeback.h"
+#include "pipeline/execute.h"
+#include "pipeline/memory_access.h"
+#include "pipeline/write_back.h"
 
 typedef struct {
     bool register_in_use[16];  // Assuming 16 registers
