@@ -237,6 +237,10 @@ class ISASimulatorUI(QWidget):
         table.setColumnCount(len(headers))
         table.setHorizontalHeaderLabels(headers)
 
+        # Set vertical header labels for register table (0-15)
+        if headers == ["QR - Integer Registers"]:
+            table.setVerticalHeaderLabels([str(i) for i in range(rows)])
+
         # Enable resizing for columns and rows
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)  # Columns stretch
         table.verticalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)    # Rows stretch
@@ -298,11 +302,30 @@ class ISASimulatorUI(QWidget):
             except Exception as e:
                 print(f"[UI ERROR] Failed to set memory[{addr}]: {e}")
 
-        # Update register table with zeros
-        for reg in range(16):  # Assuming 16 registers
-            binary_val = format(0, "016b")  # Set to zero for now
-            self.register_table.setItem(reg, 0, QTableWidgetItem(binary_val))
-            print(f"[DEBUG] Setting register[{reg}] to {binary_val}")
+        # Update register table with values from API response
+        registers = result.get("registers", [])
+        print(f"[DEBUG] Received register updates: {registers}")
+        
+        # Ensure register table has enough rows
+        if len(registers) > self.register_table.rowCount():
+            self.register_table.setRowCount(len(registers))
+            
+        for reg, val in registers:
+            try:
+                reg = int(reg)
+                val = int(val)
+                binary_val = format(val & 0xFFFF, "016b")
+                print(f"[DEBUG] Setting register[{reg}] to {binary_val} (decimal: {val})")
+                item = QTableWidgetItem(binary_val)
+                self.register_table.setItem(reg, 0, item)
+                # Force the table to update
+                self.register_table.viewport().update()
+            except Exception as e:
+                print(f"[UI ERROR] Failed to set register[{reg}]: {e}")
+
+        # Force UI update
+        self.register_table.update()
+        self.update()
 
         # Check if 'message' key exists
         if "message" in result:
