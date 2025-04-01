@@ -20,6 +20,7 @@ typedef struct {
     uint16_t regB;
     uint16_t imm;
     uint16_t opcode;
+    uint16_t type;
 } ID_EX_Register;
 
 typedef struct {
@@ -37,11 +38,25 @@ typedef struct {
 typedef struct {
     bool valid;
     uint16_t pc;
+    uint16_t regD;
+    uint16_t regA;
+    uint16_t regB;
+    uint16_t imm;
+    uint16_t opcode;
+    uint16_t res;
+    uint16_t resMod;
 } MEM_WB_Register;
 
 typedef struct {
-  bool valid;
-  uint16_t pc;
+    bool valid;
+    uint16_t pc;
+    uint16_t regD;
+    uint16_t regA;
+    uint16_t regB;
+    uint16_t imm;
+    uint16_t opcode;
+    uint16_t res;
+    uint16_t resMod;
 } WB_Register;
 
 typedef struct {

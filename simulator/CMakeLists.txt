@@ -16,6 +16,9 @@ set(SOURCES
     pipeline/execute.c 
     pipeline/memory_access.c 
     pipeline/write_back.c
+    ../gui/api.py
+    ../gui/interface.py
+    ../assembler/assembler.c
     )
 
 # Add executable target

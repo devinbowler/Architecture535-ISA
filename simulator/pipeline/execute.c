@@ -1,5 +1,4 @@
 #include "execute.h"
-#include <stdint.h>
 
 /**
  * @brief Implements the execute stage of the pipeline. This includes ALU operations and address calculations
@@ -7,7 +6,7 @@
  */
 void execute(PipelineState *pipeline) {
   if(!execute_ready(pipeline)) return;
-  uint16_t pc = pipeline->ID_EX.pc;
+  uint16_t PC = pipeline->ID_EX.pc;
   uint16_t regD = pipeline->ID_EX.regD;
   uint16_t regA = pipeline->ID_EX.regA;
   uint16_t regB = pipeline->ID_EX.regB;
@@ -52,9 +51,14 @@ void execute(PipelineState *pipeline) {
         case(0b0010): //ROR
           result = (regA << (regB % 16)) | (regA >> (16 - (regB % 16)));
           break;
-        case(0b0010): //ROL
+        case(0b0011): //ROL
           result = (regA >> (regB % 16)) | (regA << (16 - (regB % 16)));
           break;
+        default: //Unsupported Type
+          printf("[EXECUTE] Unknown type.\n");
+          while(true) {
+
+          }
       }
       break;
     case 0b1001: //LW
@@ -70,7 +74,7 @@ void execute(PipelineState *pipeline) {
       result = regD < regA ? PC + imm : PC + 1;
       break;
     default: //NOOP, probably shouldn't happen at this stage
-      printf("[EXECUTE] Unknown opcode: %u\n", pipeline->ID_EX.opcode);
+      printf("[EXECUTE] Unknown opcode: %u\n", opcode);
       while(true) {
 
       }
