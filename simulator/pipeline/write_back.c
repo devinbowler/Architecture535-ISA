@@ -14,15 +14,7 @@ void write_back(PipelineState *pipeline) {
   uint16_t regD = pipeline->MEM_WB.regD;
   uint16_t regB = pipeline->MEM_WB.regB;
   uint16_t result = pipeline->MEM_WB.res;  
-  if (opcode == 0b0000 || // ADD
-        opcode == 0b0001 || // SUB
-        opcode == 0b0010 || // AND
-        opcode == 0b0011 || // OR
-        opcode == 0b0100 || // XOR
-        opcode == 0b0101 || // DIVMOD
-        opcode == 0b0110 || // MUL
-        opcode == 0b1000 || // SHIFT
-        opcode == 0b1001) { // LW
+  if (opcode <= 0b0111 || opcode == 0b1001) {
         registers[regD] = result;
         printf("[WRITE-BACK] Wrote value %u to R%u\n", result, regD);
         if (opcode == 0b0101) { // DIVMOD
