@@ -1,5 +1,9 @@
 #include "write_back.h"
-extern REGISTERS *registers
+#include "pipeline.h"
+#include "../memory.h"
+
+extern REGISTERS *registers;
+
 /**
  * @brief Implements the write back stage of the pipeline.
  * @param pipeline the pipeline
@@ -18,16 +22,14 @@ void write_back(PipelineState *pipeline) {
         opcode == 0b0110 || // MUL
         opcode == 0b1000 || // SHIFT
         opcode == 0b1001) { // LW
-        registers[regD] = result;
+        registers->R[regD] = result;
         printf("[WRITE-BACK] Wrote value %u to R%u\n", result, regD);
         if (opcode == 0b0101) { // DIVMOD
-            registers[regB] = pipeline->MEM_WB.resMod;
+            registers->R[regD + 1] = pipeline->MEM_WB.resMod;
             printf("[WRITE-BACK] Wrote remainder %u to R%u\n", pipeline->MEM_WB.resMod, regD+1);
         }
     }
-    complete_instruction(scoreboard, regD, pipeline->MEM_WB.functional_unit);
     fflush(stdout);
-    
 }
 
 /**

@@ -19,10 +19,10 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
 
     // Update pipeline's fetch stage
     pipeline->IF_ID_next.instruction = *value;
-    pipeline->IF_ID_next.pc = registers->PC;
+    pipeline->IF_ID_next.pc = registers->R[15];
     pipeline->IF_ID_next.valid = true;
         
     // Print fetch info
-    printf("[FETCH] PC=%d instruction=%d\n", registers->PC, pipeline->IF_ID_next.instruction);
+    printf("[FETCH] PC=%d instruction=%d\n", registers->R[15], pipeline->IF_ID_next.instruction);
     fflush(stdout);
 }

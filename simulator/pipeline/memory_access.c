@@ -1,7 +1,7 @@
 #include "memory_access.h"
-extern DRAM dram
-extern Cache *cache
-extern REGISTERS *registers
+extern DRAM dram;
+extern Cache *cache;
+extern REGISTERS *registers;
 
 /**
  * @brief Implements the memory access stage of the pipeline. This will just use our existing cache and DRAM functions
@@ -16,11 +16,11 @@ void memory_access(PipelineState *pipeline) {
   uint16_t address = pipeline->EX_MEM.res;
   uint16_t value = 0;
   if(opcode == 0b1001) { //LW
-    value = read_cache(cache, dram, address);
+    value = read_cache(cache, &dram, address);
     pipeline->MEM_WB_next.res = value;
     printf("[MEMORY] LW: Read value %u from address %u for R%u\n", value, address, regD);
   } else if(opcode == 0b1010) { // SW
-    write_through(cache, dram, address, regD);
+    write_through(cache, &dram, address, regD);
     printf("[MEMORY] SW: Wrote value %u to address %u\n", regD, address);
   }
   pipeline->MEM_WB_next.res = address;

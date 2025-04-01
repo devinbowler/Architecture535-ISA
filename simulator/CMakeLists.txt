@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.10)
 
 # Project name
-project(ARCH-16 C)
+project(ARCH-16)
 
 # Set compiler flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -O2")
+
+# Set output directory to simulator root
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR})
 
 # Source files
 set(SOURCES 
@@ -22,4 +25,4 @@ set(SOURCES
     )
 
 # Add executable target
-add_executable(ARCH-16 ${SOURCES})
+add_executable(simulator ${SOURCES})

@@ -30,18 +30,18 @@ void init_system() {
 
 // Execute all instructions in DRAM.
 void executeInstructions() {
-    registers->PC = 0;
+    registers->R[15] = 0;
     memset(&pipeline, 0, sizeof(pipeline));  // First clear everything
     pipeline.IF_ID.valid = true;  // Start with IF_ID empty so fetch can proceed
     pipeline.ID_EX.valid = true;  // Start with ID_EX empty
     printf("[LOG] Pipeline started at PC=0\n");
     fflush(stdout);
 
-    uint16_t instruction = readFromMemory(&dram, registers->PC);
+    uint16_t instruction = readFromMemory(&dram, registers->R[15]);
     while (instruction != 0) {
         pipeline_step(&pipeline, &instruction);
-        registers->PC++;
-        instruction = readFromMemory(&dram, registers->PC);
+        registers->R[15]++;
+        instruction = readFromMemory(&dram, registers->R[15]);
     }
     
     // Add one more cycle to decode the last instruction
@@ -70,14 +70,14 @@ void storeInstruction(const char *command) {
     const char *instruction = command + 6;
     uint16_t value = loadInstruction(instruction);
 
-    writeToMemory(&dram, registers->PC, value);
+    writeToMemory(&dram, registers->R[15], value);
 
     printf("[BIN]%u\n", value);
-    printf("[MEM]%d:%d\n", registers->PC, value);
+    printf("[MEM]%d:%d\n", registers->R[15], value);
     printf("[END]\n");
     fflush(stdout);
 
-    registers->PC++;
+    registers->R[15] += 1;
 }
 
 
