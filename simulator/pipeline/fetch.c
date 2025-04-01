@@ -12,17 +12,14 @@ bool fetch_ready(PipelineState* pipeline) {
 }
 
 void fetch_stage(PipelineState* pipeline, uint16_t* value) {
-    // Only proceed if fetch stage is ready
-    if (!fetch_ready(pipeline)) {
-        return;
-    }
+    // if (!fetch_ready(pipeline)) return;
 
-    // Update pipeline's fetch stage
+    // If there is something to fetch, mark stage as valid
+    pipeline->IF_ID_next.valid = true;
     pipeline->IF_ID_next.instruction = *value;
     pipeline->IF_ID_next.pc = registers->R[15];
-    pipeline->IF_ID_next.valid = true;
-        
+
     // Print fetch info
-    printf("[FETCH] PC=%d instruction=%d\n", registers->R[15], pipeline->IF_ID_next.instruction);
+    printf("[FETCH] instruction=%u pc=%u\n", *value, registers->R[15]);
     fflush(stdout);
 }

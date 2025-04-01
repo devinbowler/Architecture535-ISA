@@ -11,7 +11,7 @@ extern REGISTERS *registers;
  * @param pipeline the pipeline
  */
 void execute(PipelineState *pipeline) {
-  if(!execute_ready(pipeline)) return;
+  // if(!execute_ready(pipeline)) return;
   uint16_t PC = pipeline->ID_EX.pc;
   uint16_t regD = pipeline->ID_EX.regD;
   uint16_t regA = pipeline->ID_EX.regA;
@@ -20,6 +20,14 @@ void execute(PipelineState *pipeline) {
   uint16_t opcode = pipeline->ID_EX.opcode;
   uint16_t result = 0;
   pipeline->EX_MEM_next.valid = true;
+  
+  // Pass regD to next stage
+  pipeline->EX_MEM_next.regD = regD;
+  
+  // Print execute info
+  printf("[EXECUTE] opcode=%u rd=%u ra=%u rb=%u result=%u\n", 
+         opcode, regD, regA, regB, result);
+  fflush(stdout);
   
   switch(opcode) {
     case 0b0000: //ADD

@@ -13,9 +13,9 @@ bool decode_ready(PipelineState* pipeline) {
 
 void decode_stage(PipelineState* pipeline) {
     // Check if decode stage is ready
-    if (!decode_ready(pipeline)) {
-        return;
-    }
+    //if (!decode_ready(pipeline)) {
+    //    return;
+    //}
 
     // If there is something to decode, mark stage as valid
     pipeline->ID_EX_next.valid = true;
@@ -29,6 +29,9 @@ void decode_stage(PipelineState* pipeline) {
 
     // Set PC in ID/EX register
     pipeline->ID_EX_next.pc = pipeline->IF_ID.pc;
+
+    // Set opcode in ID/EX register
+    pipeline->ID_EX_next.opcode = opcode;
 
     // Read actual values from registers
     uint16_t regA_value = registers->R[ra];  // Assuming R is an array of register values
@@ -55,7 +58,7 @@ void decode_stage(PipelineState* pipeline) {
     }
 
     // Print decode info
-    printf("[DECODE] opcode=%u rd/type=%u ra=%u rb/imm=%u\n", 
+    printf("[DECODE] opcode=%u rd=%u ra=%u rb=%u\n", 
            opcode, rd_type, ra, rb_imm);
     fflush(stdout);
 }

@@ -38,15 +38,45 @@ void executeInstructions() {
     fflush(stdout);
 
     uint16_t instruction = readFromMemory(&dram, registers->R[15]);
-    while (instruction != 0) {
-        pipeline_step(&pipeline, &instruction);
-        registers->R[15]++;
-        instruction = readFromMemory(&dram, registers->R[15]);
+    bool pipeline_empty = false;
+    int cycles = 0;
+    int max_cycles = 1000; // Safety limit
+
+    while (!pipeline_empty && cycles < max_cycles) {
+        // Fetch next instruction if available
+        if (instruction != 0) {
+            pipeline_step(&pipeline, &instruction);
+            registers->R[15] += 1;
+            instruction = readFromMemory(&dram, registers->R[15]);
+        } else {
+            // No more instructions to fetch, but keep pipeline running
+            pipeline_step(&pipeline, &instruction);
+        }
+
+        // Check if pipeline is empty (all stages are invalid)
+        pipeline_empty = !pipeline.IF_ID.valid && 
+                        !pipeline.ID_EX.valid && 
+                        !pipeline.EX_MEM.valid && 
+                        !pipeline.MEM_WB.valid && 
+                        !pipeline.WB.valid;
+
+        // Print current register values after each cycle
+        for (int i = 0; i < 16; i++) {
+            printf("[REG]%d:%u\n", i, registers->R[i]);
+        }
+        fflush(stdout);
+
+        cycles++;
     }
     
-    // Add one more cycle to decode the last instruction
-    instruction = 0;  // No more instructions to fetch
-    pipeline_step(&pipeline, &instruction);
+    if (cycles >= max_cycles) {
+        printf("[WARNING] Pipeline did not complete within maximum cycles\n");
+    }
+    
+    // Print final register values
+    for (int i = 0; i < 16; i++) {
+        printf("[REG]%d:%u\n", i, registers->R[i]);
+    }
     
     printf("[END]\n");
     fflush(stdout);

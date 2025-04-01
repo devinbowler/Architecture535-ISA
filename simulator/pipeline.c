@@ -75,16 +75,16 @@ bool pipeline_ready(PipelineState* pipeline) {
 // Step pipeline one cycle
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // Execute stages in reverse order
-    fetch_stage(pipeline, value);
-    decode_stage(pipeline);
-    execute(pipeline);
-    memory_access(pipeline);
     write_back(pipeline);
+    memory_access(pipeline);
+    execute(pipeline);
+    decode_stage(pipeline);
+    fetch_stage(pipeline, value);
 
     // Update pipeline registers
-    pipeline->IF_ID = pipeline->IF_ID_next;
-    pipeline->ID_EX = pipeline->ID_EX_next;
-    pipeline->EX_MEM = pipeline->EX_MEM_next;
-    pipeline->MEM_WB = pipeline->MEM_WB_next;
     pipeline->WB = pipeline->WB_next;
+    pipeline->MEM_WB = pipeline->MEM_WB_next;
+    pipeline->EX_MEM = pipeline->EX_MEM_next;
+    pipeline->ID_EX = pipeline->ID_EX_next;
+    pipeline->IF_ID = pipeline->IF_ID_next;
 }

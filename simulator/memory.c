@@ -8,9 +8,9 @@
 REGISTERS *init_registers() {
   REGISTERS *registers = malloc(sizeof(REGISTERS));
 
-  // Initialize all registers to 0
-  for (int i = 0; i < 16; i++) {
-    registers->R[i] = 0;
+  // Initialize all general registers to 2
+  for (int i = 0; i < 13; i++) {
+    registers->R[i] = 2;
   }
   
   // Initialize special registers
