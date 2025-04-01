@@ -19,22 +19,10 @@ typedef struct Set Set;
 typedef struct Line Line;
 
 typedef struct {
-  const uint16_t R0;
-  const uint16_t R1;
-  uint16_t R2;
-  uint16_t R3;
-  uint16_t R4;
-  uint16_t R5;
-  uint16_t R6;
-  uint16_t R7;
-  uint16_t R8;
-  uint16_t R9;
-  uint16_t R10;
-  uint16_t R11;
-  uint16_t R12;
-  uint16_t LR;
-  uint16_t SR;
-  uint16_t PC;
+    uint16_t R[16];  // Array of 16 registers (R0-R12, LR, SR, PC)
+    // R[13] = LR (Link Register)
+    // R[14] = SR (Status Register)
+    // R[15] = PC (Program Counter)
 } REGISTERS;
 
 
