@@ -11,11 +11,11 @@ extern REGISTERS *registers;
  * @param pipeline the pipeline
  */
 void execute(PipelineState *pipeline) {
-  // if(!execute_ready(pipeline)) return;
-  uint16_t PC = pipeline->ID_EX.pc;
-  uint16_t regD = pipeline->ID_EX.regD;
-  uint16_t regA = pipeline->ID_EX.regA;
-  uint16_t regB = pipeline->ID_EX.regB;
+  if(!execute_ready(pipeline)) return;
+  uint16_t PC = registers->R[pipeline->ID_EX.pc];
+  uint16_t regD = registers->R[pipeline->ID_EX.regD];
+  uint16_t regA = registers->R[pipeline->ID_EX.regA];
+  uint16_t regB = registers->R[pipeline->ID_EX.regB];
   uint16_t imm = pipeline->ID_EX.imm;
   uint16_t opcode = pipeline->ID_EX.opcode;
   uint16_t result = 0;
@@ -53,20 +53,20 @@ void execute(PipelineState *pipeline) {
       result = regA * regB;
       break;
     case 0b0111: //CMP
-      result = regA - regB;
+      registers->R[14] = regA - regB;
       break;
     case 0b1000: //SHIFT
       switch(pipeline->ID_EX.type) {
-        case(0b0000): //LSL
+        case 0b0000: //LSL
           result = regD << regA;
           break;
-        case(0b0001): //LSR
+        case 0b0001: //LSR
           result = regD >> regA;
           break;
-        case(0b0010): //ROR
+        case 0b0010: //ROR
           result = (regA << (regB % 16)) | (regA >> (16 - (regB % 16)));
           break;
-        case(0b0011): //ROL
+        case 0b0011: //ROL
           result = (regA >> (regB % 16)) | (regA << (16 - (regB % 16)));
           break;
         default: //Unsupported Type
@@ -75,16 +75,16 @@ void execute(PipelineState *pipeline) {
       }
       break;
     case 0b1001: //LW
-      result = regA + imm;
+      result = pipeline->ID_EX.regA + imm;
       break;
     case 0b1010: //SW
-      result = regA + imm; 
+      result = pipeline->ID_EX.regA + imm; 
       break;
     case 0b1011: //BEQ
-      result = regD == regA ? PC + imm : PC + 1;
+      registers->R[15] = regD == regA ? PC + imm : PC + 1;
       break;
     case 0b1111: //BLT
-      result = regD < regA ? PC + imm : PC + 1;
+      registers->R[15] = regD < regA ? PC + imm : PC + 1;
       break;
     default: //NOOP, probably shouldn't happen at this stage
       printf("[EXECUTE] Unknown opcode: %u\n", opcode);
