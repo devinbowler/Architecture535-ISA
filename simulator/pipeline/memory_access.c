@@ -22,8 +22,9 @@ void memory_access(PipelineState *pipeline) {
   } else if(opcode == 0b1010) { // SW
     write_through(cache, &dram, address, regD);
     printf("[MEMORY] SW: Wrote value %u to address %u\n", regD, address);
+  } else {
+    pipeline->MEM_WB_next.res = address;
   }
-  pipeline->MEM_WB_next.res = address;
   pipeline->MEM_WB_next.resMod = pipeline->EX_MEM.resMod;
   pipeline->MEM_WB_next.opcode = opcode;
   pipeline->MEM_WB_next.regD = regD;
