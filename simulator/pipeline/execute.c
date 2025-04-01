@@ -13,9 +13,9 @@ extern REGISTERS *registers;
 void execute(PipelineState *pipeline) {
   if(!execute_ready(pipeline)) return;
   uint16_t PC = pipeline->ID_EX.pc;
-  uint16_t regD = pipeline->ID_EX.regD;
-  uint16_t regA = pipeline->ID_EX.regA;
-  uint16_t regB = pipeline->ID_EX.regB;
+  uint16_t regD = registers[pipeline->ID_EX.regD];
+  uint16_t regA = registers[pipeline->ID_EX.regA];
+  uint16_t regB = registers[pipeline->ID_EX.regB];
   uint16_t imm = pipeline->ID_EX.imm;
   uint16_t opcode = pipeline->ID_EX.opcode;
   uint16_t result = 0;
@@ -67,10 +67,10 @@ void execute(PipelineState *pipeline) {
       }
       break;
     case 0b1001: //LW
-      result = regA + imm;
+      result = pipeline->ID_EX.regA + imm;
       break;
     case 0b1010: //SW
-      result = regA + imm; 
+      result = pipeline->ID_EX.regA + imm; 
       break;
     case 0b1011: //BEQ
       result = regD == regA ? PC + imm : PC + 1;
