@@ -45,7 +45,7 @@ void execute(PipelineState *pipeline) {
       result = regA * regB;
       break;
     case 0b0111: //CMP
-      result = regA - regB;
+      registers[14] = regA - regB;
       break;
     case 0b1000: //SHIFT
       switch(pipeline->ID_EX.type) {
