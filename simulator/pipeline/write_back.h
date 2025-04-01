@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void write_back(PipelineState *pipeline, REGISTERS *registers);
+void write_back(PipelineState *pipeline);
 bool write_back_ready(PipelineState *pipeline);
 
 #endif
