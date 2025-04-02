@@ -87,21 +87,21 @@ void execute(PipelineState *pipeline) {
       }
       break;
     case 0b1001: //LW
-      // Calculate the memory offset (will be added to DATA_SPACE in memory stage)
-      // If we want R0 + 15 to access address 515, then we calculate:
-      // offset = R0 + 15 = 0 + 15 = 15
-      // Final address in memory stage will be DATA_SPACE + offset = 500 + 15 = 515
+      // Calculate the memory offset that will be added to DATA_SPACE (500) in memory stage
+      // For "LW Rd, [Ra + imm]" - we want to calculate Ra + imm exactly
       result = valA + imm;
-      printf("[EXECUTE_LW] R%u = MEM[R%u(%u) + %u] => Load from offset %u, will access address %u\n", 
+      
+      // Make sure we're using the full 16-bit value
+      printf("[EXECUTE_LW] R%u = MEM[R%u(%u) + %u] => offset=%u (will access address %u)\n", 
             regD, regA, valA, imm, result, result + DATA_SPACE);
       break;
     case 0b1010: //SW
-      // Calculate the memory offset (will be added to DATA_SPACE in memory stage)
-      // If we want R0 + 15 to access address 515, then we calculate:
-      // offset = R0 + 15 = 0 + 15 = 15
-      // Final address in memory stage will be DATA_SPACE + offset = 500 + 15 = 515
-      result = valA + imm; 
-      printf("[EXECUTE_SW] MEM[R%u(%u) + %u] = R%u(%u) => Store at offset %u, will access address %u\n", 
+      // Calculate the memory offset that will be added to DATA_SPACE (500) in memory stage
+      // For "SW [Ra + imm], Rd" - we want to calculate Ra + imm exactly
+      result = valA + imm;
+      
+      // Make sure we're using the full 16-bit value
+      printf("[EXECUTE_SW] MEM[R%u(%u) + %u] = R%u(%u) => offset=%u (will access address %u)\n", 
             regA, valA, imm, regD, registers->R[regD], result, result + DATA_SPACE);
       break;
     case 0b1011: //BEQ

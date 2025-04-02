@@ -140,7 +140,7 @@ class ISASimulatorUI(QWidget):
         tab_widget = QTabWidget()
         self.register_table = self.create_table(16, ["QR - Integer Registers"])
         self.memory_table = self.create_table(1000, ["Value"])
-        self.cache_table = self.create_table(16, ["Index", "Offset", "Valid", "Data"])
+        self.cache_table = self.create_table(16, ["Index", "Offset", "Valid", "Tag", "Data[0]", "Data[1]", "Data[2]", "Data[3]"])
         
         tab_widget.addTab(self.register_table, "Registers")
         tab_widget.addTab(self.memory_table, "Memory")
@@ -272,12 +272,17 @@ class ISASimulatorUI(QWidget):
             self.thread.start()
 
     def execute_instructions(self):
-        print("[DEBUG] Starting execute_instructions")
-        self.thread = execute_instructionsThread(self.api_url)
-        self.thread.finished.connect(self.handle_execution_result)
-        self.thread.error.connect(self.handle_instruction_error)
-        self.thread.start()
-        print("[DEBUG] execute_instructionsThread started")
+        # Check cache settings
+        cache_enabled = self.cache_enabled.isChecked()
+        cache_type = self.cache_type.currentText()
+        
+        print(f"[UI] Executing with cache enabled: {cache_enabled}, type: {cache_type}")
+        
+        # Start thread to call API
+        self.execute_thread = execute_instructionsThread(self.api_url)
+        self.execute_thread.finished.connect(self.handle_execution_result)
+        self.execute_thread.error.connect(self.handle_instruction_error)
+        self.execute_thread.start()
 
     def handle_execution_result(self, result):
         print("[DEBUG] handle_execution_result called with result:", result)
@@ -287,57 +292,92 @@ class ISASimulatorUI(QWidget):
             QMessageBox.information(self, "Error", result["error"])
             return
 
-        # Update memory table - first clear and resize
-        memory = result.get("memory", [])
-        print(f"[DEBUG] Received {len(memory)} memory updates")
-        
-        # Set row headers to be the memory addresses for all 1000 memory locations
-        address_labels = [str(i) for i in range(1000)]
-        self.memory_table.setVerticalHeaderLabels(address_labels)
-        
-        # Clear all cells first with zeros
-        for i in range(1000):
-            self.memory_table.setItem(i, 0, QTableWidgetItem("0000000000000000"))
-        
-        # Now update with actual values from the execution
-        for addr, val in memory:
-            try:
-                addr = int(addr)
-                if addr >= 1000:
-                    continue  # Skip addresses beyond our table size
-                    
-                val = int(val)
-                binary_val = format(val & 0xFFFF, "016b")
-                
-                print(f"[DEBUG] Setting memory[{addr}] to {binary_val} (decimal: {val})")
-                item = QTableWidgetItem(binary_val)
-                self.memory_table.setItem(addr, 0, item)
-            except Exception as e:
-                print(f"[UI ERROR] Failed to set memory[{addr}]: {e}")
-
         # Update register table with values from API response
         registers = result.get("registers", [])
         print(f"[DEBUG] Received register updates: {registers}")
+        
+        # Ensure register table has enough rows
+        if len(registers) > self.register_table.rowCount():
+            self.register_table.setRowCount(len(registers))
             
         for reg, val in registers:
             try:
                 reg = int(reg)
-                if reg >= 16:  # Only update the first 16 registers
-                    continue
-                    
                 val = int(val)
                 binary_val = format(val & 0xFFFF, "016b")
                 print(f"[DEBUG] Setting register[{reg}] to {binary_val} (decimal: {val})")
                 item = QTableWidgetItem(binary_val)
                 self.register_table.setItem(reg, 0, item)
+                # Force the table to update
+                self.register_table.viewport().update()
             except Exception as e:
                 print(f"[UI ERROR] Failed to set register[{reg}]: {e}")
 
+        # Update memory table
+        memory = result.get("memory", [])
+        for addr, val in memory:
+            try:
+                addr = int(addr)
+                val = int(val)
+                binary_val = format(val & 0xFFFF, "016b")
+
+                # Ensure enough rows
+                if addr >= self.memory_table.rowCount():
+                    self.memory_table.setRowCount(addr + 1)
+
+                self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+            except Exception as e:
+                print(f"[UI ERROR] Failed to set memory[{addr}]: {e}")
+                
+        # Update cache table
+        cache = result.get("cache", [])
+        cache_data = result.get("cache_data", [])
+        print(f"[DEBUG] Received cache updates: {len(cache)} entries")
+        print(f"[DEBUG] Received cache data updates: {len(cache_data)} entries")
+        
+        # Process cache information: cache contains (index, offset, valid, tag)
+        # Create a dictionary to organize cache entries
+        cache_entries = {}
+        
+        # First collect all cache metadata
+        for index, offset, valid, tag in cache:
+            key = f"{index}:{offset}"
+            cache_entries[key] = {
+                "index": index,
+                "offset": offset,
+                "valid": valid,
+                "tag": tag,
+                "data": [0, 0, 0, 0]  # Initialize with zeros
+            }
+        
+        # Then fill in the cache data values
+        for index, offset, data_idx, data_val in cache_data:
+            key = f"{index}:{offset}"
+            if key in cache_entries and 0 <= data_idx < 4:
+                cache_entries[key]["data"][data_idx] = data_val
+        
+        # Now populate the cache table
+        self.cache_table.setRowCount(len(cache_entries))
+        
+        for i, (key, entry) in enumerate(cache_entries.items()):
+            try:
+                self.cache_table.setItem(i, 0, QTableWidgetItem(str(entry["index"])))
+                self.cache_table.setItem(i, 1, QTableWidgetItem(str(entry["offset"])))
+                self.cache_table.setItem(i, 2, QTableWidgetItem("Valid" if entry["valid"] else "Invalid"))
+                self.cache_table.setItem(i, 3, QTableWidgetItem(str(entry["tag"])))
+                
+                # Add the data values
+                for j in range(4):
+                    self.cache_table.setItem(i, 4 + j, QTableWidgetItem(str(entry["data"][j])))
+                
+                print(f"[DEBUG] Updated cache line {i}: {entry}")
+            except Exception as e:
+                print(f"[UI ERROR] Failed to update cache line {i}: {e}")
+
         # Force UI update
-        self.memory_table.viewport().update()
-        self.memory_table.update()
-        self.register_table.viewport().update()
         self.register_table.update()
+        self.memory_table.update()
+        self.cache_table.update()
         self.update()
 
         # Check if 'message' key exists

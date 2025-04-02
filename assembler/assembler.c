@@ -75,7 +75,45 @@ uint16_t loadInstruction(const char *line){
       lineCopy[i] = ' ';
     }
   }
+  
+  // Special handling for LW and SW with [Ra + imm] syntax
+  char *lw_pattern = strstr(lineCopy, "LW ");
+  char *sw_pattern = strstr(lineCopy, "SW ");
+  
+  if (lw_pattern) {
+    char rd_str[16], ra_str[16], imm_str[16];
+    int rd, ra, imm;
+    
+    // Handle "LW Rd, [Ra + imm]" format
+    if (sscanf(lineCopy, "LW R%d [R%d + %d]", &rd, &ra, &imm) == 3) {
+      rri.opcode = 0b1001;
+      rri.regD = rd;
+      rri.regA = ra;
+      rri.imm = imm;
+      
+      printf("Parsing LW: LW R%d, [R%d + %d]\n", rd, ra, imm);
+      printf("Encoded as: destination=R%u, base=R%u, offset=%u\n", rd, ra, imm);
+      return RRITypeEncode(&rri);
+    }
+  }
+  else if (sw_pattern) {
+    char rd_str[16], ra_str[16], imm_str[16];
+    int rd, ra, imm;
+    
+    // Handle "SW [Ra + imm], Rd" format
+    if (sscanf(lineCopy, "SW [R%d + %d] R%d", &ra, &imm, &rd) == 3) {
+      rri.opcode = 0b1010;
+      rri.regD = rd;
+      rri.regA = ra;
+      rri.imm = imm;
+      
+      printf("Parsing SW: SW [R%d + %d], R%d\n", ra, imm, rd);
+      printf("Encoded as: source=R%u, base=R%u, offset=%u\n", rd, ra, imm);
+      return RRITypeEncode(&rri);
+    }
+  }
 
+  // Standard parsing for other instructions
   char *values[4];
   char *value = strtok(lineCopy, " ");
   uint16_t valueCount = 0;
@@ -95,19 +133,22 @@ uint16_t loadInstruction(const char *line){
     uint16_t ra = atoi(values[2] + 1);
     uint16_t rb = atoi(values[3] + 1);
 
+    // Standard ALU operations
     if (strcmp(opcode, "ADD") == 0){        // RRR Types
       rrr.opcode = 0b0000;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
-
+      
+      printf("Parsing ADD: ADD R%d, R%d, R%d\n", rd, ra, rb);
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "SUB") == 0){
       rrr.opcode = 0b0001;
       rrr.regD = rd;
       rrr.regA = ra;
       rrr.regB = rb;
-
+      
+      printf("Parsing SUB: SUB R%d, R%d, R%d\n", rd, ra, rb);
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "AND") == 0){
       rrr.opcode = 0b0010;
@@ -179,22 +220,6 @@ uint16_t loadInstruction(const char *line){
       rr.regB = rb;
 
       return RRTypeEncode(&rr);
-    } else if (strcmp(opcode, "LW") == 0) { // RRI Types
-      rri.opcode = 0b1001;
-      rri.regD = rd;
-      rri.regA = ra;
-      rri.imm = rb;
-      
-      printf("Parsing LW: destination=R%u, base=R%u, offset=%u\n", rd, ra, rb);
-      return RRITypeEncode(&rri);
-    } else if (strcmp(opcode, "SW") == 0) {
-      rri.opcode = 0b1010;
-      rri.regD = rd;
-      rri.regA = ra;
-      rri.imm = rb;
-      
-      printf("Parsing SW: source=R%u, base=R%u, offset=%u\n", rd, ra, rb);
-      return RRITypeEncode(&rri);
     } else if (strcmp(opcode, "BEQ") == 0){
       rri.opcode = 0b1011;
       rri.regD = rd;

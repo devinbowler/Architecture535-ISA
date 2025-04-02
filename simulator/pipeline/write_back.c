@@ -46,7 +46,8 @@ void write_back(PipelineState *pipeline) {
   }
   else if (opcode == 0b1001) {
     // LW instruction writes loaded value to destination register
-    printf("[WB_LOAD] Updating R%u = %u (from memory)\n", regD, result);
+    printf("[WB_LOAD] Updating R%u = %u (from memory), previous value was %u\n", 
+           regD, result, registers->R[regD]);
     registers->R[regD] = result;
     printf("[REG]%d:%d\n", regD, result);
     fflush(stdout);

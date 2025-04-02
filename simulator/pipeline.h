@@ -24,7 +24,7 @@ typedef struct {
     uint16_t regD;
     uint16_t regA;
     uint16_t regB;
-    uint16_t imm;
+    uint16_t imm;  // Make sure this is 16 bits for correct offset values
     uint16_t opcode;
     uint16_t type;
 } ID_EX_Register;
