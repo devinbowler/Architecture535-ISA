@@ -122,36 +122,15 @@ void stepInstructions() {
   if (!initialized) {
     registers->R[15] = 0;
     memset(&pipeline, 0, sizeof(pipeline));
-    // Start with all stages as "valid but empty" (to show bubbles)
-    pipeline.IF_ID.valid = true;
-    pipeline.IF_ID.instruction = 0;
-    pipeline.ID_EX.valid = true;
-    pipeline.ID_EX.opcode = 0;
-    pipeline.EX_MEM.valid = true;
-    pipeline.EX_MEM.opcode = 0;
-    pipeline.MEM_WB.valid = true;
-    pipeline.MEM_WB.opcode = 0;
-    pipeline.WB.valid = true;
-    pipeline.WB.opcode = 0;
-    
-    // Initialize all next stages too
-    pipeline.IF_ID_next = pipeline.IF_ID;
-    pipeline.ID_EX_next = pipeline.ID_EX;
-    pipeline.EX_MEM_next = pipeline.EX_MEM;
-    pipeline.MEM_WB_next = pipeline.MEM_WB;
-    pipeline.WB_next = pipeline.WB;
-    
+    pipeline.IF_ID.valid = true;  // Start with IF_ID empty so fetch can proceed
+    pipeline.ID_EX.valid = true;  // Start with ID_EX empty
+    pipeline.EX_MEM.valid = true; // Start with EX_MEM empty
+    pipeline.MEM_WB.valid = true; // Start with MEM_WB empty
+    pipeline.WB.valid = true;     // Start with WB empty
     instruction = readFromMemory(&dram, registers->R[15]);
     initialized = true;
     cycle_count = 0;
     printf("[LOG] Pipeline initialized for stepping, PC=0\n");
-    
-    // Report initial state for visualization
-    printf("[PIPELINE]FETCH:Bubble:0\n");
-    printf("[PIPELINE]DECODE:Bubble:0\n");
-    printf("[PIPELINE]EXECUTE:Bubble:0\n");
-    printf("[PIPELINE]MEMORY:Bubble:0\n");
-    printf("[PIPELINE]WRITEBACK:Bubble:0\n");
   }
   
   // Perform one pipeline step
@@ -165,22 +144,9 @@ void stepInstructions() {
   
   // Fetch next instruction if available
   if (instruction != 0) {
-    extern bool memory_operation_in_progress;
-    
-    // Store original PC before step
-    uint16_t original_pc = registers->R[15];
-    
     pipeline_step(&pipeline, &instruction);
-    
-    // Only increment PC if we're not in a memory operation
-    // This ensures we fetch from the same location after a bubble is cleared
-    if (!memory_operation_in_progress) {
-      registers->R[15] += 1;
-      instruction = readFromMemory(&dram, registers->R[15]);
-    } else {
-      // We're in a memory operation, keep same instruction for next cycle
-      printf("[LOG] Memory operation in progress - freezing PC at %d\n", original_pc);
-    }
+    registers->R[15] += 1;
+    instruction = readFromMemory(&dram, registers->R[15]);
   } else {
     // No more instructions to fetch, but keep pipeline running
     pipeline_step(&pipeline, &instruction);
@@ -301,7 +267,7 @@ const char* decode_instruction_to_string_decoded(uint16_t opcode, uint16_t rd, u
         case 5:
             sprintf(buffer, "LW R%d, R%d, %d", rd, ra, imm);
             break;
-        case 6:
+        case 11:
             sprintf(buffer, "BEQ R%d, R%d, %d", rd, ra, imm);
             break;
         case 7:

@@ -9,34 +9,12 @@ extern REGISTERS *registers;
  * @param pipeline the pipeline
  */
 void write_back(PipelineState *pipeline) {
-  // Check if there's a valid instruction for write-back
-  if (!pipeline->MEM_WB.valid || pipeline->MEM_WB.opcode == 0) {
-    // If no valid instruction, propagate a bubble
-    pipeline->WB_next.valid = true;  // We're valid but empty (bubble)
-    pipeline->WB_next.opcode = 0;    // No operation
-    pipeline->WB_next.pc = pipeline->MEM_WB.pc;  // Keep PC for tracking
-    
-    printf("[WRITE-BACK] No valid instruction for write-back (bubble)\n");
-    printf("[PIPELINE]WRITEBACK:Bubble:%d\n", pipeline->MEM_WB.pc);
-    return;
-  }
-  
+  // if (!write_back_ready(pipeline)) return;
   uint16_t opcode = pipeline->MEM_WB.opcode;
   uint16_t regD = pipeline->MEM_WB.regD;
   uint16_t regB = pipeline->MEM_WB.regB;
   uint16_t result = pipeline->MEM_WB.res;
   uint16_t resMod = pipeline->MEM_WB.resMod;
-  uint16_t PC = pipeline->MEM_WB.pc;
-  
-  // Setup next stage
-  pipeline->WB_next.valid = true;
-  pipeline->WB_next.opcode = opcode;
-  pipeline->WB_next.regD = regD;
-  pipeline->WB_next.regA = pipeline->MEM_WB.regA;
-  pipeline->WB_next.regB = regB;
-  pipeline->WB_next.res = result;
-  pipeline->WB_next.resMod = resMod;
-  pipeline->WB_next.pc = PC;
   
   // Print write back info
   printf("[WRITE-BACK] opcode=%u rd=%u result=%u\n", 

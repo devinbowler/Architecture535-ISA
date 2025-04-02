@@ -1,11 +1,14 @@
 // This file will look at the PC and do a memory access to get the next instruction.
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include "fetch.h"
 #include "../memory.h"
 
 extern DRAM dram;
 extern REGISTERS* registers;
+extern bool branch_taken;
+extern uint16_t branch_target_address;
 
 bool fetch_ready(PipelineState* pipeline) {
     return pipeline->IF_ID.valid;  // Ready to fetch when IF_ID is empty
@@ -21,6 +24,15 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
     if(!pipeline->IF_ID.valid) return;
 
     uint16_t pc = registers->R[15];
+    
+    // If a branch was taken in the execute stage, update the PC
+    if (branch_taken) {
+        pc = branch_target_address;
+        registers->R[15] = pc; // Update PC register
+        branch_taken = false;  // Reset the flag
+        printf("[FETCH] Branch taken, PC updated to %u\n", pc);
+    }
+    
     uint16_t instruction = readFromMemory(&dram, pc);
 
     // Extract instruction details for UI
@@ -30,30 +42,22 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
     char instruction_text[50] = "NOP";
     if (instruction != 0) {
         switch(opcode) {
-            case 0b0000: sprintf(instruction_text, "ADD R%d, R%d, R%d", 
+            case 0: sprintf(instruction_text, "ADD R%d, R%d, R%d", 
                 (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b0001: sprintf(instruction_text, "SUB R%d, R%d, R%d", 
+            case 1: sprintf(instruction_text, "ADDI R%d, R%d, %d", 
                 (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b0010: sprintf(instruction_text, "AND R%d, R%d, R%d", 
+            case 2: sprintf(instruction_text, "NAND R%d, R%d, R%d", 
                 (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b0011: sprintf(instruction_text, "OR R%d, R%d, R%d", 
+            case 3: sprintf(instruction_text, "LUI R%d, %d", 
+                (instruction >> 8) & 0xF, instruction & 0xF); break;
+            case 4: sprintf(instruction_text, "SW R%d, R%d, %d", 
                 (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b0100: sprintf(instruction_text, "XOR R%d, R%d, R%d", 
+            case 5: sprintf(instruction_text, "LW R%d, R%d, %d", 
                 (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b0101: sprintf(instruction_text, "DIVMOD R%d, R%d, R%d", 
+            case 11: sprintf(instruction_text, "BEQ R%d, R%d, %d", 
                 (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b0110: sprintf(instruction_text, "MUL R%d, R%d, R%d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b0111: sprintf(instruction_text, "CMP R%d, R%d, R%d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b1000: sprintf(instruction_text, "SHIFT R%d, R%d, R%d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b1001: sprintf(instruction_text, "LW R%d, [R%d + %d]", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 0b1010: sprintf(instruction_text, "SW [R%d + %d], R%d", 
-                (instruction >> 4) & 0xF, instruction & 0xF, (instruction >> 8) & 0xF); break;
-            case 0b1011: sprintf(instruction_text, "BEQ R%d, R%d, %d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
+            case 7: sprintf(instruction_text, "JALR R%d, R%d", 
+                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF); break;
             default: sprintf(instruction_text, "Unknown 0x%04X", instruction);
         }
     }

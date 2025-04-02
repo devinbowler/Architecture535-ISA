@@ -12,6 +12,7 @@
 #include "pipeline/write_back.h"
 
 extern REGISTERS *registers;
+extern bool branch_taken;
 
 /*
 typedef struct {
@@ -77,24 +78,6 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // Check if there's an ongoing memory operation (memory stage will set this flag)
     extern bool memory_operation_in_progress;
     
-    // Debug output before pipeline step
-    printf("[PIPELINE_STEP_DEBUG] Before: IF_ID.instruction=%u, ID_EX.opcode=%u, EX_MEM.opcode=%u\n",
-           pipeline->IF_ID.instruction, pipeline->ID_EX.opcode, pipeline->EX_MEM.opcode);
-    
-    // Store copies of the current state for all registers
-    IF_ID_Register if_id_copy = pipeline->IF_ID;
-    ID_EX_Register id_ex_copy = pipeline->ID_EX;
-    EX_MEM_Register ex_mem_copy = pipeline->EX_MEM;
-    MEM_WB_Register mem_wb_copy = pipeline->MEM_WB;
-    WB_Register wb_copy = pipeline->WB;
-    
-    // Reset all next stages to current values
-    pipeline->IF_ID_next = if_id_copy;
-    pipeline->ID_EX_next = id_ex_copy;
-    pipeline->EX_MEM_next = ex_mem_copy;
-    pipeline->MEM_WB_next = mem_wb_copy;
-    pipeline->WB_next = wb_copy;
-    
     // Execute stages in reverse order
     write_back(pipeline);
     memory_access(pipeline);
@@ -102,49 +85,46 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // Only execute other stages if no memory operation is in progress
     if (!memory_operation_in_progress) {
         execute(pipeline);
-        decode_stage(pipeline);
-        fetch_stage(pipeline, value);
         
-        // Update all pipeline registers
-        pipeline->WB = pipeline->WB_next;
-        pipeline->MEM_WB = pipeline->MEM_WB_next;
-        pipeline->EX_MEM = pipeline->EX_MEM_next;
-        pipeline->ID_EX = pipeline->ID_EX_next;
-        pipeline->IF_ID = pipeline->IF_ID_next;
+        // If a branch was taken, we've already flushed previous stages
+        // So we only need to update from EX_MEM onwards
+        if (branch_taken) {
+            // Don't execute decode and fetch stages when a branch is taken
+            // since we've invalidated those instructions
+            printf("[PIPELINE_BRANCH] Branch detected, skipping decode and fetch of flushed instructions\n");
+            
+            // Only update the pipeline registers that are still valid after the branch
+            pipeline->WB = pipeline->WB_next;
+            pipeline->MEM_WB = pipeline->MEM_WB_next;
+            pipeline->EX_MEM = pipeline->EX_MEM_next;
+            
+            // Fetch from the new branch target in the next cycle
+            fetch_stage(pipeline, value);
+            pipeline->IF_ID = pipeline->IF_ID_next;
+        } else {
+            // Normal pipeline flow when no branch is taken
+            decode_stage(pipeline);
+            fetch_stage(pipeline, value);
+            
+            // Update all pipeline registers
+            pipeline->WB = pipeline->WB_next;
+            pipeline->MEM_WB = pipeline->MEM_WB_next;
+            pipeline->EX_MEM = pipeline->EX_MEM_next;
+            pipeline->ID_EX = pipeline->ID_EX_next;
+            pipeline->IF_ID = pipeline->IF_ID_next;
+        }
     } else {
         // If memory operation is in progress, only update MEM_WB register
         // This allows the memory stage to continue its delay counting
-        // while all other stages keep their original values
+        // while all other stages are frozen
         pipeline->WB = pipeline->WB_next;
         pipeline->MEM_WB = pipeline->MEM_WB_next;
         
-        // Keep other stages with their original values
-        // pipeline->EX_MEM = pipeline->EX_MEM_next; - Don't update
-        // pipeline->ID_EX = pipeline->ID_EX_next;   - Don't update
-        // pipeline->IF_ID = pipeline->IF_ID_next;   - Don't update
+        // Keep other stages frozen by not updating their registers
+        // pipeline->EX_MEM = pipeline->EX_MEM_next;
+        // pipeline->ID_EX = pipeline->ID_EX_next;
+        // pipeline->IF_ID = pipeline->IF_ID_next;
         
-        // For the pipeline visualization, we still need to run each stage function
-        // but we'll restore the original values afterward
-        
-        // Execute the functions but ignore their results 
-        execute(pipeline);
-        decode_stage(pipeline);
-        fetch_stage(pipeline, value);
-        
-        // Restore the original values for the frozen stages
-        pipeline->EX_MEM_next = ex_mem_copy;
-        pipeline->ID_EX_next = id_ex_copy;
-        pipeline->IF_ID_next = if_id_copy;
-        
-        // Update the registers
-        pipeline->EX_MEM = pipeline->EX_MEM_next;
-        pipeline->ID_EX = pipeline->ID_EX_next;
-        pipeline->IF_ID = pipeline->IF_ID_next;
-        
-        printf("[PIPELINE_FREEZE] Pipeline frozen during memory operation - preserving all stage values\n");
+        printf("[PIPELINE_FREEZE] Pipeline frozen during memory operation\n");
     }
-    
-    // Debug output after pipeline step
-    printf("[PIPELINE_STEP_DEBUG] After: IF_ID.instruction=%u, ID_EX.opcode=%u, EX_MEM.opcode=%u\n",
-           pipeline->IF_ID.instruction, pipeline->ID_EX.opcode, pipeline->EX_MEM.opcode);
 }

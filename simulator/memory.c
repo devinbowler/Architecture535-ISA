@@ -6,11 +6,12 @@
 
 // REGISTER FUNCTIONS
 REGISTERS *init_registers() {
-  REGISTERS *registers = (REGISTERS *)malloc(sizeof(REGISTERS));
-
+  REGISTERS *registers = malloc(sizeof(REGISTERS));
+  registers->R[0] = 0;
+  registers->R[1] = 1;
   // Initialize all general registers to 2
-  for (int i = 0; i < 13; i++) {
-    registers->R[i] = 2;
+  for (int i = 2; i < 13; i++) {
+    registers->R[i] = 0;
   }
   
   // Initialize special registers
