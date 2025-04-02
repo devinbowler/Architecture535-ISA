@@ -26,11 +26,15 @@ def read_output():
         print(f"[C OUTPUT]: {line}")
         output.append(line)
 
+        # Check for specific debug information about memory access
+        if line.startswith("[MEM_DEBUG]"):
+            print("[DEBUG] Found memory debug info")
+            
         if line == "[END]":
             print("[DEBUG] Found [END] marker")
             break
 
-    print(f"[DEBUG] Collected output: {output}")
+    print(f"[DEBUG] Collected output: {len(output)} lines")
     return "\n".join(output)
 
 
@@ -81,43 +85,50 @@ def executeInstructions():
     print("[DEBUG] Starting execute_instructions")
     memory_content = []
     register_contents = []
+    cache_contents = []
+    cache_data_contents = []
 
     response = send_command("start")
     print(f"[DEBUG] Got response: {response}")
 
-    # First parse the output to collect all updates
     for output in response.splitlines():
         print(f"[DEBUG] Processing line: {output}")
         if output.startswith("[MEM]"):
-            parts = output[5:].split(":")
-            if len(parts) == 2:
-                addr, val = parts
-                # Convert to integers and add to memory updates
-                addr_int = int(addr)
-                val_int = int(val)
-                memory_content.append((addr_int, val_int))
-                print(f"[DEBUG] Found memory update: {addr} = {val}")
+            addr, val = output[5:].split(":")
+            memory_content.append((int(addr), int(val)))
         elif output.startswith("[REG]"):
             # Remove the [REG] prefix and split the rest
             reg_val = output[5:].split(":")
-            if len(reg_val) == 2:
-                register_contents.append((int(reg_val[0]), int(reg_val[1])))
-                print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
-    
-    # Deduplicate memory updates - use later updates if addresses are repeated
-    memory_dict = {}
-    for addr, val in memory_content:
-        memory_dict[addr] = val
-    
-    # Convert back to list of tuples for the UI
-    final_memory_content = [(addr, val) for addr, val in memory_dict.items()]
-    
+            register_contents.append((int(reg_val[0]), int(reg_val[1])))
+            print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
+        elif output.startswith("[CACHE]"):
+            # Format: [CACHE]index:offset:valid:data
+            # Example: [CACHE]2:0:1:42
+            parts = output[7:].split(":")
+            if len(parts) == 4:
+                index, offset, valid, data = parts
+                cache_contents.append((int(index), int(offset), int(valid) == 1, int(data)))
+                print(f"[DEBUG] Found cache update: index={index}, offset={offset}, valid={valid}, data={data}")
+        elif output.startswith("[CACHE_DATA]"):
+            # Format: [CACHE_DATA]index:offset:data_index:data_value
+            # Example: [CACHE_DATA]2:0:1:42
+            parts = output[12:].split(":")
+            if len(parts) == 4:
+                index, offset, data_index, data_value = parts
+                cache_data_contents.append((int(index), int(offset), int(data_index), int(data_value)))
+                print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
+
     print(f"[DEBUG] Final register contents: {register_contents}")
-    print(f"[DEBUG] Final memory updates: {len(final_memory_content)} entries")
+    print(f"[DEBUG] Final memory contents (showing first 10): {memory_content[:10]}")
+    print(f"[DEBUG] Final cache contents: {cache_contents}")
+    print(f"[DEBUG] Final cache data contents: {cache_data_contents}")
+    
     return jsonify({
         "message": "Execution Finished.",
-        "memory": final_memory_content,
-        "registers": register_contents
+        "memory": memory_content,
+        "registers": register_contents,
+        "cache": cache_contents,
+        "cache_data": cache_data_contents
     })
 
 

@@ -39,8 +39,8 @@ void executeInstructions() {
 
     uint16_t instruction = readFromMemory(&dram, registers->R[15]);
     int cycles = 0;
-    int max_cycles = 7; // Fixed cycle count for 2 instructions (5 stages + 2 for setup)
-
+    int max_cycles = 20; // Maximum cycles to run
+    
     while (cycles < max_cycles) {
         // Fetch next instruction if available
         if (instruction != 0) {
@@ -52,11 +52,42 @@ void executeInstructions() {
             pipeline_step(&pipeline, &instruction);
         }
         cycles++;
+        printf("[CYCLE] %d\n", cycles);
+        fflush(stdout);
     }
     
     // Print final register values in format expected by UI
     for (int i = 0; i < 16; i++) {
         printf("[REG]%d:%d\n", i, registers->R[i]);
+    }
+    
+    // Print cache contents for UI
+    printf("[LOG] Printing cache contents\n");
+    for (int i = 0; i < cache->num_sets; i++) {
+        Set* set = &cache->sets[i];
+        for (int j = 0; j < set->associativity; j++) {
+            Line* line = &set->lines[j];
+            // For each cache line, report its state to the UI
+            // Format: [CACHE]index:offset:valid:data
+            printf("[CACHE]%d:%d:%d:%d\n", 
+                   i,                    // Index (set number)
+                   j,                    // Offset (line in set)
+                   line->valid,          // Valid bit (0 or 1)
+                   line->tag);           // Tag value
+            
+            // Also output the data values in the cache line
+            for (int k = 0; k < BLOCK_SIZE; k++) {
+                printf("[CACHE_DATA]%d:%d:%d:%d\n", 
+                       i, j, k, line->data[k]);
+            }
+        }
+    }
+    
+    // Print memory values for the UI
+    for (int i = 0; i < DRAM_SIZE; i++) {
+        if (dram.memory[i] != 0) {
+            printf("[MEM]%d:%d\n", i, dram.memory[i]);
+        }
     }
     
     printf("[END]\n");
@@ -79,12 +110,35 @@ void stepInstructions() {
 // Store all instruction to DRAM at current PC address.
 void storeInstruction(const char *command) {
     const char *instruction = command + 6;
+    
+    // More detailed logging of the instruction
+    printf("[DEBUG] Parsing instruction: '%s'\n", instruction);
+    
     uint16_t value = loadInstruction(instruction);
-
-    writeToMemory(&dram, registers->R[15], value);
+    
+    // Print the binary representation for better debugging
+    printf("[DEBUG] Binary: ");
+    for (int i = 15; i >= 0; i--) {
+        printf("%u", (value >> i) & 1);
+        if (i % 4 == 0 && i != 0) printf(" ");
+    }
+    printf("\n");
+    
+    // Extract opcode (top 4 bits)
+    uint16_t opcode = (value >> 12) & 0xF;
+    uint16_t rd = (value >> 8) & 0xF;
+    uint16_t ra = (value >> 4) & 0xF;
+    uint16_t rb_imm = value & 0xF;
+    
+    printf("[DEBUG] Decoded: opcode=%u, rd=%u, ra=%u, rb/imm=%u\n", 
+            opcode, rd, ra, rb_imm);
+    
+    // Store in instruction space (0-499)
+    uint16_t addr = registers->R[15];
+    writeToMemory(&dram, addr, value);
 
     printf("[BIN]%u\n", value);
-    printf("[MEM]%d:%d\n", registers->R[15], value);
+    printf("[MEM]%d:%d\n", addr, value);
     printf("[END]\n");
     fflush(stdout);
 
@@ -102,10 +156,18 @@ int main() {
         printf("[DEBUG] Received command: %s\n", command);
         fflush(stdout);
 
-        if (strncmp(command, "write", 5) == 0) storeInstruction(command);
+        if (strncmp(command, "write", 5) == 0) {
+            // Check for LW/SW special syntax with brackets and handle them
+            storeInstruction(command);
+        }
         else if (strncmp(command, "start", 5) == 0) executeInstructions();
         else if (strncmp(command, "break", 5) == 0) breakpointInstrcutions();
         else if (strncmp(command, "step", 4) == 0) stepInstructions();
+        else {
+            printf("[DEBUG] Unknown command: %s\n", command);
+        }
+        
+        fflush(stdout);
     }
 
     return 0;

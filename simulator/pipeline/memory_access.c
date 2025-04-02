@@ -29,39 +29,55 @@ void memory_access(PipelineState *pipeline) {
     fflush(stdout);
 
     if (opcode == 0b1001) { // LW - Load Word
-        // Calculate effective address in data space (500-999)
-        uint16_t mem_address = address + DATA_SPACE;
+        // Calculate effective address
+        uint16_t mem_address = address;
+        if (address < DATA_SPACE) {
+            mem_address += DATA_SPACE;
+        }
         
-        printf("[MEM_ACCESS] LW: Accessing data address %u (DATA_SPACE %u + offset %u)\n", 
-               mem_address, DATA_SPACE, address);
-        
-        // Read from memory and debug deeply
-        uint16_t loaded_value = readFromMemory(&dram, mem_address);
+        // Use cache for reading
+        uint16_t loaded_value;
+        if (cache != NULL) {
+            printf("[LOG] Attempting cache read from address %u\n", mem_address);
+            loaded_value = read_cache(cache, &dram, mem_address);
+            printf("[LOG] Cache read result: %u\n", loaded_value);
+        } else {
+            loaded_value = readFromMemory(&dram, mem_address);
+        }
         
         // Set the result to be written to regD in write-back stage
         pipeline->MEM_WB_next.res = loaded_value;
         
-        printf("[MEM_LOAD] Reading R%u = MEM[%u] = %u\n", 
-               regD, mem_address, loaded_value);
+        printf("[MEM_LOAD] Reading from address %u, value %u, to register R%u\n", 
+               mem_address, loaded_value, regD);
                
-        // Explicitly report the memory read for UI
+        // Report memory read to UI
         printf("[MEM]%d:%d\n", mem_address, loaded_value);
     }
     else if (opcode == 0b1010) { // SW - Store Word
-        // Calculate effective address in data space (500-999)
-        uint16_t mem_address = address + DATA_SPACE;
+        // Calculate effective address
+        uint16_t mem_address = address;
+        if (address < DATA_SPACE) {
+            mem_address += DATA_SPACE;
+        }
         
-        printf("[MEM_ACCESS] SW: Accessing data address %u (DATA_SPACE %u + offset %u)\n", 
-               mem_address, DATA_SPACE, address);
-        
-        // Get the value to store from regD and store it
+        // Get the value to store from regD
         uint16_t value_to_store = registers->R[regD];
-        writeToMemory(&dram, mem_address, value_to_store);
         
-        printf("[MEM_STORE] Writing MEM[%u] = R%u(%u)\n", 
-               mem_address, regD, value_to_store);
+        // Use cache for writing
+        if (cache != NULL) {
+            printf("[LOG] Attempting cache write to address %u with value %u\n", 
+                   mem_address, value_to_store);
+            write_through(cache, &dram, mem_address, value_to_store);
+            printf("[LOG] Cache write complete\n");
+        } else {
+            writeToMemory(&dram, mem_address, value_to_store);
+        }
         
-        // Explicitly report memory update for UI - CRITICAL for the memory tab
+        printf("[MEM_STORE] Writing to address %u, value %u, from register R%u\n", 
+               mem_address, value_to_store, regD);
+        
+        // Report memory update to UI
         printf("[MEM]%d:%d\n", mem_address, value_to_store);
     }
     
