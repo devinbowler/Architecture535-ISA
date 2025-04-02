@@ -519,15 +519,6 @@ class ISASimulatorUI(QWidget):
         # We'll mark unmentioned stages as bubbles
         updated_stages = {i: False for i in range(5)}
         
-        # Keep track of the PC for each stage even when it becomes a bubble
-        # This helps with proper visualization
-        stage_pc_values = {}
-        
-        # First scan to collect PC values for each stage
-        for stage, instruction, pc in pipeline_state:
-            if stage in stage_to_row:
-                stage_pc_values[stage_to_row[stage]] = pc
-        
         # Update pipeline table
         for stage, instruction, pc in pipeline_state:
             if stage in stage_to_row:
@@ -547,7 +538,7 @@ class ISASimulatorUI(QWidget):
                     instr_item.setBackground(QColor(35, 10, 10))  # Even darker red
                     instr_item.setForeground(QColor(180, 180, 180))  # Light gray text
                     
-                    pc_item = QTableWidgetItem(str(pc))  # Keep PC value for bubbles
+                    pc_item = QTableWidgetItem("-")
                     pc_item.setBackground(QColor(35, 10, 10))  # Even darker red
                     pc_item.setForeground(QColor(180, 180, 180))  # Light gray text
                     
@@ -587,18 +578,13 @@ class ISASimulatorUI(QWidget):
                 instr_item.setBackground(QColor(35, 10, 10))  # Even darker red
                 instr_item.setForeground(QColor(180, 180, 180))  # Light gray text
                 
-                # Use the PC from the same stage if it was previously set
-                pc_text = "-"
-                if row in stage_pc_values:
-                    pc_text = str(stage_pc_values[row])
-                    
-                pc_item = QTableWidgetItem(pc_text)
+                pc_item = QTableWidgetItem("-")
                 pc_item.setBackground(QColor(35, 10, 10))  # Even darker red
                 pc_item.setForeground(QColor(180, 180, 180))  # Light gray text
                 
                 self.pipeline_table.setItem(row, 2, instr_item)
                 self.pipeline_table.setItem(row, 3, pc_item)
-        
+                
         # Update cycle counter
         cycle = result.get("cycle", 0)
         if cycle > 0:

@@ -14,21 +14,6 @@ bool memory_access_ready(PipelineState *pipeline);
  * @param pipeline the pipeline
  */
 void memory_access(PipelineState *pipeline) {
-    // Check if there's a valid instruction for memory access
-    if (!pipeline->EX_MEM.valid || pipeline->EX_MEM.opcode == 0) {
-        // If no valid instruction, propagate a bubble
-        pipeline->MEM_WB_next.valid = true;  // We're valid but empty (bubble)
-        pipeline->MEM_WB_next.opcode = 0;    // No operation
-        pipeline->MEM_WB_next.pc = pipeline->EX_MEM.pc;  // Keep PC for tracking
-        
-        printf("[MEMORY] No valid instruction for memory access (bubble)\n");
-        printf("[PIPELINE]MEMORY:Bubble:%d\n", pipeline->EX_MEM.pc);
-        
-        // Make sure we're not in a memory operation
-        memory_operation_in_progress = false;
-        return;
-    }
-    
     // Get pipeline state values
     uint16_t opcode = pipeline->EX_MEM.opcode;
     uint16_t regD = pipeline->EX_MEM.regD;
@@ -36,7 +21,6 @@ void memory_access(PipelineState *pipeline) {
     uint16_t regB = pipeline->EX_MEM.regB;
     uint16_t address = pipeline->EX_MEM.res; // Address calculated in execute stage
     uint16_t resMod = pipeline->EX_MEM.resMod;
-    uint16_t PC = pipeline->EX_MEM.pc;
     
     // Track memory access state for delays
     static bool memory_busy = false;
@@ -57,7 +41,7 @@ void memory_access(PipelineState *pipeline) {
     pipeline->MEM_WB_next.regA = regA;
     pipeline->MEM_WB_next.regB = regB;
     pipeline->MEM_WB_next.imm = pipeline->EX_MEM.imm;
-    
+
     // Print memory access info
     printf("[MEMORY] opcode=%u rd=%u ra=%u rb=%u address=%u\n", 
            opcode, regD, regA, regB, address);
@@ -131,28 +115,22 @@ void memory_access(PipelineState *pipeline) {
             }
         } else {
             // Still waiting for memory operation to complete
-            // But we should still report the instruction text for UI visualization
-            char instruction_text[50];
             if (pending_opcode == 0b1001) {
                 sprintf(instruction_text, "LW R%d, [R%d + %d] (wait %d/%d)", 
                         pending_regD, pending_regA, pending_mem_address - DATA_SPACE, 
                         memory_delay, memory_target_delay);
-                printf("[PIPELINE]MEMORY:%s:%d\n", instruction_text, pipeline->EX_MEM.pc);
             } else {
                 sprintf(instruction_text, "SW [R%d + %d], R%d (wait %d/%d)", 
                         pending_regA, pending_mem_address - DATA_SPACE, pending_regD, 
                         memory_delay, memory_target_delay);
-                printf("[PIPELINE]MEMORY:%s:%d\n", instruction_text, pipeline->EX_MEM.pc);
             }
             
             // Insert bubble into pipeline since we're waiting
-            // But preserve the PC value
-            pipeline->MEM_WB_next.valid = false;  // Mark as bubble
-            pipeline->MEM_WB_next.pc = pipeline->EX_MEM.pc;  // But keep the PC
+            pipeline->MEM_WB_next.valid = false;
         }
     }
     // No ongoing memory operation, check if we need to start one
-    else if (opcode == 0b1001) { // LW - Load Word
+    else if (opcode == 5) { // LW - Load Word
         // Calculate effective address
         uint16_t mem_address = address;
         if (address < DATA_SPACE) {
@@ -205,7 +183,7 @@ void memory_access(PipelineState *pipeline) {
         // Insert bubble into pipeline since we're waiting
         pipeline->MEM_WB_next.valid = false;
     }
-    else if (opcode == 0b1010) { // SW - Store Word
+    else if (opcode == 4) { // SW - Store Word
         // Calculate effective address
         uint16_t mem_address = address;
         if (address < DATA_SPACE) {
@@ -267,17 +245,12 @@ void memory_access(PipelineState *pipeline) {
         
         // Generate text for ALU operations
         switch(opcode) {
-            case 0b0000: sprintf(instruction_text, "ADD R%d, R%d, R%d", regD, regA, regB); break;
-            case 0b0001: sprintf(instruction_text, "SUB R%d, R%d, R%d", regD, regA, regB); break;
-            case 0b0010: sprintf(instruction_text, "AND R%d, R%d, R%d", regD, regA, regB); break;
-            case 0b0011: sprintf(instruction_text, "OR R%d, R%d, R%d", regD, regA, regB); break;
-            case 0b0100: sprintf(instruction_text, "XOR R%d, R%d, R%d", regD, regA, regB); break;
-            case 0b0101: sprintf(instruction_text, "DIVMOD R%d, R%d, R%d", regD, regA, regB); break;
-            case 0b0110: sprintf(instruction_text, "MUL R%d, R%d, R%d", regD, regA, regB); break;
-            case 0b0111: sprintf(instruction_text, "CMP R%d, R%d, R%d", regD, regA, regB); break;
-            case 0b1000: sprintf(instruction_text, "SHIFT R%d, R%d, R%d", regD, regA, regB); break;
-            case 0b1011: sprintf(instruction_text, "BEQ R%d, R%d, %d", regD, regA, pipeline->MEM_WB.imm); break;
-            case 0b1111: sprintf(instruction_text, "BLT R%d, R%d, %d", regD, regA, pipeline->MEM_WB.imm); break;
+            case 0: sprintf(instruction_text, "ADD R%d, R%d, R%d", regD, regA, regB); break;
+            case 1: sprintf(instruction_text, "ADDI R%d, R%d, %d", regD, regA, regB); break;
+            case 2: sprintf(instruction_text, "NAND R%d, R%d, R%d", regD, regA, regB); break;
+            case 3: sprintf(instruction_text, "LUI R%d, %d", regD, regB); break;
+            case 6: sprintf(instruction_text, "BEQ R%d, R%d, %d", regD, regA, pipeline->MEM_WB.imm); break;
+            case 7: sprintf(instruction_text, "JALR R%d, R%d", regD, regA); break;
             default: sprintf(instruction_text, "UNKNOWN opcode=%d", opcode);
         }
     }
