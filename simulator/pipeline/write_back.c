@@ -13,7 +13,8 @@ void write_back(PipelineState *pipeline) {
   uint16_t opcode = pipeline->MEM_WB.opcode;
   uint16_t regD = pipeline->MEM_WB.regD;
   uint16_t regB = pipeline->MEM_WB.regB;
-  uint16_t result = pipeline->MEM_WB.res;  
+  uint16_t result = pipeline->MEM_WB.res;
+  uint16_t resMod = pipeline->MEM_WB.resMod;
   
   // Print write back info
   printf("[WRITE-BACK] opcode=%u rd=%u result=%u\n", 

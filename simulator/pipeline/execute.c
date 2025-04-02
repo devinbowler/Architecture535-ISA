@@ -19,38 +19,50 @@ void execute(PipelineState *pipeline) {
   uint16_t imm = pipeline->ID_EX.imm;
   uint16_t opcode = pipeline->ID_EX.opcode;
   uint16_t result = 0;
+  
+  // Get actual register values
+  uint16_t valA = registers->R[regA];
+  uint16_t valB = registers->R[regB];
+  
   pipeline->EX_MEM_next.valid = true;
   
-  // Pass regD to next stage
+  // Pass key information to next stage
   pipeline->EX_MEM_next.regD = regD;
+  pipeline->EX_MEM_next.regA = regA;
+  pipeline->EX_MEM_next.regB = regB;
+  pipeline->EX_MEM_next.opcode = opcode;
   
-  // Print execute info
-  printf("[EXECUTE] opcode=%u rd=%u ra=%u rb=%u result=%u\n", 
-         opcode, regD, regA, regB, result);
+  // Print execute info with actual register values
+  printf("[EXECUTE] opcode=%u rd=%u ra=%u(val=%u) rb=%u(val=%u)\n", 
+         opcode, regD, regA, valA, regB, valB);
   fflush(stdout);
   
   switch(opcode) {
     case 0b0000: //ADD
-      result = regA + regB;
+      result = valA + valB;
+      printf("[EXECUTE_ADD] R%u = R%u(%u) + R%u(%u) = %u\n", 
+             regD, regA, valA, regB, valB, result);
       break;
     case 0b0001: //SUB
-      result = regA - regB;
+      result = valA - valB;
+      printf("[EXECUTE_SUB] R%u = R%u(%u) - R%u(%u) = %u\n", 
+             regD, regA, valA, regB, valB, result);
       break;
     case 0b0010: //AND
-      result = regA & regB;
+      result = valA & valB;
       break;
     case 0b0011: //OR
-      result = regA | regB;
+      result = valA | valB;
       break;
     case 0b0100: //XOR
-      result = regA ^ regB;
+      result = valA ^ valB;
       break;
     case 0b0101: //DIVMOD
-      result = regA / regB;
-      pipeline->EX_MEM_next.resMod = regA % regB;
+      result = valA / valB;
+      pipeline->EX_MEM_next.resMod = valA % valB;
       break;
     case 0b0110: //MUL
-      result = regA * regB;
+      result = valA * valB;
       break;
     case 0b0111: //CMP
       registers->R[14] = regA - regB;

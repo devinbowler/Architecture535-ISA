@@ -66,6 +66,74 @@ void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[
     strcat(values, temp);
 }
 
+// Unified memory access functions
+
+/**
+ * @brief Reads from memory, using cache if available
+ * @param cache The cache, can be NULL to bypass cache
+ * @param dram The DRAM
+ * @param address The address to read from 
+ * @return The data at the specified address
+ */
+uint16_t memory_read(Cache *cache, DRAM *dram, uint16_t address) {
+    if (address >= DRAM_SIZE) {
+        printf("Error: read address %u out-of-range.\n", address);
+        return 0;
+    }
+    
+    // If it's a data access, adjust the address to the data space
+    if (address < DATA_SPACE && address >= 0) {
+        // It's an instruction access, no adjustment needed
+    } else {
+        // For other memory accesses, ensure they're going to data space
+        if (address < DATA_SPACE) {
+            address += DATA_SPACE;
+        }
+    }
+    
+    if (cache != NULL) {
+        // Use cache for reads
+        return read_cache(cache, dram, address);
+    } else {
+        // Direct DRAM read
+        return readFromMemory(dram, address);
+    }
+}
+
+/**
+ * @brief Writes to memory, using write-through if cache is available
+ * @param cache The cache, can be NULL to bypass cache
+ * @param dram The DRAM
+ * @param address The address to write to
+ * @param data The data to write
+ */
+void memory_write(Cache *cache, DRAM *dram, uint16_t address, uint16_t data) {
+    if (address >= DRAM_SIZE) {
+        printf("Error: write address %u out-of-range.\n", address);
+        return;
+    }
+    
+    // If it's a data access, adjust the address to the data space
+    if (address < DATA_SPACE && address >= 0) {
+        // It's an instruction write, no adjustment needed
+    } else {
+        // For other memory accesses, ensure they're going to data space
+        if (address < DATA_SPACE) {
+            address += DATA_SPACE;
+        }
+    }
+    
+    if (cache != NULL) {
+        // Use write-through for cache writes
+        write_through(cache, dram, address, data);
+    } else {
+        // Direct DRAM write
+        writeToMemory(dram, address, data);
+    }
+    
+    // Print memory update for UI
+    printf("[MEM]%d:%d\n", address, data);
+}
 
 // Updated DRAM update function with cache support.
 void updateDRAM(DRAM *dram, Cache *cache) {
@@ -80,19 +148,12 @@ void updateDRAM(DRAM *dram, Cache *cache) {
                 printf("Error: address out-of-range.");
             } else {
                 if (strcmp(dram->pendingCmd, "SW") == 0) {
-                    // If cache is enabled, perform a write-through.
-                    if (cache != NULL) {
-                        write_through(cache, dram, dram->pendingAddr, dram->pendingValue);
-                    } else {
-                        writeToMemory(dram, dram->pendingAddr, dram->pendingValue);
-                    }
+                    // Use the unified memory_write function
+                    memory_write(cache, dram, dram->pendingAddr, dram->pendingValue);
                 } else if (strcmp(dram->pendingCmd, "LW") == 0) {
                     int16_t readValue;
-                    if (cache != NULL) {
-                        readValue = read_cache(cache, dram, dram->pendingAddr);
-                    } else {
-                        readValue = readFromMemory(dram, dram->pendingAddr);
-                    }
+                    // Use the unified memory_read function
+                    readValue = memory_read(cache, dram, dram->pendingAddr);
                 } else {
                     printf("Error: unknown DRAM command.");
                 }

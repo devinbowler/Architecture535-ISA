@@ -139,7 +139,7 @@ class ISASimulatorUI(QWidget):
         
         tab_widget = QTabWidget()
         self.register_table = self.create_table(16, ["QR - Integer Registers"])
-        self.memory_table = self.create_table(50000, ["Value"])
+        self.memory_table = self.create_table(1000, ["Value"])
         self.cache_table = self.create_table(16, ["Index", "Offset", "Valid", "Data"])
         
         tab_widget.addTab(self.register_table, "Registers")
@@ -239,7 +239,8 @@ class ISASimulatorUI(QWidget):
 
         # Set vertical header labels for register table (0-15)
         if headers == ["QR - Integer Registers"]:
-            table.setVerticalHeaderLabels([str(i) for i in range(rows)])
+            table.setVerticalHeaderLabels([f"R{i}" for i in range(16)])
+            table.setRowCount(16)  # Ensure exactly 16 registers
 
         # Enable resizing for columns and rows
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)  # Columns stretch
@@ -286,44 +287,56 @@ class ISASimulatorUI(QWidget):
             QMessageBox.information(self, "Error", result["error"])
             return
 
-        # Update memory table
+        # Update memory table - first clear and resize
         memory = result.get("memory", [])
+        print(f"[DEBUG] Received {len(memory)} memory updates")
+        
+        # Set row headers to be the memory addresses for all 1000 memory locations
+        address_labels = [str(i) for i in range(1000)]
+        self.memory_table.setVerticalHeaderLabels(address_labels)
+        
+        # Clear all cells first with zeros
+        for i in range(1000):
+            self.memory_table.setItem(i, 0, QTableWidgetItem("0000000000000000"))
+        
+        # Now update with actual values from the execution
         for addr, val in memory:
             try:
                 addr = int(addr)
+                if addr >= 1000:
+                    continue  # Skip addresses beyond our table size
+                    
                 val = int(val)
                 binary_val = format(val & 0xFFFF, "016b")
-
-                # Ensure enough rows
-                if addr >= self.memory_table.rowCount():
-                    self.memory_table.setRowCount(addr + 1)
-
-                self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+                
+                print(f"[DEBUG] Setting memory[{addr}] to {binary_val} (decimal: {val})")
+                item = QTableWidgetItem(binary_val)
+                self.memory_table.setItem(addr, 0, item)
             except Exception as e:
                 print(f"[UI ERROR] Failed to set memory[{addr}]: {e}")
 
         # Update register table with values from API response
         registers = result.get("registers", [])
         print(f"[DEBUG] Received register updates: {registers}")
-        
-        # Ensure register table has enough rows
-        if len(registers) > self.register_table.rowCount():
-            self.register_table.setRowCount(len(registers))
             
         for reg, val in registers:
             try:
                 reg = int(reg)
+                if reg >= 16:  # Only update the first 16 registers
+                    continue
+                    
                 val = int(val)
                 binary_val = format(val & 0xFFFF, "016b")
                 print(f"[DEBUG] Setting register[{reg}] to {binary_val} (decimal: {val})")
                 item = QTableWidgetItem(binary_val)
                 self.register_table.setItem(reg, 0, item)
-                # Force the table to update
-                self.register_table.viewport().update()
             except Exception as e:
                 print(f"[UI ERROR] Failed to set register[{reg}]: {e}")
 
         # Force UI update
+        self.memory_table.viewport().update()
+        self.memory_table.update()
+        self.register_table.viewport().update()
         self.register_table.update()
         self.update()
 
@@ -343,6 +356,7 @@ class ISASimulatorUI(QWidget):
         raw = result.get("raw", [])
         memory = result.get("memory", [])
 
+        # Update code and instruction tables
         self.code_table.setRowCount(len(raw))
         self.instruction_table.setRowCount(len(raw))
         for i, (asm, bin_val) in enumerate(zip(raw, binary)):
@@ -351,27 +365,28 @@ class ISASimulatorUI(QWidget):
             self.instruction_table.setItem(i, 1, QTableWidgetItem(asm))
             self.instruction_table.setItem(i, 2, QTableWidgetItem(bin_val))
 
-        # Clear memory table first (optional, prevents ghost rows)
-        self.memory_table.setRowCount(0)
+        # Initialize memory table with zeros for all 1000 addresses
+        # Set row headers to be the memory addresses
+        address_labels = [str(i) for i in range(1000)]
+        self.memory_table.setVerticalHeaderLabels(address_labels)
+        
+        # Set all cells to zero first
+        for i in range(1000):
+            self.memory_table.setItem(i, 0, QTableWidgetItem("0000000000000000"))
 
+        # Update memory with loaded instructions
         for addr, val in memory:
             try:
                 addr = int(addr)
+                if addr >= 1000:
+                    continue  # Skip addresses beyond our table size
+                    
                 val = int(val)
                 binary_val = format(val & 0xFFFF, "016b")
-
-                # Debug print
                 print(f"[UI] Setting memory[{addr}] = {binary_val}")
-
-                # Ensure enough rows
-                if addr >= self.memory_table.rowCount():
-                    self.memory_table.setRowCount(addr + 1)
-
                 self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
             except Exception as e:
                 print(f"[UI ERROR] Failed to set memory[{addr}]: {e}")
-
-
 
         QMessageBox.information(self, "file loaded", result["message"])
 
