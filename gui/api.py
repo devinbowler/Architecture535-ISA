@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # Launch C simulator executable
 simulator_process = subprocess.Popen(
-    ["../simulator/simulator"],
+    ["../simulator/simulator.exe"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -85,21 +85,38 @@ def executeInstructions():
     response = send_command("start")
     print(f"[DEBUG] Got response: {response}")
 
+    # First parse the output to collect all updates
     for output in response.splitlines():
         print(f"[DEBUG] Processing line: {output}")
         if output.startswith("[MEM]"):
-            addr, val = output[5:].split(":")
-            memory_content.append((int(addr), int(val)))
+            parts = output[5:].split(":")
+            if len(parts) == 2:
+                addr, val = parts
+                # Convert to integers and add to memory updates
+                addr_int = int(addr)
+                val_int = int(val)
+                memory_content.append((addr_int, val_int))
+                print(f"[DEBUG] Found memory update: {addr} = {val}")
         elif output.startswith("[REG]"):
             # Remove the [REG] prefix and split the rest
             reg_val = output[5:].split(":")
-            register_contents.append((int(reg_val[0]), int(reg_val[1])))
-            print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
-
+            if len(reg_val) == 2:
+                register_contents.append((int(reg_val[0]), int(reg_val[1])))
+                print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
+    
+    # Deduplicate memory updates - use later updates if addresses are repeated
+    memory_dict = {}
+    for addr, val in memory_content:
+        memory_dict[addr] = val
+    
+    # Convert back to list of tuples for the UI
+    final_memory_content = [(addr, val) for addr, val in memory_dict.items()]
+    
     print(f"[DEBUG] Final register contents: {register_contents}")
+    print(f"[DEBUG] Final memory updates: {len(final_memory_content)} entries")
     return jsonify({
         "message": "Execution Finished.",
-        "memory": memory_content,
+        "memory": final_memory_content,
         "registers": register_contents
     })
 

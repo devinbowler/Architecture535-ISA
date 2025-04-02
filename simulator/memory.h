@@ -5,7 +5,9 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define DRAM_SIZE 50000
+#define DRAM_SIZE 1000
+#define INSTR_SPACE 0
+#define DATA_SPACE 500
 #define DRAM_DELAY 2        // Delay cycles for DRAM operations set to 1
 #define MAX_MEM_VIEW 16
 #define MAX_VALUE_LENGTH 128
@@ -69,6 +71,10 @@ uint16_t readFromMemory(DRAM *dram, uint16_t addr);
 void clearMemory(DRAM *dram);
 void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[]);
 void updateDRAM(DRAM *dram, Cache *cache);
+
+// Unified memory access functions
+uint16_t memory_read(Cache *cache, DRAM *dram, uint16_t address);
+void memory_write(Cache *cache, DRAM *dram, uint16_t address, uint16_t data);
 
 int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data);
 Cache *init_cache(uint16_t mode);

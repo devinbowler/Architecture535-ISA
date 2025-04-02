@@ -69,12 +69,22 @@ uint16_t loadInstruction(const char *line){
 
   printf("Instruction Line: %s.\n", lineCopy);
 
+  // First, replace commas with spaces for consistent parsing
+  for (int i = 0; lineCopy[i]; i++) {
+    if (lineCopy[i] == ',') {
+      lineCopy[i] = ' ';
+    }
+  }
+
   char *values[4];
   char *value = strtok(lineCopy, " ");
   uint16_t valueCount = 0;
 
   while (value != NULL && valueCount < 4) {
-    values[valueCount++] = value;
+    // Skip any extra spaces created by the comma replacement
+    if (value[0] != '\0') {
+      values[valueCount++] = value;
+    }
     value = strtok(NULL, " ");
   }
 
@@ -171,17 +181,19 @@ uint16_t loadInstruction(const char *line){
       return RRTypeEncode(&rr);
     } else if (strcmp(opcode, "LW") == 0) { // RRI Types
       rri.opcode = 0b1001;
-      rri.regD = type;
+      rri.regD = rd;
       rri.regA = ra;
       rri.imm = rb;
-
+      
+      printf("Parsing LW: destination=R%u, base=R%u, offset=%u\n", rd, ra, rb);
       return RRITypeEncode(&rri);
     } else if (strcmp(opcode, "SW") == 0) {
       rri.opcode = 0b1010;
       rri.regD = rd;
       rri.regA = ra;
       rri.imm = rb;
-
+      
+      printf("Parsing SW: source=R%u, base=R%u, offset=%u\n", rd, ra, rb);
       return RRITypeEncode(&rri);
     } else if (strcmp(opcode, "BEQ") == 0){
       rri.opcode = 0b1011;
