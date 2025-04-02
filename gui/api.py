@@ -131,6 +131,70 @@ def executeInstructions():
         "cache_data": cache_data_contents
     })
 
+@app.route("/step_instruction", methods=["POST"])
+def stepInstruction():
+    print("[DEBUG] Starting step_instruction")
+    memory_content = []
+    register_contents = []
+    cache_contents = []
+    cache_data_contents = []
+    pipeline_state = []
+    cycle_count = 0
+
+    response = send_command("step")
+    print(f"[DEBUG] Got response: {response}")
+
+    for output in response.splitlines():
+        print(f"[DEBUG] Processing line: {output}")
+        if output.startswith("[MEM]"):
+            addr, val = output[5:].split(":")
+            memory_content.append((int(addr), int(val)))
+        elif output.startswith("[REG]"):
+            # Remove the [REG] prefix and split the rest
+            reg_val = output[5:].split(":")
+            register_contents.append((int(reg_val[0]), int(reg_val[1])))
+            print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
+        elif output.startswith("[CACHE]"):
+            # Format: [CACHE]index:offset:valid:data
+            parts = output[7:].split(":")
+            if len(parts) == 4:
+                index, offset, valid, data = parts
+                cache_contents.append((int(index), int(offset), int(valid) == 1, int(data)))
+                print(f"[DEBUG] Found cache update: index={index}, offset={offset}, valid={valid}, data={data}")
+        elif output.startswith("[CACHE_DATA]"):
+            # Format: [CACHE_DATA]index:offset:data_index:data_value
+            parts = output[12:].split(":")
+            if len(parts) == 4:
+                index, offset, data_index, data_value = parts
+                cache_data_contents.append((int(index), int(offset), int(data_index), int(data_value)))
+                print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
+        elif output.startswith("[PIPELINE]"):
+            # Format: [PIPELINE]stage:instruction:pc
+            # Example: [PIPELINE]FETCH:ADD R5, R4, R3:0
+            parts = output[10:].split(":")
+            if len(parts) >= 3:
+                stage = parts[0]
+                instruction = parts[1]
+                pc = int(parts[2])
+                pipeline_state.append((stage, instruction, pc))
+                print(f"[DEBUG] Found pipeline state: stage={stage}, instruction={instruction}, pc={pc}")
+        elif output.startswith("[CYCLE]"):
+            # Extract the cycle count
+            cycle_count = int(output[7:])
+            print(f"[DEBUG] Current cycle: {cycle_count}")
+
+    print(f"[DEBUG] Final pipeline state: {pipeline_state}")
+    
+    return jsonify({
+        "message": "Step Completed",
+        "memory": memory_content,
+        "registers": register_contents,
+        "cache": cache_contents,
+        "cache_data": cache_data_contents,
+        "pipeline": pipeline_state,
+        "cycle": cycle_count  # Include actual cycle count
+    })
+
 
 
 if __name__ == "__main__":
