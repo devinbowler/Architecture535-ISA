@@ -56,16 +56,16 @@ void write_back(PipelineState *pipeline) {
     registers->R[regD] = result;
     printf("[REG]%d:%d\n", regD, result);
   }
-  else if (opcode == 0b1001) {
-    // LW instruction writes loaded value to destination register
+  else if (opcode == 0b1001 || opcode == 5) {
+    // LW instruction writes loaded value to destination register (both old and new opcodes)
     sprintf(instruction_text, "LW R%d, [R%d + %d] = %d", regD, pipeline->MEM_WB.regA, pipeline->MEM_WB.imm, result);
     printf("[WB_LOAD] Updating R%u = %u (from memory), previous value was %u\n", 
            regD, result, registers->R[regD]);
     registers->R[regD] = result;
     printf("[REG]%d:%d\n", regD, result);
   }
-  else if (opcode == 0b1010) {
-    // SW instruction - storage already completed in memory stage
+  else if (opcode == 0b1010 || opcode == 4) {
+    // SW instruction - storage already completed in memory stage (both old and new opcodes)
     sprintf(instruction_text, "SW [R%d + %d], R%d", pipeline->MEM_WB.regA, pipeline->MEM_WB.imm, regD);  
   }
   else if (opcode == 0b1011) {

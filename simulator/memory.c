@@ -9,7 +9,7 @@ REGISTERS *init_registers() {
   REGISTERS *registers = malloc(sizeof(REGISTERS));
   registers->R[0] = 0;
   registers->R[1] = 1;
-  // Initialize all general registers to 2
+  // Initialize general registers to 0
   for (int i = 2; i < 13; i++) {
     registers->R[i] = 0;
   }
