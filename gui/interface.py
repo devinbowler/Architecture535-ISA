@@ -64,6 +64,28 @@ class execute_instructionsThread(QThread):
             print("[DEBUG] API call failed:", str(e))
             self.error.emit(str(e))
 
+class step_instructionThread(QThread):
+    finished = pyqtSignal(dict)
+    error = pyqtSignal(str)
+
+    def __init__(self, api_url):
+        super().__init__()
+        self.api_url = api_url
+
+    def run(self):
+        print("[DEBUG] step_instructionThread running")
+        try:
+            response = requests.post(f"{self.api_url}/step_instruction", timeout=10)
+            result = response.json()
+            print("[DEBUG] API step response:", result)
+            if "error" in result:
+                self.error.emit(result["error"])
+            else:
+                self.finished.emit(result)
+        except Exception as e:
+            print("[DEBUG] API step call failed:", str(e))
+            self.error.emit(str(e))
+
 class FileChangeHandler(FileSystemEventHandler):
     """ Watches for file changes and restarts the application """
     def __init__(self, process):
@@ -119,17 +141,17 @@ class ISASimulatorUI(QWidget):
 
     def apply_dark_mode(self):
         palette = QPalette()
-        palette.setColor(QPalette.ColorRole.Window, QColor(45, 45, 45))
-        palette.setColor(QPalette.ColorRole.WindowText, QColor(200, 200, 200))
-        palette.setColor(QPalette.ColorRole.Base, QColor(30, 30, 30))
-        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(45, 45, 45))
-        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 255))
-        palette.setColor(QPalette.ColorRole.ToolTipText, QColor(0, 0, 0))
-        palette.setColor(QPalette.ColorRole.Text, QColor(200, 200, 200))
-        palette.setColor(QPalette.ColorRole.Button, QColor(45, 45, 45))
-        palette.setColor(QPalette.ColorRole.ButtonText, QColor(200, 200, 200))
-        palette.setColor(QPalette.ColorRole.BrightText, QColor(255, 0, 0))
-        palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))
+        palette.setColor(QPalette.ColorRole.Window, QColor(25, 25, 25))         # Very dark background
+        palette.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))   # Very light text
+        palette.setColor(QPalette.ColorRole.Base, QColor(18, 18, 18))           # Even darker base
+        palette.setColor(QPalette.ColorRole.AlternateBase, QColor(30, 30, 30))   # Slightly lighter alt base
+        palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(25, 25, 25))     # Dark tooltip
+        palette.setColor(QPalette.ColorRole.ToolTipText, QColor(220, 220, 220))  # Light tooltip text
+        palette.setColor(QPalette.ColorRole.Text, QColor(220, 220, 220))         # Light text
+        palette.setColor(QPalette.ColorRole.Button, QColor(30, 30, 30))          # Dark button
+        palette.setColor(QPalette.ColorRole.ButtonText, QColor(220, 220, 220))   # Light button text
+        palette.setColor(QPalette.ColorRole.BrightText, QColor(255, 128, 128))   # Bright error text
+        palette.setColor(QPalette.ColorRole.Link, QColor(42, 130, 218))          # Blue links
         
         self.setPalette(palette)
     
@@ -154,10 +176,38 @@ class ISASimulatorUI(QWidget):
         widget = QWidget()
         layout = QVBoxLayout()
         
+        # Add cycle counter at the top with larger font
+        self.cycle_counter = QLabel("Cycle: 0")
+        self.cycle_counter.setStyleSheet("font-size: 18px; font-weight: bold; margin: 10px; color: #4488cc;")
+        self.cycle_counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.cycle_counter)
+        
         tab_widget = QTabWidget()
         self.instruction_table = self.create_table(16, ["Memory Address", "Text Instruction", "Hex Instruction"])
         self.code_table = self.create_table(16, ["Code"])
-        self.pipeline_table = self.create_table(5, ["Fetch", "Decode", "Execute", "Memory", "Writeback"])
+        
+        # Improved pipeline table with all 5 stages - show more details and values
+        self.pipeline_table = self.create_table(5, ["Stage", "Status", "Instruction", "PC"])
+        
+        # Initialize with stage names and empty statuses
+        stages = ["Fetch", "Decode", "Execute", "Memory", "Writeback"]
+        for i, stage in enumerate(stages):
+            self.pipeline_table.setItem(i, 0, QTableWidgetItem(stage))
+            status_item = QTableWidgetItem("Empty")
+            status_item.setBackground(QColor(20, 20, 20))  # Very dark gray for empty
+            status_item.setForeground(QColor(150, 150, 150))  # Mid-gray text
+            self.pipeline_table.setItem(i, 1, status_item)
+            
+            # Initialize instruction and values columns
+            instr_item = QTableWidgetItem("-")
+            instr_item.setBackground(QColor(20, 20, 20))
+            instr_item.setForeground(QColor(150, 150, 150))
+            self.pipeline_table.setItem(i, 2, instr_item)
+            
+            pc_item = QTableWidgetItem("-")
+            pc_item.setBackground(QColor(20, 20, 20))
+            pc_item.setForeground(QColor(150, 150, 150))
+            self.pipeline_table.setItem(i, 3, pc_item)
         
         tab_widget.addTab(self.instruction_table, "Instructions")
         tab_widget.addTab(self.code_table, "Code")
@@ -215,9 +265,11 @@ class ISASimulatorUI(QWidget):
         load_button = QPushButton("Load Instructions")
         load_button.clicked.connect(self.load_instructions)
         
-
         clear_button = QPushButton("Clear Instructions")
+        
         step_button = QPushButton("Step 1 Cycle")
+        step_button.clicked.connect(self.step_instruction)
+        
         run_button = QPushButton("Run Instructions")
         run_button.clicked.connect(self.execute_instructions)
 
@@ -429,6 +481,138 @@ class ISASimulatorUI(QWidget):
                 print(f"[UI ERROR] Failed to set memory[{addr}]: {e}")
 
         QMessageBox.information(self, "file loaded", result["message"])
+
+    def step_instruction(self):
+        """Execute a single pipeline cycle"""
+        print("[DEBUG] Starting step_instruction")
+        
+        # Start thread to call API
+        self.step_thread = step_instructionThread(self.api_url)
+        self.step_thread.finished.connect(self.handle_step_result)
+        self.step_thread.error.connect(self.handle_instruction_error)
+        self.step_thread.start()
+        print("[DEBUG] step_instructionThread started")
+
+    def handle_step_result(self, result):
+        """Handle the result from a step instruction request"""
+        print("[DEBUG] handle_step_result called with result:", result)
+        
+        # Check for errors
+        if "error" in result:
+            QMessageBox.information(self, "Error", result["error"])
+            return
+            
+        # Update the pipeline visualization first
+        pipeline_state = result.get("pipeline", [])
+        print(f"[DEBUG] Received pipeline state: {pipeline_state}")
+        
+        # Map stage names to row indices
+        stage_to_row = {
+            "FETCH": 0,
+            "DECODE": 1,
+            "EXECUTE": 2,
+            "MEMORY": 3,
+            "WRITEBACK": 4
+        }
+        
+        # Dictionary to track which stages have been updated
+        # We'll mark unmentioned stages as bubbles
+        updated_stages = {i: False for i in range(5)}
+        
+        # Keep track of the PC for each stage even when it becomes a bubble
+        # This helps with proper visualization
+        stage_pc_values = {}
+        
+        # First scan to collect PC values for each stage
+        for stage, instruction, pc in pipeline_state:
+            if stage in stage_to_row:
+                stage_pc_values[stage_to_row[stage]] = pc
+        
+        # Update pipeline table
+        for stage, instruction, pc in pipeline_state:
+            if stage in stage_to_row:
+                row = stage_to_row[stage]
+                updated_stages[row] = True
+                
+                # Determine status and color based on instruction content
+                if instruction.lower() == "bubble":
+                    # This is a bubble
+                    status_item = QTableWidgetItem("Bubble")
+                    status_item.setBackground(QColor(40, 15, 15))  # Very dark red for bubble
+                    status_item.setForeground(QColor(180, 180, 180))  # Light gray text
+                    self.pipeline_table.setItem(row, 1, status_item)
+                    
+                    # Set instruction and PC with red background too
+                    instr_item = QTableWidgetItem("-")
+                    instr_item.setBackground(QColor(35, 10, 10))  # Even darker red
+                    instr_item.setForeground(QColor(180, 180, 180))  # Light gray text
+                    
+                    pc_item = QTableWidgetItem(str(pc))  # Keep PC value for bubbles
+                    pc_item.setBackground(QColor(35, 10, 10))  # Even darker red
+                    pc_item.setForeground(QColor(180, 180, 180))  # Light gray text
+                    
+                    self.pipeline_table.setItem(row, 2, instr_item)
+                    self.pipeline_table.setItem(row, 3, pc_item)
+                else:
+                    # This is a valid instruction
+                    status_item = QTableWidgetItem("Valid")
+                    status_item.setBackground(QColor(15, 40, 15))  # Very dark green for valid
+                    self.pipeline_table.setItem(row, 1, status_item)
+                    
+                    # Set instruction and PC with green background
+                    instr_item = QTableWidgetItem(instruction)
+                    instr_item.setBackground(QColor(10, 35, 10))  # Even darker green
+                    instr_item.setForeground(QColor(180, 180, 180))  # Light gray text
+                    
+                    pc_item = QTableWidgetItem(str(pc))
+                    pc_item.setBackground(QColor(10, 35, 10))  # Even darker green
+                    pc_item.setForeground(QColor(180, 180, 180))  # Light gray text
+                    
+                    self.pipeline_table.setItem(row, 2, instr_item)
+                    self.pipeline_table.setItem(row, 3, pc_item)
+                
+                print(f"[DEBUG] Updated pipeline stage {stage}: {instruction}, PC={pc}")
+        
+        # For any stage not explicitly mentioned, mark as bubble
+        for row, updated in updated_stages.items():
+            if not updated:
+                # This stage wasn't mentioned in the update, assume it's a bubble
+                status_item = QTableWidgetItem("Bubble")
+                status_item.setBackground(QColor(40, 15, 15))  # Very dark red for bubble
+                status_item.setForeground(QColor(180, 180, 180))  # Light gray text
+                self.pipeline_table.setItem(row, 1, status_item)
+                
+                # Also update instruction and PC as empty with red background
+                instr_item = QTableWidgetItem("-")
+                instr_item.setBackground(QColor(35, 10, 10))  # Even darker red
+                instr_item.setForeground(QColor(180, 180, 180))  # Light gray text
+                
+                # Use the PC from the same stage if it was previously set
+                pc_text = "-"
+                if row in stage_pc_values:
+                    pc_text = str(stage_pc_values[row])
+                    
+                pc_item = QTableWidgetItem(pc_text)
+                pc_item.setBackground(QColor(35, 10, 10))  # Even darker red
+                pc_item.setForeground(QColor(180, 180, 180))  # Light gray text
+                
+                self.pipeline_table.setItem(row, 2, instr_item)
+                self.pipeline_table.setItem(row, 3, pc_item)
+        
+        # Update cycle counter
+        cycle = result.get("cycle", 0)
+        if cycle > 0:
+            self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - Cycle {cycle}")
+            # Update the cycle counter label
+            self.cycle_counter.setText(f"Cycle: {cycle}")
+            # Use color to make the cycle number more visible
+            self.cycle_counter.setStyleSheet(f"font-size: 18px; font-weight: bold; margin: 10px; color: #0066cc;")
+            
+        # Now update all other components using the existing handlers
+        self.handle_execution_result(result)
+        
+        # No need for a popup message after each step
+        # Just update the UI silently
 
 
 

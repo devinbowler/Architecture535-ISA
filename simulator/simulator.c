@@ -2,15 +2,27 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdint.h>
 #include "memory.h"
 #include "pipeline.h"
 #include "../assembler/assembler.h"
 
-
-DRAM dram;
+// Define global variables here instead of declaring as external
 REGISTERS *registers;
+DRAM dram;
 Cache *cache;
+
 PipelineState pipeline;
+extern Scoreboard scoreboard;
+
+// Function prototypes
+void init_system();
+void executeInstructions();
+void breakpointInstrcutions();
+void stepInstructions();
+void storeInstruction(const char *command);
+const char* decode_instruction_to_string(uint16_t instruction);
+const char* decode_instruction_to_string_decoded(uint16_t opcode, uint16_t rd, uint16_t ra, uint16_t rb, uint16_t imm);
 
 // Initialize all systems.
 void init_system() {
@@ -102,8 +114,118 @@ void breakpointInstrcutions() {
 
 // Step through instructions one by one in DRAM.
 void stepInstructions() {
-  // pipeline_step(&pipeline);
-  printf("[STEP] Cycle Completed.\n");
+  static uint16_t instruction = 0;
+  static int cycle_count = 0;
+  static bool initialized = false;
+  
+  // Initialize if this is the first step
+  if (!initialized) {
+    registers->R[15] = 0;
+    memset(&pipeline, 0, sizeof(pipeline));
+    // Start with all stages as "valid but empty" (to show bubbles)
+    pipeline.IF_ID.valid = true;
+    pipeline.IF_ID.instruction = 0;
+    pipeline.ID_EX.valid = true;
+    pipeline.ID_EX.opcode = 0;
+    pipeline.EX_MEM.valid = true;
+    pipeline.EX_MEM.opcode = 0;
+    pipeline.MEM_WB.valid = true;
+    pipeline.MEM_WB.opcode = 0;
+    pipeline.WB.valid = true;
+    pipeline.WB.opcode = 0;
+    
+    // Initialize all next stages too
+    pipeline.IF_ID_next = pipeline.IF_ID;
+    pipeline.ID_EX_next = pipeline.ID_EX;
+    pipeline.EX_MEM_next = pipeline.EX_MEM;
+    pipeline.MEM_WB_next = pipeline.MEM_WB;
+    pipeline.WB_next = pipeline.WB;
+    
+    instruction = readFromMemory(&dram, registers->R[15]);
+    initialized = true;
+    cycle_count = 0;
+    printf("[LOG] Pipeline initialized for stepping, PC=0\n");
+    
+    // Report initial state for visualization
+    printf("[PIPELINE]FETCH:Bubble:0\n");
+    printf("[PIPELINE]DECODE:Bubble:0\n");
+    printf("[PIPELINE]EXECUTE:Bubble:0\n");
+    printf("[PIPELINE]MEMORY:Bubble:0\n");
+    printf("[PIPELINE]WRITEBACK:Bubble:0\n");
+  }
+  
+  // Perform one pipeline step
+  printf("[LOG] Executing cycle %d\n", cycle_count + 1);
+  
+  // Print current pipeline state before step (for debugging)
+  printf("[PIPELINE_DEBUG] Before step: IF_ID.instruction=%u, ID_EX.opcode=%u, EX_MEM.opcode=%u, MEM_WB.opcode=%u, WB.opcode=%u\n",
+         pipeline.IF_ID.instruction, pipeline.ID_EX.opcode, pipeline.EX_MEM.opcode, pipeline.MEM_WB.opcode, pipeline.WB.opcode);
+  printf("[PIPELINE_DEBUG] Before step: IF_ID.valid=%d, ID_EX.valid=%d, EX_MEM.valid=%d, MEM_WB.valid=%d, WB.valid=%d\n",
+         pipeline.IF_ID.valid, pipeline.ID_EX.valid, pipeline.EX_MEM.valid, pipeline.MEM_WB.valid, pipeline.WB.valid);
+  
+  // Fetch next instruction if available
+  if (instruction != 0) {
+    extern bool memory_operation_in_progress;
+    
+    // Store original PC before step
+    uint16_t original_pc = registers->R[15];
+    
+    pipeline_step(&pipeline, &instruction);
+    
+    // Only increment PC if we're not in a memory operation
+    // This ensures we fetch from the same location after a bubble is cleared
+    if (!memory_operation_in_progress) {
+      registers->R[15] += 1;
+      instruction = readFromMemory(&dram, registers->R[15]);
+    } else {
+      // We're in a memory operation, keep same instruction for next cycle
+      printf("[LOG] Memory operation in progress - freezing PC at %d\n", original_pc);
+    }
+  } else {
+    // No more instructions to fetch, but keep pipeline running
+    pipeline_step(&pipeline, &instruction);
+  }
+  cycle_count++;
+  
+  // Print current pipeline state after step (for debugging)
+  printf("[PIPELINE_DEBUG] After step: IF_ID.instruction=%u, ID_EX.opcode=%u, EX_MEM.opcode=%u, MEM_WB.opcode=%u, WB.opcode=%u\n",
+         pipeline.IF_ID.instruction, pipeline.ID_EX.opcode, pipeline.EX_MEM.opcode, pipeline.MEM_WB.opcode, pipeline.WB.opcode);
+  printf("[PIPELINE_DEBUG] After step: IF_ID.valid=%d, ID_EX.valid=%d, EX_MEM.valid=%d, MEM_WB.valid=%d, WB.valid=%d\n",
+         pipeline.IF_ID.valid, pipeline.ID_EX.valid, pipeline.EX_MEM.valid, pipeline.MEM_WB.valid, pipeline.WB.valid);
+  
+  // The pipeline stages report their own status, so we don't need to do it here
+  
+  // Print current register values
+  for (int i = 0; i < 16; i++) {
+      printf("[REG]%d:%d\n", i, registers->R[i]);
+  }
+  
+  // Print cache contents
+  printf("[LOG] Printing cache contents\n");
+  for (int i = 0; i < cache->num_sets; i++) {
+      Set* set = &cache->sets[i];
+      for (int j = 0; j < set->associativity; j++) {
+          Line* line = &set->lines[j];
+          printf("[CACHE]%d:%d:%d:%d\n", 
+                 i, j, line->valid, line->tag);
+          
+          for (int k = 0; k < BLOCK_SIZE; k++) {
+              printf("[CACHE_DATA]%d:%d:%d:%d\n", 
+                     i, j, k, line->data[k]);
+          }
+      }
+  }
+  
+  // Print non-zero memory values
+  for (int i = 0; i < DRAM_SIZE; i++) {
+      if (dram.memory[i] != 0) {
+          printf("[MEM]%d:%d\n", i, dram.memory[i]);
+      }
+  }
+  
+  // Report current cycle for UI
+  printf("[CYCLE]%d\n", cycle_count);
+  printf("[END]\n");
   fflush(stdout);
 }
 
@@ -145,6 +267,53 @@ void storeInstruction(const char *command) {
     registers->R[15] += 1;
 }
 
+// Function to decode a raw instruction to a string representation
+const char* decode_instruction_to_string(uint16_t instruction) {
+    static char buffer[50];
+    uint16_t opcode = (instruction >> 12) & 0xF;
+    uint16_t rd = (instruction >> 8) & 0xF;
+    uint16_t ra = (instruction >> 4) & 0xF;
+    uint16_t rb_imm = instruction & 0xF;
+    
+    return decode_instruction_to_string_decoded(opcode, rd, ra, rb_imm, rb_imm);
+}
+
+// Function to decode an already decoded instruction to a string representation
+const char* decode_instruction_to_string_decoded(uint16_t opcode, uint16_t rd, uint16_t ra, uint16_t rb, uint16_t imm) {
+    static char buffer[50];
+    
+    switch(opcode) {
+        case 0: 
+            sprintf(buffer, "ADD R%d, R%d, R%d", rd, ra, rb);
+            break;
+        case 1:
+            sprintf(buffer, "ADDI R%d, R%d, %d", rd, ra, imm);
+            break;
+        case 2:
+            sprintf(buffer, "NAND R%d, R%d, R%d", rd, ra, rb);
+            break;
+        case 3:
+            sprintf(buffer, "LUI R%d, %d", rd, imm);
+            break;
+        case 4:
+            sprintf(buffer, "SW R%d, R%d, %d", rd, ra, imm);
+            break;
+        case 5:
+            sprintf(buffer, "LW R%d, R%d, %d", rd, ra, imm);
+            break;
+        case 6:
+            sprintf(buffer, "BEQ R%d, R%d, %d", rd, ra, imm);
+            break;
+        case 7:
+            sprintf(buffer, "JALR R%d, R%d", rd, ra);
+            break;
+        default:
+            sprintf(buffer, "UNKNOWN(%d)", opcode);
+            break;
+    }
+    
+    return buffer;
+}
 
 int main() {
     init_system();

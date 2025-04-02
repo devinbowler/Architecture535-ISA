@@ -1,1 +1,7 @@
-ADD R1, R2, R3
+SUB R7, R2, R3
+SW [R0 + 16], R7
+SUB R4, R3, R2
+AND R5, R4, R1
+OR R6, R5, R4
+XOR R7, R6, R5
+LW R3, [R0 + 16]
