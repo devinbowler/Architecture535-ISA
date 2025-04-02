@@ -86,6 +86,25 @@ class step_instructionThread(QThread):
             print("[DEBUG] API step call failed:", str(e))
             self.error.emit(str(e))
 
+class resetThread(QThread):
+    finished = pyqtSignal(dict)
+    error = pyqtSignal(str)
+
+    def __init__(self, api_url):
+        super().__init__()
+        self.api_url = api_url
+
+    def run(self):
+        try:
+            response = requests.post(f"{self.api_url}/reset", timeout=10)
+            result = response.json()
+            if "error" in result:
+                self.error.emit(result["error"])
+            else:
+                self.finished.emit(result)
+        except Exception as e:
+            self.error.emit(str(e))
+
 class FileChangeHandler(FileSystemEventHandler):
     """ Watches for file changes and restarts the application """
     def __init__(self, process):
@@ -266,6 +285,7 @@ class ISASimulatorUI(QWidget):
         load_button.clicked.connect(self.load_instructions)
         
         clear_button = QPushButton("Clear Instructions")
+        clear_button.clicked.connect(self.reset_simulator)
         
         step_button = QPushButton("Step 1 Cycle")
         step_button.clicked.connect(self.step_instruction)
@@ -599,6 +619,37 @@ class ISASimulatorUI(QWidget):
         
         # No need for a popup message after each step
         # Just update the UI silently
+
+    def reset_simulator(self):
+        """Reset the entire simulator state"""
+        print("[DEBUG] Starting simulator reset")
+        
+        # Start thread to call API
+        self.reset_thread = resetThread(self.api_url)
+        self.reset_thread.finished.connect(self.handle_reset_result)
+        self.reset_thread.error.connect(self.handle_instruction_error)
+        self.reset_thread.start()
+
+    def handle_reset_result(self, result):
+        """Handle the result from a reset request"""
+        print("[DEBUG] handle_reset_result called with result:", result)
+        
+        # Reset cycle counter
+        self.cycle_counter.setText("Cycle: 0")
+        self.setWindowTitle("ARCH-16: Instruction Set Architecture")
+        
+        # Clear instruction and code tables
+        self.clear_table(self.instruction_table)
+        self.clear_table(self.code_table)
+        
+        # Update all other components using existing handler
+        self.handle_execution_result(result)
+
+    def clear_table(self, table):
+        """Helper to clear a table's contents"""
+        for row in range(table.rowCount()):
+            for col in range(table.columnCount()):
+                table.setItem(row, col, QTableWidgetItem(""))
 
 
 

@@ -41,23 +41,23 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
     // Format the instruction for the UI
     char instruction_text[50] = "NOP";
     if (instruction != 0) {
+        uint16_t rd = (instruction >> 8) & 0xF;
+        uint16_t ra = (instruction >> 4) & 0xF;
+        uint16_t rb_imm = instruction & 0xF;
+        
         switch(opcode) {
-            case 0: sprintf(instruction_text, "ADD R%d, R%d, R%d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 1: sprintf(instruction_text, "ADDI R%d, R%d, %d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 2: sprintf(instruction_text, "NAND R%d, R%d, R%d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 3: sprintf(instruction_text, "LUI R%d, %d", 
-                (instruction >> 8) & 0xF, instruction & 0xF); break;
-            case 4: sprintf(instruction_text, "SW R%d, R%d, %d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 5: sprintf(instruction_text, "LW R%d, R%d, %d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 11: sprintf(instruction_text, "BEQ R%d, R%d, %d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF, instruction & 0xF); break;
-            case 7: sprintf(instruction_text, "JALR R%d, R%d", 
-                (instruction >> 8) & 0xF, (instruction >> 4) & 0xF); break;
+            case 0: sprintf(instruction_text, "ADD R%d, R%d, R%d", rd, ra, rb_imm); break;
+            case 1: sprintf(instruction_text, "SUB R%d, R%d, R%d", rd, ra, rb_imm); break;
+            case 2: sprintf(instruction_text, "NAND R%d, R%d, R%d", rd, ra, rb_imm); break;
+            case 3: sprintf(instruction_text, "LUI R%d, %d", rd, rb_imm); break;
+            case 4: // Old SW opcode
+            case 10: // New SW opcode
+                sprintf(instruction_text, "SW [R%d + %d], R%d", ra, rb_imm, rd); break;
+            case 5: // Old LW opcode
+            case 9: // New LW opcode
+                sprintf(instruction_text, "LW R%d, [R%d + %d]", rd, ra, rb_imm); break;
+            case 11: sprintf(instruction_text, "BEQ R%d, R%d, %d", rd, ra, rb_imm); break;
+            case 7: sprintf(instruction_text, "JALR R%d, R%d", rd, ra); break;
             default: sprintf(instruction_text, "Unknown 0x%04X", instruction);
         }
     }
@@ -74,10 +74,6 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
     printf("[FETCH] instruction=%u pc=%u\n", instruction, pc);
     
     // Send detailed instruction text for pipeline visualization
-    if (instruction != 0) {
-        printf("[PIPELINE]FETCH:%s:%d\n", instruction_text, pc);
-    } else {
-        printf("[PIPELINE]FETCH:Bubble:%d\n", pc);
-    }
+    printf("[PIPELINE]FETCH:%s:%d\n", instruction_text, pc);
     fflush(stdout);
 }
