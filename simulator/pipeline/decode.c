@@ -48,15 +48,15 @@ void decode_stage(PipelineState* pipeline) {
     pipeline->ID_EX_next.type = rd;     // For RR-Type, rd is actually the type.
 
     // Make sure the immediate value is used correctly for LW/SW
-    if (opcode == 5 || opcode == 4) {  // LW or SW
+    if (opcode == 5 || opcode == 4 || opcode == 9 || opcode == 10) {  // LW or SW (both old and new opcodes)
         printf("[DECODE_MEM] Memory instruction: ");
         char instruction_text[50];
-        if (opcode == 5) {
-            sprintf(instruction_text, "LW R%d, R%d, %d", rd, ra, rb_imm);
-            printf("LW R%u, R%u, %u\n", rd, ra, rb_imm);
-        } else {
-            sprintf(instruction_text, "SW R%d, R%d, %d", rd, ra, rb_imm);
-            printf("SW R%u, R%u, %u\n", rd, ra, rb_imm);
+        if (opcode == 5 || opcode == 9) {  // LW (both old and new opcode)
+            sprintf(instruction_text, "LW R%d, [R%d + %d]", rd, ra, rb_imm);
+            printf("LW R%u, [R%u + %u]\n", rd, ra, rb_imm);
+        } else {  // SW (both old and new opcode)
+            sprintf(instruction_text, "SW [R%d + %d], R%d", ra, rb_imm, rd);
+            printf("SW [R%u + %u], R%u\n", ra, rb_imm, rd);
         }
         printf("[PIPELINE]DECODE:%s:%d\n", instruction_text, pc);
     } else {
@@ -64,11 +64,13 @@ void decode_stage(PipelineState* pipeline) {
         char instruction_text[50] = "Unknown";
         switch(opcode) {
             case 0: sprintf(instruction_text, "ADD R%d, R%d, R%d", rd, ra, rb_imm); break;
-            case 1: sprintf(instruction_text, "ADDI R%d, R%d, %d", rd, ra, rb_imm); break;
+            case 1: sprintf(instruction_text, "SUB R%d, R%d, R%d", rd, ra, rb_imm); break;
             case 2: sprintf(instruction_text, "NAND R%d, R%d, R%d", rd, ra, rb_imm); break;
             case 3: sprintf(instruction_text, "LUI R%d, %d", rd, rb_imm); break;
-            case 11: sprintf(instruction_text, "BEQ R%d, R%d, %d", rd, ra, rb_imm); break;
             case 7: sprintf(instruction_text, "JALR R%d, R%d", rd, ra); break;
+            case 9: sprintf(instruction_text, "LW R%d, [R%d + %d]", rd, ra, rb_imm); break;
+            case 10: sprintf(instruction_text, "SW [R%d + %d], R%d", ra, rb_imm, rd); break;
+            case 11: sprintf(instruction_text, "BEQ R%d, R%d, %d", rd, ra, rb_imm); break;
             default: sprintf(instruction_text, "NOP or Unknown (%d)", opcode);
         }
         printf("[PIPELINE]DECODE:%s:%d\n", instruction_text, pc);

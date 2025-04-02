@@ -33,7 +33,7 @@ void init_system() {
     dram.pendingValue = 0;
     strcpy(dram.pendingCmd, "");
 
-    registers = init_registers();
+    registers = init_registers();   
     cache = init_cache(1);
 
     printf("[LOG] System is Initialized\n");
@@ -51,7 +51,7 @@ void executeInstructions() {
 
     uint16_t instruction = readFromMemory(&dram, registers->R[15]);
     int cycles = 0;
-    int max_cycles = 20; // Maximum cycles to run
+    int max_cycles = 25; // Maximum cycles to run
     
     while (cycles < max_cycles) {
         // Fetch next instruction if available

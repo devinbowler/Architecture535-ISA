@@ -35,12 +35,17 @@ void memory_access(PipelineState *pipeline) {
     // Setup next pipeline stage
     pipeline->MEM_WB_next.valid = true;
     pipeline->MEM_WB_next.regD = regD;
-    pipeline->MEM_WB_next.res = address; // Default to passing the address to writeback
     pipeline->MEM_WB_next.resMod = resMod;
     pipeline->MEM_WB_next.opcode = opcode; // Pass opcode to write back stage
     pipeline->MEM_WB_next.regA = regA;
     pipeline->MEM_WB_next.regB = regB;
     pipeline->MEM_WB_next.imm = pipeline->EX_MEM.imm;
+
+    // For non-memory operations, pass the result directly
+    if (opcode != 4 && opcode != 5 && opcode != 9 && opcode != 10) {
+        pipeline->MEM_WB_next.res = pipeline->EX_MEM.res;
+    }
+    // For memory operations, res will be set during the memory access completion
 
     // Print memory access info
     printf("[MEMORY] opcode=%u rd=%u ra=%u rb=%u address=%u\n", 
@@ -130,7 +135,7 @@ void memory_access(PipelineState *pipeline) {
         }
     }
     // No ongoing memory operation, check if we need to start one
-    else if (opcode == 5) { // LW - Load Word
+    else if (opcode == 5 || opcode == 9) { // LW - Load Word (both old and new opcodes)
         // Calculate effective address
         uint16_t mem_address = address;
         if (address < DATA_SPACE) {
@@ -183,7 +188,7 @@ void memory_access(PipelineState *pipeline) {
         // Insert bubble into pipeline since we're waiting
         pipeline->MEM_WB_next.valid = false;
     }
-    else if (opcode == 4) { // SW - Store Word
+    else if (opcode == 4 || opcode == 10) { // SW - Store Word (both old and new opcodes)
         // Calculate effective address
         uint16_t mem_address = address;
         if (address < DATA_SPACE) {
@@ -246,7 +251,7 @@ void memory_access(PipelineState *pipeline) {
         // Generate text for ALU operations
         switch(opcode) {
             case 0: sprintf(instruction_text, "ADD R%d, R%d, R%d", regD, regA, regB); break;
-            case 1: sprintf(instruction_text, "ADDI R%d, R%d, %d", regD, regA, regB); break;
+            case 1: sprintf(instruction_text, "SUB R%d, R%d, R%d", regD, regA, regB); break;
             case 2: sprintf(instruction_text, "NAND R%d, R%d, R%d", regD, regA, regB); break;
             case 3: sprintf(instruction_text, "LUI R%d, %d", regD, regB); break;
             case 6: sprintf(instruction_text, "BEQ R%d, R%d, %d", regD, regA, pipeline->MEM_WB.imm); break;

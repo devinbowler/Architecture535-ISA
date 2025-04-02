@@ -58,16 +58,18 @@ void execute(PipelineState *pipeline) {
   
   switch(opcode) {
     case 0: // ADD
-      result = valA + valB;
+      result = registers->R[regA] + registers->R[regB];
       sprintf(instruction_text, "ADD R%d, R%d, R%d", regD, regA, regB);
       printf("[EXECUTE_ADD] R%u = R%u(%u) + R%u(%u) = %u\n", 
              regD, regA, valA, regB, valB, result);
       break;
-    case 1: // ADDI
-      result = valA + imm;
-      sprintf(instruction_text, "ADDI R%d, R%d, %d", regD, regA, imm);
-      printf("[EXECUTE_ADDI] R%u = R%u(%u) + %u = %u\n", 
-             regD, regA, valA, imm, result);
+    case 1: // SUB
+      // For SUB R8, R7, R1 -> R8 = R7 - R1
+      // regD = R8, regA = R7, regB = R1
+      result = registers->R[regA] - registers->R[regB];  // Use direct register access to ensure correct values
+      sprintf(instruction_text, "SUB R%d, R%d, R%d", regD, regA, regB);
+      printf("[EXECUTE_SUB] R%u = R%u(%u) - R%u(%u) = %u\n", 
+             regD, regA, registers->R[regA], regB, registers->R[regB], result);
       break;
     case 2: // NAND
       result = ~(valA & valB);
@@ -82,22 +84,24 @@ void execute(PipelineState *pipeline) {
              regD, imm, result);
       break;
     case 4: // SW
+    case 10: // SW (new opcode)
       // Calculate the memory offset that will be added to DATA_SPACE (500) in memory stage
       // For "SW Rd, Ra, imm" - we want to calculate Ra + imm exactly
       result = valA + imm;
       
       // Make sure we're using the full 16-bit value
-      sprintf(instruction_text, "SW R%d, R%d, %d", regD, regA, imm);
+      sprintf(instruction_text, "SW [R%d + %d], R%d", regA, imm, regD);
       printf("[EXECUTE_SW] MEM[R%u(%u) + %u] = R%u(%u) => offset=%u (will access address %u)\n", 
             regA, valA, imm, regD, registers->R[regD], result, result + DATA_SPACE);
       break;
     case 5: // LW
+    case 9: // LW (new opcode)
       // Calculate the memory offset that will be added to DATA_SPACE (500) in memory stage
       // For "LW Rd, Ra, imm" - we want to calculate Ra + imm exactly
       result = valA + imm;
       
       // Make sure we're using the full 16-bit value
-      sprintf(instruction_text, "LW R%d, R%d, %d", regD, regA, imm);
+      sprintf(instruction_text, "LW R%d, [R%d + %d]", regD, regA, imm);
       printf("[EXECUTE_LW] R%u = MEM[R%u(%u) + %u] => offset=%u (will access address %u)\n", 
             regD, regA, valA, imm, result, result + DATA_SPACE);
       break;
