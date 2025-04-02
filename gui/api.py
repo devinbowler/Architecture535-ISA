@@ -195,7 +195,36 @@ def stepInstruction():
         "cycle": cycle_count  # Include actual cycle count
     })
 
-
+@app.route("/reset", methods=["POST"])
+def resetSimulator():
+    print("[DEBUG] Starting simulator reset")
+    
+    # Send reset command to simulator
+    response = send_command("reset")
+    print(f"[DEBUG] Got reset response: {response}")
+    
+    # Initialize empty state
+    memory_content = [(i, 0) for i in range(1000)]  # All memory locations set to 0
+    register_contents = [(i, 0) for i in range(16)]  # All registers set to 0
+    cache_contents = []  # Empty cache
+    cache_data_contents = []  # Empty cache data
+    pipeline_state = [  # Empty pipeline stages
+        ("FETCH", "Bubble", 0),
+        ("DECODE", "Bubble", 0),
+        ("EXECUTE", "Bubble", 0),
+        ("MEMORY", "Bubble", 0),
+        ("WRITEBACK", "Bubble", 0)
+    ]
+    
+    return jsonify({
+        "message": "Simulator Reset Complete",
+        "memory": memory_content,
+        "registers": register_contents,
+        "cache": cache_contents,
+        "cache_data": cache_data_contents,
+        "pipeline": pipeline_state,
+        "cycle": 0
+    })
 
 if __name__ == "__main__":
     app.run(port=5000, debug=True)

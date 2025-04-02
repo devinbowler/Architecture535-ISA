@@ -292,12 +292,35 @@ int main() {
         fflush(stdout);
 
         if (strncmp(command, "write", 5) == 0) {
-            // Check for LW/SW special syntax with brackets and handle them
             storeInstruction(command);
         }
         else if (strncmp(command, "start", 5) == 0) executeInstructions();
         else if (strncmp(command, "break", 5) == 0) breakpointInstrcutions();
         else if (strncmp(command, "step", 4) == 0) stepInstructions();
+        else if (strncmp(command, "reset", 5) == 0) {
+            // Reset everything to initial state
+            init_system();
+            
+            // Print initial state for UI
+            for (int i = 0; i < 16; i++) {
+                printf("[REG]%d:%d\n", i, registers->R[i]);
+            }
+            
+            // Print empty cache state
+            for (int i = 0; i < cache->num_sets; i++) {
+                Set* set = &cache->sets[i];
+                for (int j = 0; j < set->associativity; j++) {
+                    printf("[CACHE]%d:%d:0:0\n", i, j);  // index:offset:valid:tag
+                    for (int k = 0; k < BLOCK_SIZE; k++) {
+                        printf("[CACHE_DATA]%d:%d:%d:0\n", i, j, k);  // All data is 0
+                    }
+                }
+            }
+            
+            printf("[CYCLE]0\n");
+            printf("[END]\n");
+            fflush(stdout);
+        }
         else {
             printf("[DEBUG] Unknown command: %s\n", command);
         }

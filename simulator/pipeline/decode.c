@@ -75,4 +75,7 @@ void decode_stage(PipelineState* pipeline) {
         }
         printf("[PIPELINE]DECODE:%s:%d\n", instruction_text, pc);
     }
+    
+    // Always show instruction and PC, even during bubbles
+    fflush(stdout);
 }

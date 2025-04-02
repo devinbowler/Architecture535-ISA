@@ -44,6 +44,7 @@ void memory_access(PipelineState *pipeline) {
     // For non-memory operations, pass the result directly
     if (opcode != 4 && opcode != 5 && opcode != 9 && opcode != 10) {
         pipeline->MEM_WB_next.res = pipeline->EX_MEM.res;
+        memory_operation_in_progress = false; // Ensure flag is cleared for non-memory ops
     }
     // For memory operations, res will be set during the memory access completion
 
@@ -64,7 +65,7 @@ void memory_access(PipelineState *pipeline) {
         if (memory_delay >= memory_target_delay) {
             printf("[MEM_COMPLETE] Memory operation completed after %u cycles\n", memory_delay);
             
-            if (pending_opcode == 0b1001) { // LW - Load Word completed
+            if (pending_opcode == 0b1001 || pending_opcode == 5) { // LW - Load Word completed
                 // Get the loaded value
                 uint16_t loaded_value;
                 if (memory_target_delay == 1) {
@@ -72,13 +73,24 @@ void memory_access(PipelineState *pipeline) {
                     printf("[MEM_CACHE_HIT] Reading from cache address %u\n", pending_mem_address);
                     loaded_value = read_cache(cache, &dram, pending_mem_address);
                 } else {
-                    // DRAM access
-                    printf("[MEM_DRAM_ACCESS] Reading from DRAM address %u\n", pending_mem_address);
+                    // DRAM access - On a miss, we need to:
+                    // 1. Read the value from DRAM
+                    // 2. Update the cache with the entire block
+                    printf("[MEM_DRAM_ACCESS] Reading from DRAM address %u and updating cache\n", pending_mem_address);
+                    
+                    // First read the value we need
                     loaded_value = readFromMemory(&dram, pending_mem_address);
+                    
+                    // Then update the cache - read_cache will handle bringing in the block
+                    if (cache != NULL) {
+                        loaded_value = read_cache(cache, &dram, pending_mem_address);
+                        printf("[MEM_CACHE_UPDATE] Cache block updated for address %u\n", pending_mem_address);
+                    }
                 }
                 
                 // Set the result to be written to regD in write-back stage
                 pipeline->MEM_WB_next.res = loaded_value;
+                pipeline->MEM_WB_next.valid = true;
                 
                 printf("[MEM_LOAD_COMPLETE] Read from address %u, value %u, to register R%u\n", 
                        pending_mem_address, loaded_value, pending_regD);
@@ -93,7 +105,7 @@ void memory_access(PipelineState *pipeline) {
                 memory_delay = 0;
                 memory_operation_in_progress = false; // Release pipeline freeze
             }
-            else if (pending_opcode == 0b1010) { // SW - Store Word completed
+            else if (pending_opcode == 0b1010 || pending_opcode == 4) { // SW - Store Word completed
                 // Complete the store
                 if (memory_target_delay == 1) {
                     // Cache hit
@@ -117,10 +129,11 @@ void memory_access(PipelineState *pipeline) {
                 memory_busy = false;
                 memory_delay = 0;
                 memory_operation_in_progress = false; // Release pipeline freeze
+                pipeline->MEM_WB_next.valid = true;
             }
         } else {
             // Still waiting for memory operation to complete
-            if (pending_opcode == 0b1001) {
+            if (pending_opcode == 0b1001 || pending_opcode == 5) {
                 sprintf(instruction_text, "LW R%d, [R%d + %d] (wait %d/%d)", 
                         pending_regD, pending_regA, pending_mem_address - DATA_SPACE, 
                         memory_delay, memory_target_delay);
@@ -261,8 +274,9 @@ void memory_access(PipelineState *pipeline) {
     }
     
     // Report pipeline state for UI
-    if (!pipeline->EX_MEM.valid || pipeline->EX_MEM.opcode == 0 || pipeline->MEM_WB_next.valid == false) {
-        printf("[PIPELINE]MEMORY:Bubble:%d\n", pipeline->EX_MEM.pc);
+    if (!pipeline->EX_MEM.valid || pipeline->EX_MEM.opcode == 0) {
+        // Even during a bubble, show the instruction and PC
+        printf("[PIPELINE]MEMORY:%s:%d\n", instruction_text, pipeline->EX_MEM.pc);
     } else {
         printf("[PIPELINE]MEMORY:%s:%d\n", instruction_text, pipeline->EX_MEM.pc);
     }

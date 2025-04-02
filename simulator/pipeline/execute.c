@@ -148,7 +148,8 @@ void execute(PipelineState *pipeline) {
   
   // Report pipeline state for UI
   if (!pipeline->ID_EX.valid || pipeline->ID_EX.opcode == 0) {
-    printf("[PIPELINE]EXECUTE:Bubble:%d\n", PC);
+    // Even during a bubble, show the instruction and PC
+    printf("[PIPELINE]EXECUTE:%s:%d\n", instruction_text, PC);
   } else {
     printf("[PIPELINE]EXECUTE:%s:%d\n", instruction_text, PC);
   }

@@ -7,8 +7,9 @@
 // REGISTER FUNCTIONS
 REGISTERS *init_registers() {
   REGISTERS *registers = malloc(sizeof(REGISTERS));
-  registers->R[0] = 0;
-  registers->R[1] = 1;
+  registers->R[0] = 0;  // R0 is always 0
+  registers->R[1] = 1;  // R1 starts with 1
+  
   // Initialize general registers to 0
   for (int i = 2; i < 13; i++) {
     registers->R[i] = 0;
@@ -16,7 +17,7 @@ REGISTERS *init_registers() {
   
   // Initialize special registers
   registers->R[13] = 0;  // LR (Link Register)
-  registers->R[14] = 100;  // SR (Status Register)
+  registers->R[14] = 0;  // SR (Status Register)
   registers->R[15] = 0;  // PC (Program Counter)
 
   return registers;

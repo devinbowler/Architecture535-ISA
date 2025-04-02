@@ -1,4 +1,0 @@
-ADD R5, R1, R1
-SW [R0 + 15], R5
-LW R7, [R0 + 15]
-SUB R8, R7, R1
