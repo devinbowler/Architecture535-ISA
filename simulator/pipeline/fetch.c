@@ -14,25 +14,32 @@ bool fetch_ready(PipelineState* pipeline) {
     return pipeline->IF_ID.valid;  // Ready to fetch when IF_ID is empty
 }
 
-/**
- * @brief Implements the fetch stage of the pipeline.
- *
- * @param pipeline the pipeline
- */
 void fetch_stage(PipelineState* pipeline, uint16_t* value) {
     // Check if fetch stage is ready
-    if(!pipeline->IF_ID.valid) return;
+    if (value != 0) {
+        // Mark the next register as valid.
+        pipeline->IF_ID_next.valid = true;
+        pipeline->IF_ID_next.instruction = *value;
+        pipeline->IF_ID_next.pc = registers->R[15];
+    } else {
+        // No instruction, so it is a bubble.
+        pipeline->IF_ID_next.valid = false;
+    }
 
-    uint16_t pc = registers->R[15];
-    
+    // You can also add some debugging info:
+    printf("[DEBUG] FETCH: %s (PC=%u)\n", 
+           pipeline->IF_ID_next.valid ? "Valid" : "Not Valid",
+           registers->R[15]);
+
+
     // If a branch was taken in the execute stage, update the PC
     if (branch_taken) {
-        pc = branch_target_address;
-        registers->R[15] = pc; // Update PC register
+        registers->R[15] = branch_target_address; // Update PC register
         branch_taken = false;  // Reset the flag
-        printf("[FETCH] Branch taken, PC updated to %u\n", pc);
+        printf("[FETCH] Branch taken, PC updated to %u\n", registers->R[15]);
     }
-    
+
+    uint16_t pc = registers->R[15];
     uint16_t instruction = readFromMemory(&dram, pc);
 
     // Extract instruction details for UI
@@ -61,19 +68,20 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
             default: sprintf(instruction_text, "Unknown 0x%04X", instruction);
         }
     }
+    
+    // Update pipeline register
+    pipeline->IF_ID_next.valid = (instruction != 0);
+    pipeline->IF_ID_next.pc = pc;
+    pipeline->IF_ID_next.instruction = instruction;
 
     // Generate and save pipeline instruction information
     *value = instruction;
-    
-    // Update pipeline register
-    pipeline->IF_ID_next.valid = true;
-    pipeline->IF_ID_next.pc = pc;
-    pipeline->IF_ID_next.instruction = instruction;
 
     // Print fetch info
     printf("[FETCH] instruction=%u pc=%u\n", instruction, pc);
     
     // Send detailed instruction text for pipeline visualization
     printf("[PIPELINE]FETCH:%s:%d\n", instruction_text, pc);
+    
     fflush(stdout);
 }

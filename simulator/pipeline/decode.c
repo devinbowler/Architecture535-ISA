@@ -13,15 +13,11 @@ bool decode_ready(PipelineState* pipeline) {
     return pipeline->IF_ID.valid;
 }
 
-/**
- * @brief Implements the decode stage of the pipeline.
- * @param pipeline the pipeline
- */
 void decode_stage(PipelineState* pipeline) {
-    // Check if decode stage is ready
-    //if (!decode_ready(pipeline)) {
-    //    return;
-    //}
+    if(!pipeline->IF_ID.valid){
+        pipeline->ID_EX_next.valid = false;
+        return;
+    }
 
     // If there is something to decode, mark stage as valid
     pipeline->ID_EX_next.valid = true;

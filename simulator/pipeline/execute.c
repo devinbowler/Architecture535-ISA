@@ -24,7 +24,13 @@ void flush_pipeline(PipelineState *pipeline) {
  * @param pipeline the pipeline
  */
 void execute(PipelineState *pipeline) {
-  // if(!execute_ready(pipeline)) return;
+  if(!pipeline->ID_EX.valid){
+    pipeline->ID_EX_next.valid = false;
+    return;
+  }
+
+  pipeline->ID_EX_next.valid = true;
+
   uint16_t PC = pipeline->ID_EX.pc;
   uint16_t regD = pipeline->ID_EX.regD;
   uint16_t regA = pipeline->ID_EX.regA;
@@ -32,9 +38,6 @@ void execute(PipelineState *pipeline) {
   uint16_t imm = pipeline->ID_EX.imm;
   uint16_t opcode = pipeline->ID_EX.opcode;
   uint16_t result = 0;
-  
-  // Reset branch taken flag at the beginning of execution
-  branch_taken = false;
   
   // Get actual register values
   uint16_t valA = registers->R[regA];
@@ -107,7 +110,7 @@ void execute(PipelineState *pipeline) {
       break;
     case 11: // BEQ (0b1011) - Updated from 6 to 11 to match assembler
       // Check if branch condition is true
-      if (valD == valA) {
+      if (valA == registers->R[regD]) {
         // Branch is taken, set the target PC and flag
         result = PC + imm; // Jump to PC + immediate
         branch_taken = true;
@@ -155,6 +158,13 @@ void execute(PipelineState *pipeline) {
   }
   
   pipeline->EX_MEM_next.res = result;
+
+  if (pipeline->EX_MEM.valid) {
+    printf("[DEBUG] EXECUTE : Flag Valid\n");
+  } else {
+    printf("[DEBUG] EXECUTE : Flag not Valid.\n");
+  }
+  fflush(stdout);
 }
 
 /**
