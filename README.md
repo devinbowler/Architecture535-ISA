@@ -160,9 +160,9 @@ Our communication includes weekly meetings (on Fridays) along with continuous co
 ### Building and Running
 
 #### Building the Simulator
-Compile the C simulator using your preferred build system. For example, using `gcc`:
+Compile the C simulator using your preferred build system.
 
-*You can either run the MAKEFILE, or,
+**You can either run the MAKEFILE ('make', in the simulator directory), or the following gcc lines:**
 
 ### Linux - 
 ```bash
