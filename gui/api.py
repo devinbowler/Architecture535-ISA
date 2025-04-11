@@ -6,7 +6,7 @@ app = Flask(__name__)
 
 # Launch C simulator executable
 simulator_process = subprocess.Popen(
-    ["../simulator/simulator.exe"],
+    ["../simulator/simulator"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -16,7 +16,7 @@ simulator_process = subprocess.Popen(
 
 def read_output():
     output = []
-    print("[DEBUG] Starting to read simulator output")
+
     while True:
         line = simulator_process.stdout.readline()
         if not line:
@@ -25,10 +25,6 @@ def read_output():
         line = line.strip()
         print(f"[C OUTPUT]: {line}")
         output.append(line)
-
-        # Check for specific debug information about memory access
-        if line.startswith("[MEM_DEBUG]"):
-            print("[DEBUG] Found memory debug info")
             
         if line == "[END]":
             print("[DEBUG] Found [END] marker")
@@ -92,7 +88,6 @@ def executeInstructions():
     print(f"[DEBUG] Got response: {response}")
 
     for output in response.splitlines():
-        print(f"[DEBUG] Processing line: {output}")
         if output.startswith("[MEM]"):
             addr, val = output[5:].split(":")
             memory_content.append((int(addr), int(val)))
@@ -108,7 +103,7 @@ def executeInstructions():
             if len(parts) == 4:
                 index, offset, valid, data = parts
                 cache_contents.append((int(index), int(offset), int(valid) == 1, int(data)))
-                print(f"[DEBUG] Found cache update: index={index}, offset={offset}, valid={valid}, data={data}")
+                # print(f"[DEBUG] Found cache update: index={index}, offset={offset}, valid={valid}, data={data}")
         elif output.startswith("[CACHE_DATA]"):
             # Format: [CACHE_DATA]index:offset:data_index:data_value
             # Example: [CACHE_DATA]2:0:1:42
@@ -116,12 +111,12 @@ def executeInstructions():
             if len(parts) == 4:
                 index, offset, data_index, data_value = parts
                 cache_data_contents.append((int(index), int(offset), int(data_index), int(data_value)))
-                print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
+                # print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
 
     print(f"[DEBUG] Final register contents: {register_contents}")
-    print(f"[DEBUG] Final memory contents (showing first 10): {memory_content[:10]}")
-    print(f"[DEBUG] Final cache contents: {cache_contents}")
-    print(f"[DEBUG] Final cache data contents: {cache_data_contents}")
+    # print(f"[DEBUG] Final memory contents (showing first 10): {memory_content[:10]}")
+    # print(f"[DEBUG] Final cache contents: {cache_contents}")
+    # print(f"[DEBUG] Final cache data contents: {cache_data_contents}")
     
     return jsonify({
         "message": "Execution Finished.",
@@ -145,7 +140,6 @@ def stepInstruction():
     print(f"[DEBUG] Got response: {response}")
 
     for output in response.splitlines():
-        print(f"[DEBUG] Processing line: {output}")
         if output.startswith("[MEM]"):
             addr, val = output[5:].split(":")
             memory_content.append((int(addr), int(val)))

@@ -14,6 +14,13 @@ bool memory_access_ready(PipelineState *pipeline);
  * @param pipeline the pipeline
  */
 void memory_access(PipelineState *pipeline) {
+    if(!pipeline->EX_MEM.valid){
+        pipeline->EX_MEM_next.valid = false;
+        return;
+    }
+
+    pipeline->EX_MEM_next.valid = true;
+
     // Get pipeline state values
     uint16_t opcode = pipeline->EX_MEM.opcode;
     uint16_t regD = pipeline->EX_MEM.regD;

@@ -4,12 +4,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// Scoreboard structure
-typedef struct {
-    bool busy[16];  // One for each functional unit
-    bool ready[16]; // One for each functional unit
-} Scoreboard;
-
 // Pipeline registers
 
 typedef struct {
@@ -82,19 +76,8 @@ typedef struct {
 } PipelineState;
 
 extern PipelineState pipeline;
-extern Scoreboard scoreboard;
 
-// Pipeline control functions
-bool pipeline_ready(PipelineState* pipeline);
 void pipeline_step(PipelineState* pipeline, uint16_t* value);
 
-// Scoreboard functions
-void init_scoreboard(Scoreboard* sb);
-bool check_scoreboard(Scoreboard* sb, uint16_t reg);
-void set_scoreboard(Scoreboard* sb, uint16_t reg);
-void clear_scoreboard(Scoreboard* sb, uint16_t reg);
-void complete_instruction(Scoreboard* sb, uint16_t reg, uint16_t functional_unit);
-bool can_issue_instruction(Scoreboard* sb, uint16_t reg, uint16_t functional_unit);
-void issue_instruction(Scoreboard* sb, uint16_t reg, uint16_t functional_unit);
 
 #endif
