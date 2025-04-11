@@ -162,8 +162,32 @@ Our communication includes weekly meetings (on Fridays) along with continuous co
 #### Building the Simulator
 Compile the C simulator using your preferred build system. For example, using `gcc`:
 
+*You can either run the MAKEFILE, or,
+
+### Linux - 
 ```bash
-gcc -o simulator simulator.c memory.c pipeline.c assembler.c -Wall -O2
+gcc simulator.c memory.c pipeline.c ./pipeline/fetch.c ./pipeline/decode.c ./pipeline/execute.c ./pipeline/memory_access.c ./pipeline/write_back.c ../assembler/assembler.c -o simulator
+```
+
+### Windows - 
+```bash
+gcc simulator.c memory.c pipeline.c ./pipeline/fetch.c ./pipeline/decode.c ./pipeline/execute.c ./pipeline/memory_access.c ./pipeline/write_back.c ../assembler/assembler.c -o simulator.exe
+```
+
+- Chnage the line in this code block,
+```python
+simulator_process = subprocess.Popen(
+    ["../simulator/simulator"], # This line.
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,
+    bufsize=1
+)
+```
+to
+```python
+    ["../simulator/simulator.exe"],
 ```
 
 ## Running the API
