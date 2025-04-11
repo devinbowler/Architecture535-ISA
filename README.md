@@ -19,7 +19,6 @@ ARCH‑16 is a custom 16‑bit general purpose Instruction Set Architecture (ISA
 - [Project Approach](#project-approach)
 - [Building and Running](#building-and-running)
 - [Contribution & Issues](#contribution--issues)
-- [License](#license)
 
 ## Overview
 
