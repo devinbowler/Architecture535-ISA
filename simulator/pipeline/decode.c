@@ -1,7 +1,7 @@
 // This file will take the response from fetch, and decode the binary encoding to get the information for execute.
 #include <stdio.h>
 #include <stdlib.h>
-#include "fetch.h"
+#include "decode.h"
 #include "../memory.h"
 
 extern DRAM dram;

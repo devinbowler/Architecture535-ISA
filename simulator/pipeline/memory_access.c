@@ -3,9 +3,6 @@ extern DRAM dram;
 extern Cache *cache;
 extern REGISTERS *registers;
 
-// Function declaration
-bool memory_access_ready(PipelineState *pipeline);
-
 /**
  * @brief Implements the memory access stage of the pipeline. This will just use our existing cache and DRAM functions
  * @param pipeline the pipeline
@@ -41,6 +38,6 @@ void memory_access(PipelineState *pipeline) {
  * @return true if the memory stage is ready
  * @return false if the memory stage is not ready
  */
-bool memory_access_ready(PipelineState *pipeline) {
+bool memory_ready(PipelineState *pipeline) {
   return pipeline->MEM_WB.valid;
 }
