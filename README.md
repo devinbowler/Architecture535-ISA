@@ -174,7 +174,7 @@ gcc simulator.c memory.c pipeline.c ./pipeline/fetch.c ./pipeline/decode.c ./pip
 gcc simulator.c memory.c pipeline.c ./pipeline/fetch.c ./pipeline/decode.c ./pipeline/execute.c ./pipeline/memory_access.c ./pipeline/write_back.c ../assembler/assembler.c -o simulator.exe
 ```
 
-- Chnage the line in this code block,
+- Change the line in this code block,
 ```python
 simulator_process = subprocess.Popen(
     ["../simulator/simulator"], # This line.
