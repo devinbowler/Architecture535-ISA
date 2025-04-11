@@ -128,7 +128,7 @@ ARCH‑16 has two levels of memory:
 
 ## GUI and API
 
-A graphical user interface (GUI) is provided (using QT/JavaFX or similar) with the following display features:
+A graphical user interface (GUI) is provided (using PyQT) with the following display features:
 
 ### Controls (Inputs):
 - **File Upload:** Load assembly code.
