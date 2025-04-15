@@ -10,21 +10,12 @@ extern REGISTERS* registers;
 extern bool branch_taken;
 extern uint16_t branch_target_address;
 
-bool fetch_ready(PipelineState* pipeline) {
-    return pipeline->IF_ID.valid;  // Ready to fetch when IF_ID is empty
-}
-
 void fetch_stage(PipelineState* pipeline, uint16_t* value) {
-    // Check if fetch stage is ready
-    if (value != 0) {
-        // Mark the next register as valid.
-        pipeline->IF_ID_next.valid = true;
-        pipeline->IF_ID_next.instruction = *value;
-        pipeline->IF_ID_next.pc = registers->R[15];
-    } else {
-        // No instruction, so it is a bubble.
-        pipeline->IF_ID_next.valid = false;
-    }
+    // Mark the next register as valid.
+    pipeline->IF_ID_next.valid = true;
+    pipeline->IF_ID_next.instruction = *value;
+    pipeline->IF_ID_next.pc = registers->R[15];
+    // Even if the instruction is 0 (nothing) so pipeline can flush.
 
     // You can also add some debugging info:
     printf("[DEBUG] FETCH: %s (PC=%u)\n", 
@@ -46,8 +37,10 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
     uint16_t opcode = (instruction >> 12) & 0xF;
     
     // Format the instruction for the UI
-    char instruction_text[50] = "NOP";
-    if (instruction != 0) {
+    char instruction_text[50];
+    if (instruction == 0) {
+        sprintf(instruction_text, "NOP");
+    } else {
         uint16_t rd = (instruction >> 8) & 0xF;
         uint16_t ra = (instruction >> 4) & 0xF;
         uint16_t rb_imm = instruction & 0xF;
@@ -70,7 +63,6 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
     }
     
     // Update pipeline register
-    pipeline->IF_ID_next.valid = (instruction != 0);
     pipeline->IF_ID_next.pc = pc;
     pipeline->IF_ID_next.instruction = instruction;
 
