@@ -1,6 +1,6 @@
 /* write_back.c */
 #include "write_back.h"
-#include "pipeline.h"
+#include "../pipeline.h"
 #include "../memory.h"
 
 extern REGISTERS *registers;

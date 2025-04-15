@@ -357,7 +357,7 @@ class ISASimulatorUI(QWidget):
         self.execute_thread.start()
 
     def handle_execution_result(self, result):
-        print("[DEBUG] handle_execution_result called with result:", result)
+        # print("[DEBUG] handle_execution_result called with result:", result)
         
         # Check for errors
         if "error" in result:
@@ -442,7 +442,7 @@ class ISASimulatorUI(QWidget):
                 for j in range(4):
                     self.cache_table.setItem(i, 4 + j, QTableWidgetItem(str(entry["data"][j])))
                 
-                print(f"[DEBUG] Updated cache line {i}: {entry}")
+                # print(f"[DEBUG] Updated cache line {i}: {entry}")
             except Exception as e:
                 print(f"[UI ERROR] Failed to update cache line {i}: {e}")
 
@@ -515,7 +515,7 @@ class ISASimulatorUI(QWidget):
 
     def handle_step_result(self, result):
         """Handle the result from a step instruction request"""
-        print("[DEBUG] handle_step_result called with result:", result)
+        # print("[DEBUG] handle_step_result called with result:", result)
         
         # Check for errors
         if "error" in result:
@@ -546,10 +546,10 @@ class ISASimulatorUI(QWidget):
                 updated_stages[row] = True
                 
                 # Determine status and color based on instruction content
-                if instruction.lower() == "bubble":
-                    # This is a bubble
-                    status_item = QTableWidgetItem("Bubble")
-                    status_item.setBackground(QColor(40, 15, 15))  # Very dark red for bubble
+                if instruction.lower() == "bubble" or instruction.lower() == "nop":
+                    # This is a bubble or NOP
+                    status_item = QTableWidgetItem("NOP" if instruction.lower() == "nop" else "Bubble")
+                    status_item.setBackground(QColor(40, 15, 15))  # Very dark red for bubble/NOP
                     status_item.setForeground(QColor(180, 180, 180))  # Light gray text
                     self.pipeline_table.setItem(row, 1, status_item)
                     

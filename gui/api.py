@@ -95,7 +95,7 @@ def executeInstructions():
             # Remove the [REG] prefix and split the rest
             reg_val = output[5:].split(":")
             register_contents.append((int(reg_val[0]), int(reg_val[1])))
-            print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
+            # print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
         elif output.startswith("[CACHE]"):
             # Format: [CACHE]index:offset:valid:data
             # Example: [CACHE]2:0:1:42
@@ -147,21 +147,21 @@ def stepInstruction():
             # Remove the [REG] prefix and split the rest
             reg_val = output[5:].split(":")
             register_contents.append((int(reg_val[0]), int(reg_val[1])))
-            print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
+            # print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
         elif output.startswith("[CACHE]"):
             # Format: [CACHE]index:offset:valid:data
             parts = output[7:].split(":")
             if len(parts) == 4:
                 index, offset, valid, data = parts
                 cache_contents.append((int(index), int(offset), int(valid) == 1, int(data)))
-                print(f"[DEBUG] Found cache update: index={index}, offset={offset}, valid={valid}, data={data}")
+                # print(f"[DEBUG] Found cache update: index={index}, offset={offset}, valid={valid}, data={data}")
         elif output.startswith("[CACHE_DATA]"):
             # Format: [CACHE_DATA]index:offset:data_index:data_value
             parts = output[12:].split(":")
             if len(parts) == 4:
                 index, offset, data_index, data_value = parts
                 cache_data_contents.append((int(index), int(offset), int(data_index), int(data_value)))
-                print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
+                # print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
         elif output.startswith("[PIPELINE]"):
             # Format: [PIPELINE]stage:instruction:pc
             # Example: [PIPELINE]FETCH:ADD R5, R4, R3:0
