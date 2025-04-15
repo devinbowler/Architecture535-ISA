@@ -14,13 +14,6 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
     // Mark the next register as valid.
     pipeline->IF_ID_next.valid = true;
     pipeline->IF_ID_next.instruction = *value;
-    pipeline->IF_ID_next.pc = registers->R[15];
-    // Even if the instruction is 0 (nothing) so pipeline can flush.
-
-    // You can also add some debugging info:
-    printf("[DEBUG] FETCH: %s (PC=%u)\n", 
-           pipeline->IF_ID_next.valid ? "Valid" : "Not Valid",
-           registers->R[15]);
 
 
     // If a branch was taken in the execute stage, update the PC
