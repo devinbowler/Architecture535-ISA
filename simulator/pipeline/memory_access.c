@@ -13,6 +13,7 @@ bool memory_operation_in_progress = false;
 void memory_access(PipelineState *pipeline) {
     if(!pipeline->EX_MEM.valid){
         pipeline->EX_MEM_next.valid = false;
+        printf("[PIPELINE]MEMORY:NOP:%d\n", pipeline->EX_MEM.pc);
         return;
     }
 
@@ -151,6 +152,7 @@ void memory_access(PipelineState *pipeline) {
             pipeline->MEM_WB_next.valid = false;
         }
     }
+    
     // No ongoing memory operation, check if we need to start one
     else if (opcode == 5 || opcode == 9) { // LW - Load Word (both old and new opcodes)
         // Calculate effective address
