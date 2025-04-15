@@ -15,7 +15,7 @@ find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 # Add simulator library with all simulator C source files
-add_library(simulator
+add_library(simulator_lib
     simulator/simulator.c
     simulator/memory.c
     simulator/pipeline.c
@@ -27,7 +27,7 @@ add_library(simulator
 )
 
 # Include directories for simulator
-target_include_directories(simulator PUBLIC
+target_include_directories(simulator_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -48,7 +48,7 @@ add_executable(memory_tests
 
 # Link the memory test executable
 target_link_libraries(memory_tests
-    simulator
+    simulator_lib
     ${GTEST_LIBRARIES}
     pthread
 )
@@ -60,7 +60,7 @@ add_executable(pipeline_tests
 
 # Link the pipeline test executable
 target_link_libraries(pipeline_tests
-    simulator
+    simulator_lib
     ${GTEST_LIBRARIES}
     pthread
 )
@@ -87,6 +87,18 @@ add_custom_target(run_memory_tests
 add_custom_target(run_pipeline_tests
     COMMAND pipeline_tests --gtest_color=yes
     DEPENDS pipeline_tests
+)
+
+add_executable(simulator
+    simulator/simulator.c
+    simulator/memory.c
+    simulator/pipeline.c
+    simulator/pipeline/fetch.c
+    simulator/pipeline/decode.c
+    simulator/pipeline/execute.c
+    simulator/pipeline/memory_access.c
+    simulator/pipeline/write_back.c
+    assembler/assembler.c
 )
 
 # Python GUI handling

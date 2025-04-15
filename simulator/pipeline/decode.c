@@ -4,7 +4,7 @@
 #include "decode.h"
 #include "../memory.h"
 #include "decode.h"
-#include "pipeline.h"
+#include "../pipeline.h"
 
 extern DRAM dram;
 extern REGISTERS* registers;
