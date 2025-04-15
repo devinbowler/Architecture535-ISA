@@ -11,6 +11,11 @@ bool branch_taken = false;
 uint16_t branch_target_address = 0;
 
 void flush_pipeline(PipelineState *pipeline) {
+    if(!pipeline->ID_EX.valid){
+        pipeline->ID_EX_next.valid = false;
+        printf("[PIPELINE]EXECUTE:NOP:%d\n", pipeline->ID_EX.pc);
+        return;
+    }
     // Invalidate all next-stage registers.
     pipeline->IF_ID_next.valid  = false;
     pipeline->ID_EX_next.valid  = false;
@@ -104,7 +109,6 @@ void execute(PipelineState *pipeline) {
             break;
         default:
             printf("[EXECUTE] Unknown opcode: %u\n", opcode);
-            sprintf(instruction_text, "NOP");
             pipeline->EX_MEM_next.valid = false;
             break;
     }
@@ -112,8 +116,4 @@ void execute(PipelineState *pipeline) {
     printf("[PIPELINE]EXECUTE:%s:%d\n", instruction_text, pc);
     pipeline->EX_MEM_next.res = result;
     fflush(stdout);
-}
-
-bool execute_ready(PipelineState *pipeline) {
-    return pipeline->EX_MEM.valid;
 }
