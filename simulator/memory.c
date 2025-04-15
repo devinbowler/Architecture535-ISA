@@ -38,6 +38,9 @@ void writeToMemory(DRAM *dram, uint16_t addr, int16_t data) {
 uint16_t readFromMemory(DRAM *dram, uint16_t addr) {
   if (addr >= 0 && addr < DRAM_SIZE) {
       return dram->memory[addr];
+  } else {
+    printf("Error");
+    return -1;
   }
 }
 
@@ -203,14 +206,14 @@ Cache *init_cache(uint16_t mode) {
     printf("Invalid mode.");
     return NULL;
   }
-  Cache *cache = malloc(sizeof(Cache));
+  Cache *cache = (Cache *)malloc(sizeof(Cache));
   if (!cache) return NULL;
   
   cache->mode = mode;  // Set the mode first
   cache->num_sets = (mode == 1) ? CACHE_SIZE : CACHE_SIZE / 2;
   
   // Allocate memory for the sets array.
-  cache->sets = malloc(cache->num_sets * sizeof(Set));
+  cache->sets = (Set *)malloc(cache->num_sets * sizeof(Set));
   if (!cache->sets) {
     free(cache);
     return NULL;
@@ -237,12 +240,12 @@ Cache *init_cache(uint16_t mode) {
  * @return the initialized set
  */
 Set *init_set(uint16_t mode) {
-  Set *set = malloc(sizeof(Set));
+  Set *set = (Set *)malloc(sizeof(Set));
   if (!set) return NULL;
   
   set->associativity = mode;
   // Allocate memory for the lines array based on the associativity.
-  set->lines = malloc(mode * sizeof(Line));
+  set->lines = (Line *) malloc(mode * sizeof(Line));
   if (!set->lines) {
     free(set);
     return NULL;
@@ -268,7 +271,7 @@ Set *init_set(uint16_t mode) {
  * @return the initialized line 
  */
 Line *init_line() {
-  Line *line = malloc(sizeof(Line));
+  Line *line = (Line *) malloc(sizeof(Line));
   if (!line) return NULL;
   line->valid = 0;
   line->tag = 0;

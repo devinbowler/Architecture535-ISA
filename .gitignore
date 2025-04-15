@@ -1,6 +1,8 @@
+.venv/
 .vscode/
 *.o
 ARCH-16
+build/
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles

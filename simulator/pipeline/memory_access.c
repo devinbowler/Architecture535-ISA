@@ -296,6 +296,6 @@ void memory_access(PipelineState *pipeline) {
  * @return true if the memory stage is ready
  * @return false if the memory stage is not ready
  */
-bool memory_access_ready(PipelineState *pipeline) {
+bool memory_ready(PipelineState *pipeline) {
   return pipeline->MEM_WB.valid;
 }

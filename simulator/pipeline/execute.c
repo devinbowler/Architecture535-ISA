@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "execute.h"
-#include "pipeline.h"
+#include "../pipeline.h"
 #include "../memory.h"
 
 extern REGISTERS *registers;

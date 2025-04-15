@@ -160,24 +160,19 @@ Our communication includes weekly meetings (on Fridays) along with continuous co
 ### Building and Running
 
 #### Building the Simulator
-Compile the C simulator using your preferred build system.
+Compile the C simulator using CMake.
 
-**You can either run the MAKEFILE ('make', in the simulator directory), or the following gcc lines:**
-
-### Linux - 
+### CMake -
 ```bash
-gcc simulator.c memory.c pipeline.c ./pipeline/fetch.c ./pipeline/decode.c ./pipeline/execute.c ./pipeline/memory_access.c ./pipeline/write_back.c ../assembler/assembler.c -o simulator
+mkdir build && cd build
+cmake ..
+make
 ```
-
-### Windows - 
-```bash
-gcc simulator.c memory.c pipeline.c ./pipeline/fetch.c ./pipeline/decode.c ./pipeline/execute.c ./pipeline/memory_access.c ./pipeline/write_back.c ../assembler/assembler.c -o simulator.exe
-```
-
+If in Windows:
 - Change the line in this code block,
 ```python
 simulator_process = subprocess.Popen(
-    ["../simulator/simulator"], # This line.
+    ["../build/simulator"], # This line.
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -187,7 +182,7 @@ simulator_process = subprocess.Popen(
 ```
 to
 ```python
-    ["../simulator/simulator.exe"],
+    ["../build/simulator.exe"],
 ```
 
 ## Running the API
