@@ -1,4 +1,5 @@
 /* decode.c */
+/* decode.c */
 #include <stdio.h>
 #include <stdlib.h>
 #include "decode.h"
@@ -9,12 +10,6 @@ extern DRAM dram;
 extern REGISTERS* registers;
 
 void decode_stage(PipelineState* pipeline) {
-    if(!pipeline->IF_ID.valid){
-        pipeline->IF_ID_next.valid = false;
-        printf("[PIPELINE]DECODE:NOP:%d\n", pipeline->ID_EX.pc);
-        return;
-    }
-    
     uint16_t instruction = pipeline->IF_ID.instruction;
     uint16_t pc = pipeline->IF_ID.pc;
     char instruction_text[50];
@@ -22,7 +17,7 @@ void decode_stage(PipelineState* pipeline) {
     // If the fetched instruction is 0, propagate a NOP (bubble)
     if (instruction == 0) {
         sprintf(instruction_text, "NOP");
-        pipeline->ID_EX_next.valid = false; // mark nop
+        pipeline->ID_EX_next.valid = false; // mark bubble
         pipeline->ID_EX_next.pc = pc;
         pipeline->ID_EX_next.opcode = 0;
         pipeline->ID_EX_next.regD = 0;
