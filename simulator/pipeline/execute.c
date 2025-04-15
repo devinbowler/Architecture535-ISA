@@ -8,7 +8,10 @@
 #include "../memory.h"
 #include "../globals.h"    // for DATA_OFFSET
 
+// Externally declared register file pointer.
 extern REGISTERS *registers;
+
+// Global branch status variables.
 bool branch_taken = false;
 uint16_t branch_target_address = 0;
 
