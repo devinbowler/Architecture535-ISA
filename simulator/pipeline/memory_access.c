@@ -45,6 +45,7 @@ void memory_access(PipelineState *pipeline) {
     pipeline->MEM_WB_next.regA = regA;
     pipeline->MEM_WB_next.regB = regB;
     pipeline->MEM_WB_next.imm = pipeline->EX_MEM.imm;
+    pipeline->MEM_WB_next.pc = pipeline->EX_MEM.pc;
 
     // For non-memory operations, pass the result directly
     if (opcode != 4 && opcode != 5 && opcode != 9 && opcode != 10) {
@@ -281,7 +282,7 @@ void memory_access(PipelineState *pipeline) {
     
     // Report pipeline state for UI
     if (!pipeline->EX_MEM.valid || pipeline->EX_MEM.opcode == 0) {
-        // Even during a bubble, show the instruction and PC
+        // Even during a bubble, show the    instruction and PC
         printf("[PIPELINE]MEMORY:%s:%d\n", instruction_text, pipeline->EX_MEM.pc);
     } else {
         printf("[PIPELINE]MEMORY:%s:%d\n", instruction_text, pipeline->EX_MEM.pc);
