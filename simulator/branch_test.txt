@@ -1,10 +1,10 @@
-ADD R1, R2, R3    ; R1 = R2 + R3
-ADD R2, R1, R3    ; R2 = R1 + R3
-BEQ R1, R1, 2     ; Branch if R1 == R1 (always true) to PC+2
-ADD R3, R1, R2    ; This should be skipped due to branch
-ADD R4, R1, R2    ; This should be skipped due to branch
-ADD R5, R1, R2    ; This should execute after branch (PC+2)
-ADD R6, R1, R2    ; Continue execution
-BEQ R1, R4, 1     ; Branch if R1 == R4 (should be false, no branch)
-ADD R7, R1, R2    ; This should execute (branch not taken)
-ADD R8, R1, R2    ; Continue execution 
+ADD R1, R2, R3
+ADD R2, R1, R3
+BEQ R1, R1, 2
+ADD R3, R1, R2
+ADD R4, R1, R2
+ADD R5, R1, R2
+ADD R6, R1, R2
+BEQ R1, R4, 1
+ADD R7, R1, R2
+ADD R8, R1, R2
