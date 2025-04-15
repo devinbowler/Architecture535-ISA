@@ -6,9 +6,6 @@ extern REGISTERS *registers;
 // Global flag to indicate when memory operation is in progress
 bool memory_operation_in_progress = false;
 
-// Function declaration
-bool memory_access_ready(PipelineState *pipeline);
-
 /**
  * @brief Implements the memory access stage of the pipeline. This will just use our existing cache and DRAM functions
  * @param pipeline the pipeline
@@ -60,7 +57,7 @@ void memory_access(PipelineState *pipeline) {
            opcode, regD, regA, regB, address);
     
     // Generate stage information for pipeline visualization
-    char instruction_text[50] = "NOP";
+    char instruction_text[50];
 
     // If we're currently waiting on a memory operation
     if (memory_busy) {
@@ -276,7 +273,7 @@ void memory_access(PipelineState *pipeline) {
             case 3: sprintf(instruction_text, "LUI R%d, %d", regD, regB); break;
             case 6: sprintf(instruction_text, "BEQ R%d, R%d, %d", regD, regA, pipeline->MEM_WB.imm); break;
             case 7: sprintf(instruction_text, "JALR R%d, R%d", regD, regA); break;
-            default: sprintf(instruction_text, "UNKNOWN opcode=%d", opcode);
+            default: sprintf(instruction_text, "NOP");
         }
     }
     
@@ -288,14 +285,4 @@ void memory_access(PipelineState *pipeline) {
         printf("[PIPELINE]MEMORY:%s:%d\n", instruction_text, pipeline->EX_MEM.pc);
     }
     fflush(stdout);
-}
-
-/**
- * @brief 
- * @param pipeline the pipeline
- * @return true if the memory stage is ready
- * @return false if the memory stage is not ready
- */
-bool memory_ready(PipelineState *pipeline) {
-  return pipeline->MEM_WB.valid;
 }
