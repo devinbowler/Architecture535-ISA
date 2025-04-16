@@ -6,10 +6,6 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-# Find Python interpreter
-find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-message(STATUS "Found Python: ${Python3_EXECUTABLE} (version ${Python3_VERSION})")
-
 # Find Google Test package
 find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
