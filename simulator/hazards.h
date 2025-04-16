@@ -18,4 +18,4 @@ HazardInfo detect_hazards(PipelineState *pipeline);
 void resolve_hazards(PipelineState *pipeline, HazardInfo *hazard);
 void forward_result(PipelineState *pipeline, HazardInfo *hazard);
 
-#endi
+#endif
