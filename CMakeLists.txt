@@ -13,6 +13,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 # Add simulator library with all simulator C source files
 add_library(simulator_lib
     simulator/simulator.c
+    simulator/hazards.c
     simulator/memory.c
     simulator/pipeline.c
     simulator/pipeline/execute.c
@@ -89,6 +90,7 @@ add_executable(simulator
     simulator/simulator.c
     simulator/memory.c
     simulator/pipeline.c
+    simulator/hazards.c
     simulator/pipeline/fetch.c
     simulator/pipeline/decode.c
     simulator/pipeline/execute.c

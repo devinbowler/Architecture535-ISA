@@ -1,4 +1,3 @@
-// Add these declarations to pipeline.h
 #ifndef DATA_HAZARDS_H
 #define DATA_HAZARDS_H
 
