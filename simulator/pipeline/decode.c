@@ -69,10 +69,6 @@ void decode_stage(PipelineState* pipeline) {
                 break;
         }
     }
-
-    printf("[PIPELINE]DECODE:%s:%d\n", instruction_text, pc);
-    }
-
     printf("[PIPELINE]DECODE:%s:%d\n", instruction_text, pc);
     fflush(stdout);
 }

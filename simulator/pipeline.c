@@ -13,10 +13,11 @@
 #include "pipeline/write_back.h"
 #include "hazards.h"
 
+extern bool data_hazard_stall;
+extern uint16_t stall_cycles_remaining;
 extern REGISTERS *registers;
 extern bool branch_taken;
 extern bool memory_operation_in_progress;
-
 
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // ----------------- STAGE COMPUTATION -----------------
@@ -24,14 +25,36 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     write_back(pipeline);
     memory_access(pipeline);
 
+    // ----------------- DATA HAZARD DETECTION -----------------
+    HazardInfo hazard = detect_hazards(pipeline);
 
+    // If hazard detected and doesn't require a stall, resolve with forwarding
+    if (hazard.detected && !hazard.requires_stall) {
+        resolve_hazards(pipeline, &hazard);
+    }
 
-    // ----------------- STALL HANDLING FOR MEMORY -----------------
+    // ----------------- STALL HANDLING -----------------
+    bool stall_pipeline = false;
+
+    // Check if we're stalling due to a data hazard
+    if (data_hazard_stall) {
+        stall_pipeline = true;
+        stall_cycles_remaining--;
+        printf("[PIPELINE_STALL] Data hazard stall, %u cycles remaining\n", stall_cycles_remaining);
+
+        if (stall_cycles_remaining == 0) {
+            data_hazard_stall = false;
+            stall_pipeline = false;
+            printf("[PIPELINE_STALL] Data hazard stall complete\n");
+        }
+    }
+
+    // Memory stall takes precedence over data hazard stall
     if (memory_operation_in_progress) {
         stall_pipeline = true;
         printf("[PIPELINE_STALL] Memory operation in progress; stalling execute, decode, and fetch stages.\n");
     }
-    
+
     // If stalling is required, only update the later stages
     if (stall_pipeline) {
         // Update only the write-back and memory/write-back stages
@@ -40,12 +63,12 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     } else {
         // When no stall is present, run the remaining stages in order.
         execute(pipeline);
-        
+
         // After execute, if a stall is needed, set it up for the next cycle
         if (hazard.detected && hazard.requires_stall) {
             resolve_hazards(pipeline, &hazard);
         }
-        
+
         decode_stage(pipeline);
 
         if (PIPELINE_ENABLED) {

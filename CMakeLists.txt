@@ -22,6 +22,7 @@ add_library(simulator_lib
     simulator/pipeline/write_back.c
     simulator/simulator.c
     assembler/assembler.c
+    simulator/globals.c
 )
 
 # Include directories for simulator
@@ -104,4 +105,5 @@ add_executable(simulator
     simulator/pipeline/memory_access.c
     simulator/pipeline/write_back.c
     assembler/assembler.c
+    simulator/globals.c
 )

@@ -1,2 +1,3 @@
 ADD R2, R1, R1
+ADD R2, R1, R1
 SUB R2, R1, R1
