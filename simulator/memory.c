@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "memory.h"
+#include "globals.h"
 
+                    
 // REGISTER FUNCTIONS
 REGISTERS *init_registers() {
   REGISTERS *registers = malloc(sizeof(REGISTERS));
@@ -90,7 +92,7 @@ uint16_t memory_read(Cache *cache, DRAM *dram, uint16_t address) {
         }
     }
     
-    if (cache != NULL) {
+    if (CACHE_ENABLED && cache != NULL) {
         // Use cache for reads
         return read_cache(cache, dram, address);
     } else {
@@ -122,7 +124,7 @@ void memory_write(Cache *cache, DRAM *dram, uint16_t address, uint16_t data) {
         }
     }
     
-    if (cache != NULL) {
+    if (CACHE_ENABLED && cache != NULL) {
         // Use write-through for cache writes
         write_through(cache, dram, address, data);
     } else {

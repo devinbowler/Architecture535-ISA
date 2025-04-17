@@ -1,6 +1,11 @@
 from flask import Flask, request, jsonify
 import subprocess
 import threading
+from globals import (
+    USER_DRAM_DELAY, USER_CACHE_DELAY,
+    CACHE_ENABLED,  PIPELINE_ENABLED,
+    BREAKPOINT_PC
+)
 
 app = Flask(__name__)
 
@@ -43,6 +48,46 @@ def send_command(command):
     output = read_output()
     print(f"[DEBUG] Command output: {output}")
     return output
+
+@app.route("/set_configuration", methods=["POST"])
+def set_configuration():
+    """
+    Receive run‑time controls from the UI and push them to the
+    running C simulator (or just mutate the globals the C code
+    reads on every cycle).
+    """
+    data = request.get_json(force=True)
+
+    # -----  validate & store  -----
+    try:
+        # breakpoint
+        if data.get("breakpoint") not in (None, "", "-1"):
+            BREAKPOINT_PC.value = int(data["breakpoint"])
+        else:
+            BREAKPOINT_PC.value = -1
+
+        # plain booleans from check‑boxes
+        CACHE_ENABLED.value     = bool(data.get("cache_enabled", True))
+        PIPELINE_ENABLED.value  = bool(data.get("pipeline_enabled", True))
+
+        # delays (blank ⇒ keep old value)
+        if "dram_delay" in data and int(data["dram_delay"]) > 0:
+            USER_DRAM_DELAY.value  = int(data["dram_delay"])
+
+        if "cache_delay" in data and int(data["cache_delay"]) > 0:
+            USER_CACHE_DELAY.value = int(data["cache_delay"])
+
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": f"bad config value: {e}"}), 400
+
+    # optionally tell the C process; simplest is one short command
+    # e.g.  cfg 4 1 1 25
+    cmd = f"cfg {USER_DRAM_DELAY.value} {USER_CACHE_DELAY.value} " \
+          f"{int(CACHE_ENABLED.value)} {int(PIPELINE_ENABLED.value)} " \
+          f"{BREAKPOINT_PC.value}"
+    send_command(cmd)
+
+    return jsonify({"message": "configuration updated"})
 
 @app.route("/load_instructions", methods=["POST"])
 def loadInstructions():

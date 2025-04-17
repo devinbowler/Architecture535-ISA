@@ -7,12 +7,13 @@
 #include "pipeline.h"
 #include "simulator.h"
 #include "../assembler/assembler.h"
+#include "globals.h"
 
 // Global Variables
 REGISTERS *registers;
 DRAM dram;
 Cache *cache;
-PipelineState pipeline;
+PipelineState pipeline; 
 
 // Initialize all systems.
 void init_system() {
@@ -65,7 +66,6 @@ void executeInstructions() {
         // If there is a new instruction available, fetch and update PC.
         if (instruction != 0) {
             pipeline_step(&pipeline, &instruction);
-            registers->R[15] += 1;
             instruction = readFromMemory(&dram, registers->R[15]);
         } else {
             // No more new instructions, continue stepping to flush the pipeline.
@@ -73,6 +73,11 @@ void executeInstructions() {
         }
         cycles++;
         printf("[CYCLE] %d\n", cycles);
+
+        if (BREAKPOINT_PC >= 0 && registers->R[15] == BREAKPOINT_PC) {
+            printf("[BREAK]\n");        /* UI catches this token */
+            break;
+        }
         fflush(stdout);
     }
     
@@ -137,7 +142,6 @@ void stepInstructions() {
   
     if (instruction != 0) {
         pipeline_step(&pipeline, &instruction);
-        registers->R[15] += 1;
         instruction = readFromMemory(&dram, registers->R[15]);
     } else {
         pipeline_step(&pipeline, &instruction);
@@ -203,6 +207,26 @@ void storeInstruction(const char *command) {
     registers->R[15] += 1;
 }
 
+
+static void apply_config(const char *params)
+{
+    extern bool     PIPELINE_ENABLED, CACHE_ENABLED;
+    extern uint16_t USER_DRAM_DELAY,  USER_CACHE_DELAY;
+    extern int16_t  BREAKPOINT_PC;
+
+    char key[32]; char val[32];
+    while (sscanf(params, " %31[^ =]=%31s", key, val) == 2) {
+        if      (strcmp(key,"pipe")==0) PIPELINE_ENABLED = atoi(val);
+        else if (strcmp(key,"cache")==0)CACHE_ENABLED    = atoi(val);
+        else if (strcmp(key,"dram")==0) USER_DRAM_DELAY  = atoi(val);
+        else if (strcmp(key,"cache_delay")==0)
+                                     USER_CACHE_DELAY    = atoi(val);
+        else if (strcmp(key,"bp")==0)  BREAKPOINT_PC     = atoi(val);
+        /* advance to next token */
+        params = strchr(params,' '); if (!params) break; ++params;
+    }
+}
+
 int main() {
     init_system();
 
@@ -238,6 +262,20 @@ int main() {
             printf("[CYCLE]0\n");
             printf("[END]\n");
             fflush(stdout);
+        } else if (strncmp(command,"cfg",3)==0){
+            /* allow positional version:  dram cache pipe cacheDelay bp */
+            uint16_t d,c,p,cd;  int16_t bp;
+            if (sscanf(command+3," %hu %hu %hu %hu %hd",&d,&c,&p,&cd,&bp)==5){
+                USER_DRAM_DELAY  = d;
+                CACHE_ENABLED    = c;
+                PIPELINE_ENABLED = p;
+                USER_CACHE_DELAY = cd;
+                BREAKPOINT_PC    = bp;
+            }
+            printf("[END]\n");   fflush(stdout);
+        } else if (strncmp(command,"config",6)==0){
+            apply_config(command+6);
+            printf("[END]\n");   fflush(stdout);
         } else {
             printf("[DEBUG] Unknown command: %s\n", command);
         }

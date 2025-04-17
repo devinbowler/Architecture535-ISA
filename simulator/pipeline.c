@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "pipeline.h"
 #include "memory.h"
+#include "globals.h"
 #include "pipeline/fetch.h"
 #include "pipeline/decode.h"
 #include "pipeline/execute.h"
@@ -15,11 +16,14 @@ extern REGISTERS *registers;
 extern bool branch_taken;
 extern bool memory_operation_in_progress;
 
+
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // ----------------- STAGE COMPUTATION -----------------
     // Always run the write-back and memory-access stages first.
     write_back(pipeline);
     memory_access(pipeline);
+
+
 
     // ----------------- STALL HANDLING FOR MEMORY -----------------
     if (memory_operation_in_progress) {
@@ -34,7 +38,22 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
         // When no memory stall is present, run the remaining stages in order.
         execute(pipeline);
         decode_stage(pipeline);
-        fetch_stage(pipeline, value);
+
+        if (PIPELINE_ENABLED) {
+            /* classic 5‑stage overlap */
+            fetch_stage(pipeline, value);
+        } else {
+            /* non‑pipelined: fetch ONLY when every stage is empty */
+            bool busy =
+                pipeline->IF_ID.valid  || pipeline->ID_EX.valid ||
+                pipeline->EX_MEM.valid || pipeline->MEM_WB.valid ||
+                memory_operation_in_progress;
+
+            if (!busy)
+                fetch_stage(pipeline, value);          /* safe to pull next instr */
+            else
+                pipeline->IF_ID_next.valid = false;    /* hold bubble in IF stage */
+        }
 
         // Commit all pipeline stage next states.
         pipeline->WB    = pipeline->WB_next;
