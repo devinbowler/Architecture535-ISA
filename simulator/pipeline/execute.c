@@ -1,196 +1,158 @@
-// execute.c
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include "execute.h"
 #include "../pipeline.h"
 #include "../memory.h"
+#include "../globals.h"    // for DATA_OFFSET
 
-// Externally declared register file pointer.
 extern REGISTERS *registers;
-
-// Global branch status variables.
 bool branch_taken = false;
 uint16_t branch_target_address = 0;
 
-// Flush the pipeline: invalidate next‐cycle registers in the earlier stages.
-void flush_pipeline(PipelineState *pipeline) {
-    pipeline->IF_ID_next.valid  = false;
-    pipeline->ID_EX_next.valid  = false;
-    pipeline->EX_MEM_next.valid = false;
-    pipeline->MEM_WB_next.valid = false;
-    pipeline->WB_next.valid     = false;
+void flush_pipeline(PipelineState *p) {
+    p->IF_ID.valid      = false;
+    p->ID_EX.valid      = false;
+    p->IF_ID_next.valid = false;
+    p->ID_EX_next.valid = false;
+    p->EX_MEM_next.valid= false;
+    p->MEM_WB_next.valid= false;
+    p->WB_next.valid    = false;
     printf("[PIPELINE] Branch detected: Flushing pipeline\n");
 }
 
-// The execute stage: compute ALU results, compare values for CMP, and handle branches.
-void execute(PipelineState *pipeline) {
-    uint16_t pc = pipeline->ID_EX.pc;
-    if (!pipeline->ID_EX.valid) {
-        pipeline->EX_MEM_next.valid = false;
+void execute(PipelineState *p) {
+    uint16_t pc = p->ID_EX.pc;
+    if (!p->ID_EX.valid) {
+        p->EX_MEM_next.valid = false;
         printf("[PIPELINE]EXECUTE:NOP:%d\n", pc);
         fflush(stdout);
         return;
     }
 
-    pipeline->EX_MEM_next.valid = true;
-    uint16_t opcode = pipeline->ID_EX.opcode;
-    uint16_t regD = pipeline->ID_EX.regD;
-    uint16_t regA = pipeline->ID_EX.regA;
-    uint16_t regB = pipeline->ID_EX.regB;
-    uint16_t imm = pipeline->ID_EX.imm;
-    uint16_t result = 0;
+    p->EX_MEM_next.valid = true;
+    uint16_t op    = p->ID_EX.opcode;
+    uint16_t d    = p->ID_EX.regD;
+    uint16_t a    = p->ID_EX.regA;
+    uint16_t bimm = p->ID_EX.imm;
+    uint16_t res  = 0;
 
-    uint16_t valA = registers->R[regA];
-    uint16_t valB = registers->R[regB];
+    uint16_t vA = registers->R[a];
+    uint16_t vB = registers->R[p->ID_EX.regB];
 
-    pipeline->EX_MEM_next.regD = regD;
-    pipeline->EX_MEM_next.regA = regA;
-    pipeline->EX_MEM_next.regB = regB;
-    pipeline->EX_MEM_next.opcode = opcode;
-    pipeline->EX_MEM_next.pc = pc;
+    // Propagate fields
+    p->EX_MEM_next.regD   = d;
+    p->EX_MEM_next.regA   = a;
+    p->EX_MEM_next.regB   = p->ID_EX.regB;
+    p->EX_MEM_next.opcode = op;
+    p->EX_MEM_next.pc     = pc;
 
-    char instruction_text[50];
-
-    switch (opcode) {
-        case 0x0: // ADD
-            result = valA + valB;
-            sprintf(instruction_text, "ADD R%d, R%d, R%d", regD, regA, regB);
-            printf("[EXECUTE_ADD] R%d = %u + %u = %u\n", regD, valA, valB, result);
+    char txt[64];
+    switch (op) {
+        case 0x0:  // ADD
+            res = vA + vB;
+            sprintf(txt, "ADD R%u,R%u,R%u", d, a, p->ID_EX.regB);
+            printf("[EXECUTE_ADD] R%u = %u + %u = %u\n", d, vA, vB, res);
             break;
-        case 0x1: // SUB
-            result = valA - valB;
-            sprintf(instruction_text, "SUB R%d, R%d, R%d", regD, regA, regB);
-            printf("[EXECUTE_SUB] R%d = %u - %u = %u\n", regD, valA, valB, result);
+        case 0x1:  // SUB
+            res = vA - vB;
+            sprintf(txt, "SUB R%u,R%u,R%u", d, a, p->ID_EX.regB);
+            printf("[EXECUTE_SUB] R%u = %u - %u = %u\n", d, vA, vB, res);
             break;
-        case 0x2: // AND
-            result = valA & valB;
-            sprintf(instruction_text, "AND R%d, R%d, R%d", regD, regA, regB);
-            printf("[EXECUTE_AND] R%d = %u & %u = %u\n", regD, valA, valB, result);
+        case 0x2:  // AND
+            res = vA & vB;
+            sprintf(txt, "AND R%u,R%u,R%u", d, a, p->ID_EX.regB);
+            printf("[EXECUTE_AND] R%u = %u & %u = %u\n", d, vA, vB, res);
             break;
-        case 0x3: // OR
-            result = valA | valB;
-            sprintf(instruction_text, "OR R%d, R%d, R%d", regD, regA, regB);
-            printf("[EXECUTE_OR] R%d = %u | %u = %u\n", regD, valA, valB, result);
+        case 0x3:  // OR
+            res = vA | vB;
+            sprintf(txt, "OR  R%u,R%u,R%u", d, a, p->ID_EX.regB);
+            printf("[EXECUTE_OR] R%u = %u | %u = %u\n", d, vA, vB, res);
             break;
-        case 0x4: // XOR
-            result = valA ^ valB;
-            sprintf(instruction_text, "XOR R%d, R%d, R%d", regD, regA, regB);
-            printf("[EXECUTE_XOR] R%d = %u xor %u = %u\n", regD, valA, valB, result);
+        case 0x4:  // XOR
+            res = vA ^ vB;
+            sprintf(txt, "XOR R%u,R%u,R%u", d, a, p->ID_EX.regB);
+            printf("[EXECUTE_XOR] R%u = %u ^ %u = %u\n", d, vA, vB, res);
             break;
-        case 0x5: // DIVMOD
-            if (valB == 0) {
-                result = 0;
-                pipeline->EX_MEM_next.resMod = 0;
-                sprintf(instruction_text, "DIVMOD R%d, R%d, R%d (Div0)", regD, regA, regB);
-                printf("[EXECUTE_DIVMOD] Division by zero, setting result and remainder to 0\n");
+        case 0x5:  // DIVMOD
+            if (vB == 0) {
+                res = 0; p->EX_MEM_next.resMod = 0;
+                sprintf(txt, "DIVMOD R%u,R%u,R%u (Div0)", d, a, p->ID_EX.regB);
+                printf("[EXECUTE_DIVMOD] Div by zero → result=0, rem=0\n");
             } else {
-                result = valA / valB;
-                pipeline->EX_MEM_next.resMod = valA % valB;
-                sprintf(instruction_text, "DIVMOD R%d, R%d, R%d", regD, regA, regB);
-                printf("[EXECUTE_DIVMOD] R%d = %u / %u = %u, remainder = %u\n", 
-                       regD, valA, valB, result, pipeline->EX_MEM_next.resMod);
+                res = vA / vB;
+                p->EX_MEM_next.resMod = vA % vB;
+                sprintf(txt, "DIVMOD R%u,R%u,R%u", d, a, p->ID_EX.regB);
+                printf("[EXECUTE_DIVMOD] R%u = %u / %u = %u, rem = %u\n",
+                       d, vA, vB, res, p->EX_MEM_next.resMod);
             }
             break;
-        case 0x6: // MUL
-            result = valA * valB;
-            sprintf(instruction_text, "MUL R%d, R%d, R%d", regD, regA, regB);
-            printf("[EXECUTE_MUL] R%d = %u * %u = %u\n", regD, valA, valB, result);
+        case 0x6:  // MUL
+            res = vA * vB;
+            sprintf(txt, "MUL R%u,R%u,R%u", d, a, p->ID_EX.regB);
+            printf("[EXECUTE_MUL] R%u = %u * %u = %u\n", d, vA, vB, res);
             break;
-        case 0x7: // CMP
-            // For CMP, we subtract and update the status register (assumed here to be R14).
-            result = registers->R[regD] - valA;
-            sprintf(instruction_text, "CMP R%d, R%d, R%d", regD, regA, regB);
-            printf("[EXECUTE_CMP] R%d - R%d = %u\n", regD, regA, result);
-            registers->R[14] = result;
+        case 0x7:  // CMP
+            res = registers->R[d] - vA;
+            sprintf(txt, "CMP R%u,R%u,R%u", d, a, p->ID_EX.regB);
+            registers->R[14] = res;
+            printf("[EXECUTE_CMP] SR = R%u - %u = %u\n", d, vA, res);
             break;
-        case 0x8: { // LSH/ROT (RTRI)
-            // The RD register field (here, using regD as "type") select the shift type.
-            uint16_t shift_type = regD;
-            uint16_t operand = registers->R[regA];
-            switch (shift_type) {
-                case 0: // LSL
-                    result = operand << imm;
-                    sprintf(instruction_text, "LSL R%d, R%d, %d", regD, regA, imm);
-                    printf("[EXECUTE_LSL] R%d = R%d << %d = %u\n", regD, regA, imm, result);
-                    break;
-                case 1: // LSR
-                    result = operand >> imm;
-                    sprintf(instruction_text, "LSR R%d, R%d, %d", regD, regA, imm);
-                    printf("[EXECUTE_LSR] R%d = R%d >> %d = %u\n", regD, regA, imm, result);
-                    break;
-                case 2: // ROL (rotate left)
-                {
-                    result = (operand << imm) | (operand >> (16 - imm));
-                    sprintf(instruction_text, "ROL R%d, R%d, %d", regD, regA, imm);
-                    printf("[EXECUTE_ROL] R%d = R%d rotated left by %d = %u\n", regD, regA, imm, result);
-                    break;
-                }
-                case 3: // ROR (rotate right)
-                {
-                    result = (operand >> imm) | (operand << (16 - imm));
-                    sprintf(instruction_text, "ROR R%d, R%d, %d", regD, regA, imm);
-                    printf("[EXECUTE_ROR] R%d = R%d rotated right by %d = %u\n", regD, regA, imm, result);
-                    break;
-                }
-                default:
-                    sprintf(instruction_text, "LSH Unknown");
-                    result = 0;
-                    break;
-            }
+        case 0x8: { // shifts
+            uint16_t t = p->ID_EX.type, i = bimm;
+            uint16_t opnd = registers->R[a];
+            if      (t==0) res = opnd << i;
+            else if (t==1) res = opnd >> i;
+            else if (t==2) res = (opnd << i) | (opnd >> (16 - i));
+            else           res = (opnd >> i) | (opnd << (16 - i));
+            sprintf(txt, "SH  (t=%u) R%u,R%u,%u", t, d, a, i);
             break;
         }
-        // RRI-Type instructions:
-        case 0x9: // LW
-            // Compute effective address: R[regA] + imm.
-            result = registers->R[regA] + imm;
-            sprintf(instruction_text, "LW R%d, [R%d+%d]", regD, regA, imm);
-            printf("[EXECUTE_LW] Effective address = %u + %u = %u\n", registers->R[regA], imm, result);
+        case 0x9:  // LW
+            res = registers->R[a] + (bimm - 1) + DATA_OFFSET;
+            sprintf(txt, "LW  R%u,[R%u+%u] @%u", d, a, bimm, res);
+            printf("[EXECUTE_LW] addr = %u + (%u-1) + %d = %u\n",
+                   registers->R[a], bimm, DATA_OFFSET, res);
             break;
-        case 0xA: // SW
-            // Compute effective address: R[regA] + imm.
-            result = registers->R[regA] + imm;
-            sprintf(instruction_text, "SW [R%d+%d], R%d", regA, imm, regD);
-            printf("[EXECUTE_SW] Effective address = %u + %u = %u\n", registers->R[regA], imm, result);
+        case 0xA:  // SW
+            res = registers->R[a] + (bimm - 1) + DATA_OFFSET;
+            sprintf(txt, "SW  [R%u+%u],R%u @%u", a, bimm, d, res);
+            printf("[EXECUTE_SW] addr = %u + (%u-1) + %d = %u\n",
+                   registers->R[a], bimm, DATA_OFFSET, res);
             break;
-        case 0xB: // BEQ
-            // Compare R[regD] and R[regA]; if equal, branch.
-            if (registers->R[regD] == registers->R[regA]) {
-                result = pc + imm;
+        case 0xB:  // BEQ
+            if (registers->R[d] == registers->R[a]) {
                 branch_taken = true;
-                branch_target_address = result;
-                flush_pipeline(pipeline);
-                printf("[EXECUTE_BEQ] Branch taken: R%d (%u) == R%d (%u), new PC = %u\n",
-                        regD, registers->R[regD], regA, registers->R[regA], result);
+                branch_target_address = registers->R[15] + bimm;
+                flush_pipeline(p);
+                printf("[EXECUTE_BEQ] Branch taken → PC=%u\n", branch_target_address);
+                res = registers->R[15] + bimm;
             } else {
-                result = pc + 1;
-                printf("[EXECUTE_BEQ] Branch not taken: R%d (%u) != R%d (%u)\n",
-                        regD, registers->R[regD], regA, registers->R[regA]);
+                res = pc + 1;
+                printf("[EXECUTE_BEQ] Not taken\n");
             }
-            sprintf(instruction_text, "BEQ R%d, R%d, %d", regD, regA, imm);
+            sprintf(txt, "BEQ R%u,R%u,%u", d, a, bimm);
             break;
-        case 0xF: // BLT
-            // Branch if R[regD] < R[regA]
-            if (registers->R[regD] < registers->R[regA]) {
-                result = pc + imm;
+        case 0xF:  // BLT
+            if (registers->R[d] < registers->R[a]) {
                 branch_taken = true;
-                branch_target_address = result;
-                flush_pipeline(pipeline);
-                printf("[EXECUTE_BLT] Branch taken: R%d (%u) < R%d (%u), new PC = %u\n",
-                        regD, registers->R[regD], regA, registers->R[regA], result);
+                branch_target_address = pc + bimm;
+                flush_pipeline(p);
+                printf("[EXECUTE_BLT] Branch taken → PC=%u\n", branch_target_address);
             } else {
-                result = pc + 1;
-                printf("[EXECUTE_BLT] Branch not taken: R%d (%u) >= R%d (%u)\n",
-                        regD, registers->R[regD], regA, registers->R[regA]);
+                printf("[EXECUTE_BLT] Not taken\n");
             }
-            sprintf(instruction_text, "BLT R%d, R%d, %d", regD, regA, imm);
+            sprintf(txt, "BLT R%u,R%u,%u", d, a, bimm);
             break;
         default:
-            printf("[EXECUTE] Unknown opcode: %u\n", opcode);
-            pipeline->EX_MEM_next.valid = false;
+            printf("[EXECUTE] Unknown opcode %u\n", op);
+            p->EX_MEM_next.valid = false;
+            sprintf(txt, "UNK");
             break;
     }
 
-    printf("[PIPELINE]EXECUTE:%s:%d\n", instruction_text, pc);
-    pipeline->EX_MEM_next.res = result;
+    printf("[PIPELINE]EXECUTE:%s:%d\n", txt, pc);
+    p->EX_MEM_next.res = res;
     fflush(stdout);
 }

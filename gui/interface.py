@@ -252,27 +252,35 @@ class ISASimulatorUI(QWidget):
 
         config_layout.addWidget(QLabel("Cache Enabled"), 1, 0)
         self.cache_enabled = QCheckBox()
+        self.cache_enabled.setChecked(True)          # default ON
         config_layout.addWidget(self.cache_enabled, 1, 1)
+
+        config_layout.addWidget(QLabel("Pipeline Enabled"), 2, 0)
+        self.pipeline_enabled = QCheckBox()
+        self.pipeline_enabled.setChecked(True)          # default ON
+        config_layout.addWidget(self.pipeline_enabled, 2, 1)
         
-        config_layout.addWidget(QLabel("Cache Type"), 2, 0)
+        config_layout.addWidget(QLabel("Cache Type"), 3, 0)
         self.cache_type = QComboBox()
         self.cache_type.addItems(["Direct-Mapped", "Fully Associative", "Set Associative"])
-        config_layout.addWidget(self.cache_type, 2, 1)
+        config_layout.addWidget(self.cache_type, 3, 1)
         
-        config_layout.addWidget(QLabel("DRAM Delay"), 3, 0)
+        config_layout.addWidget(QLabel("DRAM Delay"), 4, 0)
         self.dram_delay = QSpinBox()
         self.dram_delay.setMaximum(1000)
-        config_layout.addWidget(self.dram_delay, 3, 1)
+        config_layout.addWidget(self.dram_delay, 4, 1)
         
-        config_layout.addWidget(QLabel("Cache Delay"), 4, 0)
+        config_layout.addWidget(QLabel("Cache Delay"), 5, 0)
         self.cache_delay = QSpinBox()
         self.cache_delay.setMaximum(1000)
-        config_layout.addWidget(self.cache_delay, 4, 1)
+        config_layout.addWidget(self.cache_delay, 5, 1)
         
         layout.addLayout(config_layout)
         
         # Set Config Button
-        layout.addWidget(QPushButton("Set Configuration"))
+        set_cfg = QPushButton("Set Configuration")
+        set_cfg.clicked.connect(self.set_configuration)
+        layout.addWidget(set_cfg)
 
         # Add spacer to push execution buttons to the bottom
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
@@ -619,6 +627,22 @@ class ISASimulatorUI(QWidget):
         
         # No need for a popup message after each step
         # Just update the UI silently
+
+    def set_configuration(self):
+        """Push all run‑time knobs (breakpoint, cache, delays …) to back‑end."""
+        payload = {
+            "breakpoint"     : self.breakpoint_input.text().strip() or None,
+            "cache_enabled"  : self.cache_enabled.isChecked(),
+            "pipeline_enabled": self.pipeline_enabled.isChecked(),
+            "dram_delay"     : self.dram_delay.value(),
+            "cache_delay"    : self.cache_delay.value(),
+        }
+        try:
+            r = requests.post(f"{self.api_url}/set_configuration", json=payload, timeout=5)
+            r.raise_for_status()
+            QMessageBox.information(self, "Config applied", r.json().get("message", "OK"))
+        except Exception as e:
+            QMessageBox.information(self, "Error", f"set‑configuration failed: {e}")
 
     def reset_simulator(self):
         """Reset the entire simulator state"""

@@ -1,7 +1,6 @@
-/* decode.c */
 #include <stdio.h>
 #include <stdlib.h>
-#include "decode.h"
+#include <stdint.h>
 #include "decode.h"
 #include "../memory.h"
 #include "../pipeline.h"
@@ -10,62 +9,62 @@ extern DRAM dram;
 extern REGISTERS* registers;
 
 void decode_stage(PipelineState* pipeline) {
-    if(!pipeline->IF_ID.valid){
+    if (!pipeline->IF_ID.valid) {
         pipeline->IF_ID_next.valid = false;
-        printf("[PIPELINE]DECODE:NOP:%d\n", pipeline->ID_EX.pc);
+        printf("[PIPELINE]DECODE:NOP:%d\n", pipeline->IF_ID.pc);
         return;
     }
-    
-    uint16_t instruction = pipeline->IF_ID.instruction;
-    uint16_t pc = pipeline->IF_ID.pc;
-    char instruction_text[50];
 
-    // If the fetched instruction is 0, propagate a NOP (bubble)
-    if (instruction == 0) {
+    uint16_t instr = pipeline->IF_ID.instruction;
+    uint16_t pc    = pipeline->IF_ID.pc;
+    char instruction_text[64];
+
+    if (instr == 0) {
+        // NOP
         sprintf(instruction_text, "NOP");
-        pipeline->ID_EX_next.valid = false; // mark nop
-        pipeline->ID_EX_next.pc = pc;
+        pipeline->ID_EX_next.valid  = false;
+        pipeline->ID_EX_next.pc     = pc;
         pipeline->ID_EX_next.opcode = 0;
-        pipeline->ID_EX_next.regD = 0;
-        pipeline->ID_EX_next.regA = 0;
-        pipeline->ID_EX_next.regB = 0;
-        pipeline->ID_EX_next.imm = 0;
+        pipeline->ID_EX_next.regD   = 0;
+        pipeline->ID_EX_next.regA   = 0;
+        pipeline->ID_EX_next.regB   = 0;
+        pipeline->ID_EX_next.imm    = 0;
     } else {
-        // Otherwise, propagate a valid instruction.
         pipeline->ID_EX_next.valid = true;
-        uint16_t opcode = (instruction >> 12) & 0xF;
-        uint16_t rd = (instruction >> 8) & 0xF;
-        uint16_t ra = (instruction >> 4) & 0xF;
-        uint16_t rb_imm = instruction & 0xF;
-        pipeline->ID_EX_next.pc = pc;
+        uint16_t opcode = (instr >> 12) & 0xF;
+        uint16_t rd     = (instr >> 8)  & 0xF;
+        uint16_t ra     = (instr >> 4)  & 0xF;
+        uint16_t imm    = instr & 0xF;
+
+        pipeline->ID_EX_next.pc     = pc;
         pipeline->ID_EX_next.opcode = opcode;
-        pipeline->ID_EX_next.regD = rd;
-        pipeline->ID_EX_next.regA = ra;
-        pipeline->ID_EX_next.regB = rb_imm;
-        pipeline->ID_EX_next.imm = rb_imm;
-        pipeline->ID_EX_next.type = rd; // e.g. used for shift type
+        pipeline->ID_EX_next.regD   = rd;
+        pipeline->ID_EX_next.regA   = ra;
+        pipeline->ID_EX_next.regB   = imm;
+        pipeline->ID_EX_next.imm    = imm;
+        pipeline->ID_EX_next.type   = rd;  // for shifts
 
         switch (opcode) {
-            case 0: sprintf(instruction_text, "ADD R%d, R%d, R%d", rd, ra, rb_imm); break;
-            case 1: sprintf(instruction_text, "SUB R%d, R%d, R%d", rd, ra, rb_imm); break;
-            case 2: sprintf(instruction_text, "NAND R%d, R%d, R%d", rd, ra, rb_imm); break;
-            case 3: sprintf(instruction_text, "LUI R%d, %d", rd, rb_imm); break;
-            case 4:
-            case 4:
-            case 10: sprintf(instruction_text, "SW [R%d + %d], R%d", ra, rb_imm, rd); break;
-            case 5:
-            case 9: sprintf(instruction_text, "LW R%d, [R%d + %d]", rd, ra, rb_imm); break;
-            case 5:
-            case 9: sprintf(instruction_text, "LW R%d, [R%d + %d]", rd, ra, rb_imm); break;
-            case 11: sprintf(instruction_text, "BEQ R%d, R%d, %d", rd, ra, rb_imm); break;
-            case 7: sprintf(instruction_text, "JALR R%d, R%d", rd, ra); break;
-            default: 
-                sprintf(instruction_text, "NOP or Unknown");
-                pipeline->ID_EX_next.valid = false;
+            case 0x0: sprintf(instruction_text, "ADD    R%u, R%u, R%u", rd, ra, imm); break;
+            case 0x1: sprintf(instruction_text, "SUB    R%u, R%u, R%u", rd, ra, imm); break;
+            case 0x2: sprintf(instruction_text, "AND    R%u, R%u, R%u", rd, ra, imm); break;
+            case 0x3: sprintf(instruction_text, "OR     R%u, R%u, R%u", rd, ra, imm); break;
+            case 0x4: sprintf(instruction_text, "XOR    R%u, R%u, R%u", rd, ra, imm); break;
+            case 0x5: sprintf(instruction_text, "DIVMOD R%u, R%u, R%u", rd, ra, imm); break;
+            case 0x6: sprintf(instruction_text, "MUL    R%u, R%u, R%u", rd, ra, imm); break;
+            case 0x7: sprintf(instruction_text, "CMP    R%u, R%u, R%u", rd, ra, imm); break;
+            case 0x8: {
+                uint16_t st = pipeline->ID_EX_next.type;
+                const char* op = (st==0?"LSL":st==1?"LSR":st==2?"ROL":"ROR");
+                sprintf(instruction_text, "%s    R%u, R%u, %u", op, rd, ra, imm);
                 break;
-            case 7: sprintf(instruction_text, "JALR R%d, R%d", rd, ra); break;
-            default: 
-                sprintf(instruction_text, "NOP or Unknown");
+            }
+            case 0x9: sprintf(instruction_text, "LW     R%u, [R%u + %u]", rd, ra, imm); break;
+            case 0xA: sprintf(instruction_text, "SW     [R%u + %u], R%u", ra, imm, rd); break;
+            case 0xB: sprintf(instruction_text, "BEQ    R%u, R%u, %u", rd, ra, imm); break;
+            case 0xF: sprintf(instruction_text, "BLT    R%u, R%u, %u", rd, ra, imm); break;
+            default:
+                sprintf(instruction_text, "UNKNOWN");
                 pipeline->ID_EX_next.valid = false;
                 break;
         }

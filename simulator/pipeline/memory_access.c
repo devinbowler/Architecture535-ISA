@@ -1,23 +1,23 @@
 #include "memory_access.h"
+#include "../globals.h"
 extern DRAM dram;
 extern Cache *cache;
 extern REGISTERS *registers;
 
 // Global flag to indicate when memory operation is in progress
-bool memory_operation_in_progress = false;
+extern bool     memory_operation_in_progress;
 
 /**
  * @brief Implements the memory access stage of the pipeline. This will just use our existing cache and DRAM functions
  * @param pipeline the pipeline
  */
 void memory_access(PipelineState *pipeline) {
-    if(!pipeline->EX_MEM.valid){
-        pipeline->EX_MEM_next.valid = false;
+    if (!pipeline->EX_MEM.valid) {
+        pipeline->MEM_WB_next.valid = false;
         printf("[PIPELINE]MEMORY:NOP:%d\n", pipeline->EX_MEM.pc);
         return;
     }
 
-    pipeline->EX_MEM_next.valid = true;
 
     // Get pipeline state values
     uint16_t opcode = pipeline->EX_MEM.opcode;
@@ -186,11 +186,11 @@ void memory_access(PipelineState *pipeline) {
         
         // Set delay based on cache hit or miss
         if (cache_hit) {
-            memory_target_delay = 1; // 1 cycle for cache hit
+            memory_target_delay = USER_CACHE_DELAY; // 1 cycle for cache hit
             printf("[MEM_START] Cache hit for address %u, delay = %u cycles\n", 
                    mem_address, memory_target_delay);
         } else {
-            memory_target_delay = 4; // 4 cycles for DRAM access
+            memory_target_delay = USER_DRAM_DELAY; // 4 cycles for DRAM access
             printf("[MEM_START] Cache miss for address %u, delay = %u cycles\n", 
                    mem_address, memory_target_delay);
         }
@@ -225,7 +225,7 @@ void memory_access(PipelineState *pipeline) {
         
         // Check if data is in cache
         bool cache_hit = false;
-        if (cache != NULL) {
+        if (CACHE_ENABLED && cache != NULL) {
             // Check if the location is in cache
             uint16_t index = (mem_address / BLOCK_SIZE) % cache->num_sets;
             uint16_t tag = mem_address / (BLOCK_SIZE * cache->num_sets);
@@ -241,11 +241,11 @@ void memory_access(PipelineState *pipeline) {
         
         // Set delay based on cache hit or miss
         if (cache_hit) {
-            memory_target_delay = 1; // 1 cycle for cache hit
+            memory_target_delay = USER_CACHE_DELAY; // cycle for cache hit
             printf("[MEM_START] Cache hit for address %u, delay = %u cycles\n", 
                    mem_address, memory_target_delay);
         } else {
-            memory_target_delay = 4; // 4 cycles for DRAM access
+            memory_target_delay = USER_DRAM_DELAY; // cycles for DRAM access
             printf("[MEM_START] Cache miss for address %u, delay = %u cycles\n", 
                    mem_address, memory_target_delay);
         }

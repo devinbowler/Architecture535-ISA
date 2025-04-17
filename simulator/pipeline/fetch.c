@@ -21,6 +21,8 @@ void fetch_stage(PipelineState* pipeline, uint16_t* value) {
         registers->R[15] = branch_target_address; // Update PC register
         branch_taken = false;  // Reset the flag
         printf("[FETCH] Branch taken, PC updated to %u\n", registers->R[15]);
+    } else {
+      registers->R[15] += 1;
     }
 
     uint16_t pc = registers->R[15];

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "pipeline.h"
 #include "memory.h"
+#include "globals.h"
 #include "pipeline/fetch.h"
 #include "pipeline/decode.h"
 #include "pipeline/execute.h"
@@ -15,8 +16,7 @@
 extern REGISTERS *registers;
 extern bool branch_taken;
 extern bool memory_operation_in_progress;
-extern bool data_hazard_stall;
-extern uint16_t stall_cycles_remaining;
+
 
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // ----------------- STAGE COMPUTATION -----------------
@@ -24,32 +24,9 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     write_back(pipeline);
     memory_access(pipeline);
 
-    // ----------------- DATA HAZARD DETECTION -----------------
-    // Detect hazards between ID/EX and later stages
-    HazardInfo hazard = detect_hazards(pipeline);
-    
-    // If we detected a hazard that requires forwarding, do it before execute
-    if (hazard.detected && !hazard.requires_stall) {
-        resolve_hazards(pipeline, &hazard);
-    }
-    
-    // ----------------- STALL HANDLING -----------------
-    bool stall_pipeline = false;
-    
-    // Check if we're currently stalling due to a data hazard
-    if (data_hazard_stall) {
-        stall_pipeline = true;
-        stall_cycles_remaining--;
-        printf("[PIPELINE_STALL] Data hazard stall, %u cycles remaining\n", stall_cycles_remaining);
-        
-        if (stall_cycles_remaining == 0) {
-            data_hazard_stall = false;
-            stall_pipeline = false;
-            printf("[PIPELINE_STALL] Data hazard stall complete\n");
-        }
-    }
-    
-    // Memory stall takes precedence over data hazard stall
+
+
+    // ----------------- STALL HANDLING FOR MEMORY -----------------
     if (memory_operation_in_progress) {
         stall_pipeline = true;
         printf("[PIPELINE_STALL] Memory operation in progress; stalling execute, decode, and fetch stages.\n");
@@ -70,7 +47,22 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
         }
         
         decode_stage(pipeline);
-        fetch_stage(pipeline, value);
+
+        if (PIPELINE_ENABLED) {
+            /* classic 5‑stage overlap */
+            fetch_stage(pipeline, value);
+        } else {
+            /* non‑pipelined: fetch ONLY when every stage is empty */
+            bool busy =
+                pipeline->IF_ID.valid  || pipeline->ID_EX.valid ||
+                pipeline->EX_MEM.valid || pipeline->MEM_WB.valid ||
+                memory_operation_in_progress;
+
+            if (!busy)
+                fetch_stage(pipeline, value);          /* safe to pull next instr */
+            else
+                pipeline->IF_ID_next.valid = false;    /* hold bubble in IF stage */
+        }
 
         // Commit all pipeline stage next states.
         pipeline->WB = pipeline->WB_next;
