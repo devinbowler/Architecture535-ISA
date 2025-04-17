@@ -19,6 +19,7 @@ extern REGISTERS *registers;
 extern bool branch_taken;
 extern bool memory_operation_in_progress;
 
+
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // ----------------- STAGE COMPUTATION -----------------
     // Always run the write-back and memory-access stages first.
