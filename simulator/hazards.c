@@ -1,4 +1,4 @@
-#include "data_hazards.h"
+#include "hazards.h"
 #include <stdio.h>
 
 // Global variable to track if pipeline is stalled due to data hazard
