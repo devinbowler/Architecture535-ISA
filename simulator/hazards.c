@@ -33,9 +33,8 @@ HazardInfo detect_hazards(PipelineState *pipeline) {
         uint16_t ex_mem_opcode = pipeline->EX_MEM.opcode;
         
         // Only consider instructions that write to registers
-        bool ex_mem_writes_reg = (ex_mem_opcode <= 3) || // ALU ops (ADD, SUB, NAND, LUI)
-                                 (ex_mem_opcode == 5 || ex_mem_opcode == 9) || // LW (both opcodes)
-                                 (ex_mem_opcode == 7); // JALR
+        bool ex_mem_writes_reg = (ex_mem_opcode <= 6) || // ALU ops
+                                 (ex_mem_opcode == 9); // LW 
         
         // Check if regA depends on previous result
         if (ex_mem_writes_reg && regA == ex_mem_dest && regA != 0) {
@@ -45,7 +44,7 @@ HazardInfo detect_hazards(PipelineState *pipeline) {
             hazard.source_stage = 1; // EX/MEM stage
             
             // LW (Load Word) needs an extra cycle - can't forward directly from EX/MEM
-            if (ex_mem_opcode == 5 || ex_mem_opcode == 9) {
+            if (ex_mem_opcode == 9) {
                 hazard.requires_stall = true;
                 hazard.stall_cycles = 1;
                 printf("[HAZARD] Load-use hazard detected: R%u depends on LW result\n", regA);
@@ -59,15 +58,14 @@ HazardInfo detect_hazards(PipelineState *pipeline) {
         }
         
         // Check if regB depends on previous result
-        if (ex_mem_writes_reg && regB == ex_mem_dest && regB != 0 &&
-            (opcode <= 2 || opcode == 11)) { // Only for ops that use regB as source
+        if (ex_mem_writes_reg && regB == ex_mem_dest && regB != 0) { // Only for ops that use regB as source
             hazard.detected = true;
             hazard.source_reg = ex_mem_dest;
             hazard.target_reg = regB;
             hazard.source_stage = 1; // EX/MEM stage
             
             // LW (Load Word) needs an extra cycle
-            if (ex_mem_opcode == 5 || ex_mem_opcode == 9) {
+            if (ex_mem_opcode == 9) {
                 hazard.requires_stall = true;
                 hazard.stall_cycles = 1;
                 printf("[HAZARD] Load-use hazard detected: R%u depends on LW result\n", regB);
@@ -87,9 +85,8 @@ HazardInfo detect_hazards(PipelineState *pipeline) {
         uint16_t mem_wb_opcode = pipeline->MEM_WB.opcode;
         
         // Only consider instructions that write to registers
-        bool mem_wb_writes_reg = (mem_wb_opcode <= 3) || // ALU ops
-                                 (mem_wb_opcode == 5 || mem_wb_opcode == 9) || // LW
-                                 (mem_wb_opcode == 7); // JALR
+        bool mem_wb_writes_reg = (mem_wb_opcode <= 6) || // ALU ops
+                                 (mem_wb_opcode == 9); // LW
         
         // Check if regA depends on previous result
         if (mem_wb_writes_reg && regA == mem_wb_dest && regA != 0) {
@@ -104,8 +101,7 @@ HazardInfo detect_hazards(PipelineState *pipeline) {
         }
         
         // Check if regB depends on previous result
-        if (mem_wb_writes_reg && regB == mem_wb_dest && regB != 0 &&
-            (opcode <= 2 || opcode == 11)) { // Only for ops that use regB as source
+        if (mem_wb_writes_reg && regB == mem_wb_dest && regB != 0) { // Only for ops that use regB as source
             hazard.detected = true;
             hazard.source_reg = mem_wb_dest;
             hazard.target_reg = regB;

@@ -12,7 +12,6 @@ include_directories(${GTEST_INCLUDE_DIRS})
 
 # Add simulator library with all simulator C source files
 add_library(simulator_lib
-    simulator/simulator.c
     simulator/hazards.c
     simulator/memory.c
     simulator/pipeline.c
@@ -21,20 +20,12 @@ add_library(simulator_lib
     simulator/pipeline/decode.c
     simulator/pipeline/memory_access.c
     simulator/pipeline/write_back.c
+    simulator/simulator.c
+    assembler/assembler.c
 )
 
 # Include directories for simulator
 target_include_directories(simulator_lib PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
-
-# Add assembler library
-add_library(assembler
-    assembler/assembler.c
-)
-
-# Include directories for assembler
-target_include_directories(assembler PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
@@ -62,17 +53,28 @@ target_link_libraries(pipeline_tests
     pthread
 )
 
+add_executable(hazard_tests
+    tests/HazardTests.cpp
+)
+
+target_link_libraries(hazard_tests
+    simulator_lib
+    ${GTEST_LIBRARIES}
+    pthread
+)
+
 # Enable testing
 enable_testing()
 
 # Add tests to CTest
 add_test(NAME MemoryTests COMMAND memory_tests)
 add_test(NAME PipelineTests COMMAND pipeline_tests)
+add_test(NAME HazardTests COMMAND hazard_tests)
 
 # Create a custom target to run all tests
 add_custom_target(run_tests
     COMMAND ${CMAKE_CTEST_COMMAND} --verbose
-    DEPENDS memory_tests pipeline_tests
+    DEPENDS memory_tests pipeline_tests hazard_tests
 )
 
 # Optional: Create individual test targets
@@ -84,6 +86,11 @@ add_custom_target(run_memory_tests
 add_custom_target(run_pipeline_tests
     COMMAND pipeline_tests --gtest_color=yes
     DEPENDS pipeline_tests
+)
+
+add_custom_target(run_hazard_tests
+    COMMAND hazard_tests --gtest_color=yes
+    DEPENDS hazard_tests
 )
 
 add_executable(simulator
