@@ -104,7 +104,7 @@ void memory_access(PipelineState *pipeline) {
                 // Report memory read to UI
                 printf("[MEM]%d:%d\n", pending_mem_address, loaded_value);
                 sprintf(instruction_text, "LW R%d, [R%d + %d]", pending_regD, pending_regA, 
-                        pending_mem_address - DATA_SPACE);
+                        pending_mem_address);
                 
                 // Operation complete, reset state
                 memory_busy = false;
@@ -129,7 +129,7 @@ void memory_access(PipelineState *pipeline) {
                 // Report memory update to UI
                 printf("[MEM]%d:%d\n", pending_mem_address, pending_value);
                 sprintf(instruction_text, "SW [R%d + %d], R%d", pending_regA, 
-                        pending_mem_address - DATA_SPACE, pending_regD);
+                        pending_mem_address, pending_regD);
                 
                 // Operation complete, reset state
                 memory_busy = false;
@@ -141,11 +141,11 @@ void memory_access(PipelineState *pipeline) {
             // Still waiting for memory operation to complete
             if (pending_opcode == 0b1001 || pending_opcode == 5) {
                 sprintf(instruction_text, "LW R%d, [R%d + %d] (wait %d/%d)", 
-                        pending_regD, pending_regA, pending_mem_address - DATA_SPACE, 
+                        pending_regD, pending_regA, pending_mem_address, 
                         memory_delay, memory_target_delay);
             } else {
                 sprintf(instruction_text, "SW [R%d + %d], R%d (wait %d/%d)", 
-                        pending_regA, pending_mem_address - DATA_SPACE, pending_regD, 
+                        pending_regA, pending_mem_address, pending_regD, 
                         memory_delay, memory_target_delay);
             }
             
@@ -156,12 +156,6 @@ void memory_access(PipelineState *pipeline) {
     
     // No ongoing memory operation, check if we need to start one
     else if (opcode == 5 || opcode == 9) { // LW - Load Word (both old and new opcodes)
-        // Calculate effective address
-        uint16_t mem_address = address;
-        if (address < DATA_SPACE) {
-            mem_address += DATA_SPACE;
-        }
-        
         // Start memory access with appropriate delay
         memory_busy = true;
         memory_delay = 0;
@@ -171,9 +165,9 @@ void memory_access(PipelineState *pipeline) {
         bool cache_hit = false;
         if (cache != NULL) {
             // Check if the data is in cache
-            uint16_t index = (mem_address / BLOCK_SIZE) % cache->num_sets;
-            uint16_t tag = mem_address / (BLOCK_SIZE * cache->num_sets);
-            uint16_t offset = mem_address & (BLOCK_SIZE - 1);
+            uint16_t index = (address / BLOCK_SIZE) % cache->num_sets;
+            uint16_t tag = address / (BLOCK_SIZE * cache->num_sets);
+            uint16_t offset = address & (BLOCK_SIZE - 1);
             
             Set *set = &cache->sets[index];
             for (int i = 0; i < cache->mode; i++) {
@@ -188,15 +182,15 @@ void memory_access(PipelineState *pipeline) {
         if (cache_hit) {
             memory_target_delay = USER_CACHE_DELAY; // 1 cycle for cache hit
             printf("[MEM_START] Cache hit for address %u, delay = %u cycles\n", 
-                   mem_address, memory_target_delay);
+                   address, memory_target_delay);
         } else {
             memory_target_delay = USER_DRAM_DELAY; // 4 cycles for DRAM access
             printf("[MEM_START] Cache miss for address %u, delay = %u cycles\n", 
-                   mem_address, memory_target_delay);
+                   address, memory_target_delay);
         }
         
         // Store pending operation details
-        pending_mem_address = mem_address;
+        pending_mem_address = address;
         pending_opcode = opcode;
         pending_regD = regD;
         pending_regA = regA;
@@ -209,12 +203,6 @@ void memory_access(PipelineState *pipeline) {
         pipeline->MEM_WB_next.valid = false;
     }
     else if (opcode == 4 || opcode == 10) { // SW - Store Word (both old and new opcodes)
-        // Calculate effective address
-        uint16_t mem_address = address;
-        if (address < DATA_SPACE) {
-            mem_address += DATA_SPACE;
-        }
-        
         // Get the value to store from regD
         uint16_t value_to_store = registers->R[regD];
         
@@ -227,8 +215,8 @@ void memory_access(PipelineState *pipeline) {
         bool cache_hit = false;
         if (CACHE_ENABLED && cache != NULL) {
             // Check if the location is in cache
-            uint16_t index = (mem_address / BLOCK_SIZE) % cache->num_sets;
-            uint16_t tag = mem_address / (BLOCK_SIZE * cache->num_sets);
+            uint16_t index = (address / BLOCK_SIZE) % cache->num_sets;
+            uint16_t tag = address / (BLOCK_SIZE * cache->num_sets);
             
             Set *set = &cache->sets[index];
             for (int i = 0; i < cache->mode; i++) {
@@ -243,15 +231,15 @@ void memory_access(PipelineState *pipeline) {
         if (cache_hit) {
             memory_target_delay = USER_CACHE_DELAY; // cycle for cache hit
             printf("[MEM_START] Cache hit for address %u, delay = %u cycles\n", 
-                   mem_address, memory_target_delay);
+                   address, memory_target_delay);
         } else {
             memory_target_delay = USER_DRAM_DELAY; // cycles for DRAM access
             printf("[MEM_START] Cache miss for address %u, delay = %u cycles\n", 
-                   mem_address, memory_target_delay);
+                   address, memory_target_delay);
         }
         
         // Store pending operation details
-        pending_mem_address = mem_address;
+        pending_mem_address = address;
         pending_opcode = opcode;
         pending_regD = regD;
         pending_regA = regA;

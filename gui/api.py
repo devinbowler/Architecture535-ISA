@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 # Launch C simulator executable
 simulator_process = subprocess.Popen(
-    ["../simulator/simulator"],
+    ["../simulator/simulator.exe"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,

@@ -7,7 +7,6 @@
 
 #define DRAM_SIZE 1000
 #define INSTR_SPACE 0
-#define DATA_SPACE 500
 #define DRAM_DELAY 1       // Delay cycles for DRAM operations set to 1
 #define MAX_MEM_VIEW 16
 #define MAX_VALUE_LENGTH 128

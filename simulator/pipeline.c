@@ -80,9 +80,6 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
         // Flush all stages by marking them as bubbles.
         pipeline->IF_ID.valid  = false;
         pipeline->ID_EX.valid  = false;
-        pipeline->EX_MEM.valid = false;
-        pipeline->MEM_WB.valid = false;
-        pipeline->WB.valid     = false;
 
         // Reset the branch flag after flushing.
         branch_taken = false;
