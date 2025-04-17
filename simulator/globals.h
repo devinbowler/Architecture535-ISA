@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define DATA_OFFSET 500
+#define DATA_OFFSET 0
 
 extern bool     memory_operation_in_progress;
 

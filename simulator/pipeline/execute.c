@@ -16,9 +16,7 @@ void flush_pipeline(PipelineState *p) {
     p->ID_EX.valid      = false;
     p->IF_ID_next.valid = false;
     p->ID_EX_next.valid = false;
-    p->EX_MEM_next.valid= false;
-    p->MEM_WB_next.valid= false;
-    p->WB_next.valid    = false;
+
     printf("[PIPELINE] Branch detected: Flushing pipeline\n");
 }
 
@@ -110,16 +108,16 @@ void execute(PipelineState *p) {
             break;
         }
         case 0x9:  // LW
-            res = registers->R[a] + (bimm - 1) + DATA_OFFSET;
+            res = registers->R[a] + bimm;
             sprintf(txt, "LW  R%u,[R%u+%u] @%u", d, a, bimm, res);
-            printf("[EXECUTE_LW] addr = %u + (%u-1) + %d = %u\n",
-                   registers->R[a], bimm, DATA_OFFSET, res);
+            printf("[EXECUTE_LW] addr = %u + (%u-1) = %u\n",
+                   registers->R[a], bimm, res);
             break;
         case 0xA:  // SW
-            res = registers->R[a] + (bimm - 1) + DATA_OFFSET;
+            res = registers->R[a] + bimm;
             sprintf(txt, "SW  [R%u+%u],R%u @%u", a, bimm, d, res);
-            printf("[EXECUTE_SW] addr = %u + (%u-1) + %d = %u\n",
-                   registers->R[a], bimm, DATA_OFFSET, res);
+            printf("[EXECUTE_SW] addr = %u + (%u-1) = %u\n",
+                   registers->R[a], bimm, res);
             break;
         case 0xB:  // BEQ
             if (registers->R[d] == registers->R[a]) {

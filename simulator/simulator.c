@@ -62,7 +62,7 @@ void executeInstructions() {
     
     // Continue stepping the pipeline while there is an instruction to fetch
     // or while the pipeline still contains valid instructions.
-    while ((instruction != 0 || !pipeline_empty(&pipeline)) && cycles < max_cycles) {
+    while (cycles < max_cycles) {
         // If there is a new instruction available, fetch and update PC.
         if (instruction != 0) {
             pipeline_step(&pipeline, &instruction);
