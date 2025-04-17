@@ -28,8 +28,8 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // ----------------- DATA HAZARD DETECTION -----------------
     HazardInfo hazard = detect_hazards(pipeline);
 
-    // If hazard detected and doesn't require a stall, resolve with forwarding
-    if (hazard.detected && !hazard.requires_stall) {
+    // Always resolve hazards (whether they need stalling or not)
+    if (hazard.detected) {
         resolve_hazards(pipeline, &hazard);
     }
 
@@ -63,12 +63,6 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     } else {
         // When no stall is present, run the remaining stages in order.
         execute(pipeline);
-
-        // After execute, if a stall is needed, set it up for the next cycle
-        if (hazard.detected && hazard.requires_stall) {
-            resolve_hazards(pipeline, &hazard);
-        }
-
         decode_stage(pipeline);
 
         if (PIPELINE_ENABLED) {
@@ -103,11 +97,6 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     memset(&pipeline->IF_ID_next, 0, sizeof(pipeline->IF_ID_next));
 
     // ----------------- BRANCH HANDLING -----------------
-    // Two cases:
-    // 1) If a branch is taken and there's no stall condition,
-    //    then we flush the pipeline immediately.
-    // 2) If a branch is taken but memory is still busy or we have a data hazard stall,
-    //    we delay flushing until the stall condition resolves.
     if (branch_taken && !stall_pipeline) {
         // Flush all stages by marking them as bubbles.
         pipeline->IF_ID.valid = false;
