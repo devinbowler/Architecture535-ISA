@@ -1,7 +1,8 @@
-#ifndef DATA_HAZARDS_H
-#define DATA_HAZARDS_H
+#ifndef HAZARDS_H
+#define HAZARDS_H
 
 #include "pipeline.h"
+#include "memory.h"
 #include <stdbool.h>
 
 typedef struct {

@@ -10,7 +10,7 @@
 #include "pipeline/execute.h"
 #include "pipeline/memory_access.h"
 #include "pipeline/write_back.h"
-#include "data_hazards.h"
+#include "hazards.h"
 
 extern REGISTERS *registers;
 extern bool branch_taken;
