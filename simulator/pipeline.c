@@ -35,21 +35,6 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     }
 
     // ----------------- STALL HANDLING -----------------
-    bool stall_pipeline = false;
-
-    // // Check if we're stalling due to a data hazard
-    // if (data_hazard_stall) {
-    //     stall_pipeline = true;
-    //     stall_cycles_remaining--;
-    //     printf("[PIPELINE_STALL] Data hazard stall, %u cycles remaining\n", stall_cycles_remaining);
-
-    //     if (stall_cycles_remaining == 0) {
-    //         data_hazard_stall = false;
-    //         stall_pipeline = false;
-    //         printf("[PIPELINE_STALL] Data hazard stall complete\n");
-    //     }
-    // }
-
   // 3a) If DRAM/cache is busy, stall everything except WB/MEM_WB
     if (memory_operation_in_progress) {
         pipeline->WB     = pipeline->WB_next;
