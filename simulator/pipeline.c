@@ -17,6 +17,8 @@ extern REGISTERS *registers;
 extern bool branch_taken;
 extern bool memory_operation_in_progress;
 
+
+
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // 1) Drain the tail of the pipeline
     write_back(pipeline);
@@ -48,19 +50,35 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // 3c) Otherwise, normal 5‑stage advance
     else {
         execute(pipeline);
-        decode_stage(pipeline);
+        
         if (PIPELINE_ENABLED) {
+            // Normal pipelined operation - run all stages in parallel
+            decode_stage(pipeline);
             fetch_stage(pipeline, value);
         } else {
-            bool busy = pipeline->IF_ID.valid  ||
-                        pipeline->ID_EX.valid  ||
-                        pipeline->EX_MEM.valid ||
-                        pipeline->MEM_WB.valid ||
-                        memory_operation_in_progress;
-            if (!busy) {
-                fetch_stage(pipeline, value);
+            // Non-pipelined mode: Only one instruction in pipeline at a time
+            
+            // Check if pipeline is completely empty except possibly for IF/ID
+            bool pipeline_empty = !pipeline->ID_EX.valid && 
+                                 !pipeline->EX_MEM.valid && 
+                                 !pipeline->MEM_WB.valid;
+                                 
+            if (pipeline_empty) {
+                // Pipeline is empty (except maybe IF/ID), so we can advance IF/ID to ID/EX
+                if (pipeline->IF_ID.valid) {
+                    decode_stage(pipeline);
+                    printf("[PIPELINE] Non-pipelined mode: decoding instruction\n");
+                    // Don't fetch yet - we just moved an instruction to decode
+                } else {
+                    // Nothing in IF/ID, and rest of pipeline is empty, safe to fetch
+                    fetch_stage(pipeline, value);
+                    printf("[PIPELINE] Non-pipelined mode: fetching instruction\n");
+                }
             } else {
-                pipeline->IF_ID_next.valid = false; // hold bubble
+                // Pipeline not empty yet, hold all stages before execute
+                pipeline->ID_EX_next.valid = false;
+                pipeline->IF_ID_next.valid = false;
+                printf("[PIPELINE] Non-pipelined mode: waiting for pipeline to drain\n");
             }
         }
 

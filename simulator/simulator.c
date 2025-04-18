@@ -166,16 +166,25 @@ void storeInstruction(const char *command) {
 }
 
 static void apply_config(const char *params) {
-    extern bool     PIPELINE_ENABLED, CACHE_ENABLED;
-    extern uint16_t USER_DRAM_DELAY, USER_CACHE_DELAY;
-
     char key[32], val[32];
     while (sscanf(params, " %31[^ =]=%31s", key, val) == 2) {
-        if      (strcmp(key, "pipe")==0)      PIPELINE_ENABLED = atoi(val);
-        else if (strcmp(key, "cache")==0)     CACHE_ENABLED    = atoi(val);
-        else if (strcmp(key, "dram")==0)      USER_DRAM_DELAY  = atoi(val);
-        else if (strcmp(key, "cache_delay")==0) USER_CACHE_DELAY = atoi(val);
-        params = strchr(params,' ');
+        if (strcmp(key, "pipe") == 0) {
+            PIPELINE_ENABLED = atoi(val) != 0;
+            printf("[CONFIG] Pipeline %s\n", PIPELINE_ENABLED ? "enabled" : "disabled");
+        }
+        else if (strcmp(key, "cache") == 0) {
+            CACHE_ENABLED = atoi(val) != 0;
+            printf("[CONFIG] Cache %s\n", CACHE_ENABLED ? "enabled" : "disabled");
+        }
+        else if (strcmp(key, "dram") == 0) {
+            USER_DRAM_DELAY = atoi(val);
+            printf("[CONFIG] DRAM delay set to %u cycles\n", USER_DRAM_DELAY);
+        }
+        else if (strcmp(key, "cache_delay") == 0) {
+            USER_CACHE_DELAY = atoi(val);
+            printf("[CONFIG] Cache delay set to %u cycles\n", USER_CACHE_DELAY);
+        }
+        params = strchr(params, ' ');
         if (!params) break;
         ++params;
     }
@@ -198,16 +207,13 @@ int main() {
             printf("[END]\n");
             fflush(stdout);
         }
-        else if (strncmp(command,"cfg",3) == 0) {
+        else if (strncmp(command, "cfg", 3) == 0) {
             uint16_t d, cd, ce, pe;
-            int16_t bp;
-            if (sscanf(command+3, " %hu %hu %hu %hu %hd",
-                       &d, &cd, &ce, &pe, &bp) == 5)
-            {
-                USER_DRAM_DELAY  = d;
-                USER_CACHE_DELAY = cd;
-                CACHE_ENABLED    = ce;
-                PIPELINE_ENABLED = pe;
+            if (sscanf(command + 3, " %hu %hu %hu %hu", &d, &cd, &ce, &pe) == 4) {
+                USER_DRAM_DELAY   = d;
+                USER_CACHE_DELAY  = cd;
+                CACHE_ENABLED     = ce;
+                PIPELINE_ENABLED  = pe;
             }
             printf("[END]\n");
             fflush(stdout);

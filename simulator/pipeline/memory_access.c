@@ -47,14 +47,23 @@ void memory_access(PipelineState *pipeline) {
             // complete it
             if (pend_opcode == 0x9 || pend_opcode == 5) {
                 // LW
-                uint16_t val = read_cache(cache, &dram, pend_addr);
+                uint16_t val;
+                if (CACHE_ENABLED && cache != NULL) {
+                    val = read_cache(cache, &dram, pend_addr);
+                } else {
+                    val = readFromMemory(&dram, pend_addr);
+                }
                 pipeline->MEM_WB_next.res = val;
                 sprintf(instruction_text, "LW  R%u,[%u] complete", pend_regD, pend_addr);
                 printf("[MEM_LOAD_COMPLETE] R%u <= %u from %u\n", pend_regD, val, pend_addr);
                 printf("[MEM]%u:%u\n", pend_addr, val);
             } else {
                 // SW
-                write_through(cache, &dram, pend_addr, pend_val);
+                if (CACHE_ENABLED && cache != NULL) {
+                    write_through(cache, &dram, pend_addr, pend_val);
+                } else {
+                    writeToMemory(&dram, pend_addr, pend_val);
+                }
                 sprintf(instruction_text, "SW  [%u] <= %u complete", pend_addr, pend_val);
                 printf("[MEM_STORE_COMPLETE] [%u] <= %u\n", pend_addr, pend_val);
                 printf("[MEM]%u:%u\n", pend_addr, pend_val);
@@ -73,15 +82,18 @@ void memory_access(PipelineState *pipeline) {
     else if (opcode == 0x9 || opcode == 5) {
         // Load word
         bool hit = false;
-        if (cache) {
+        if (CACHE_ENABLED && cache) {
             uint16_t idx = (address / BLOCK_SIZE) % cache->num_sets;
             uint16_t tag = address / (BLOCK_SIZE * cache->num_sets);
             for (int i = 0; i < cache->mode; i++)
                 if (cache->sets[idx].lines[i].valid &&
                     cache->sets[idx].lines[i].tag == tag)
                     hit = true;
+        } else {
+          target = USER_DRAM_DELAY;
+          printf("[MEMORY] Cache disabled, using DRAM access delay of %d cycles\n", USER_DRAM_DELAY);
         }
-        target      = hit ? USER_CACHE_DELAY : USER_DRAM_DELAY;
+        target      = (CACHE_ENABLED && cache && hit) ? USER_CACHE_DELAY : USER_DRAM_DELAY;
         pend_addr   = address;
         pend_opcode = opcode;
         pend_regD   = pipeline->EX_MEM.regD;
@@ -95,7 +107,7 @@ void memory_access(PipelineState *pipeline) {
         // Store word
         uint16_t val = registers->R[pipeline->EX_MEM.regD];
         bool hit = false;
-        if (cache) {
+        if (CACHE_ENABLED && cache) {
             uint16_t idx = (address / BLOCK_SIZE) % cache->num_sets;
             uint16_t tag = address / (BLOCK_SIZE * cache->num_sets);
             for (int i = 0; i < cache->mode; i++)
@@ -103,7 +115,7 @@ void memory_access(PipelineState *pipeline) {
                     cache->sets[idx].lines[i].tag == tag)
                     hit = true;
         }
-        target      = hit ? USER_CACHE_DELAY : USER_DRAM_DELAY;
+        target      = (CACHE_ENABLED && cache && hit) ? USER_CACHE_DELAY : USER_DRAM_DELAY;
         pend_addr   = address;
         pend_opcode = opcode;
         pend_val    = val;

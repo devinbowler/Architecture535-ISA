@@ -50,36 +50,34 @@ def send_command(command):
 
 @app.route("/set_configuration", methods=["POST"])
 def set_configuration():
-    """
-    Receive run‑time controls from the UI and push them to the
-    running C simulator (or just mutate the globals the C code
-    reads on every cycle).
-    """
     data = request.get_json(force=True)
-
-    # -----  validate & store  -----
     try:
-        # plain booleans from check‑boxes
-        CACHE_ENABLED.value     = bool(data.get("cache_enabled", True))
-        PIPELINE_ENABLED.value  = bool(data.get("pipeline_enabled", True))
+        # Extract configuration values
+        cache_enabled = bool(data.get("cache_enabled", True))
+        pipeline_enabled = bool(data.get("pipeline_enabled", True))
+        dram_delay = int(data.get("dram_delay", USER_DRAM_DELAY.value))
+        cache_delay = int(data.get("cache_delay", USER_CACHE_DELAY.value))
+        
+        # Set global values
+        CACHE_ENABLED.value = 1 if cache_enabled else 0
+        PIPELINE_ENABLED.value = 1 if pipeline_enabled else 0
+        USER_DRAM_DELAY.value = dram_delay
+        USER_CACHE_DELAY.value = cache_delay
 
-        # delays (blank ⇒ keep old value)
-        if "dram_delay" in data and int(data["dram_delay"]) > 0:
-            USER_DRAM_DELAY.value  = int(data["dram_delay"])
+        # Send explicit config command to C program
+        config_cmd = f"config pipe={1 if pipeline_enabled else 0} cache={1 if cache_enabled else 0} dram={dram_delay} cache_delay={cache_delay}"
+        print(f"[DEBUG] Sending config command: {config_cmd}")
+        send_command(config_cmd)
 
-        if "cache_delay" in data and int(data["cache_delay"]) > 0:
-            USER_CACHE_DELAY.value = int(data["cache_delay"])
-
+        return jsonify({
+            "message": "Configuration updated",
+            "cache_enabled": cache_enabled,
+            "pipeline_enabled": pipeline_enabled,
+            "dram_delay": dram_delay,
+            "cache_delay": cache_delay
+        })
     except (ValueError, TypeError) as e:
         return jsonify({"error": f"bad config value: {e}"}), 400
-
-    # optionally tell the C process; simplest is one short command
-    # e.g.  cfg 4 1 1 25
-    cmd = f"cfg {USER_DRAM_DELAY.value} {USER_CACHE_DELAY.value} " \
-          f"{int(CACHE_ENABLED.value)} {int(PIPELINE_ENABLED.value)} "
-    send_command(cmd)
-
-    return jsonify({"message": "configuration updated"})
 
 @app.route("/load_instructions", methods=["POST"])
 def loadInstructions():
