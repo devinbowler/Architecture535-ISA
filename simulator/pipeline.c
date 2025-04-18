@@ -21,7 +21,7 @@ extern bool branch_taken;
 extern bool memory_operation_in_progress;
 
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
-    // 1) write‑back & memory
+    // 1) Drain the tail of the pipeline
     write_back(pipeline);
     memory_access(pipeline);
 
