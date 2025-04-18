@@ -176,12 +176,6 @@ class ISASimulatorUI(QWidget):
         widget = QWidget()
         layout = QVBoxLayout()
         
-        # Add cycle counter at the top with larger font
-        self.cycle_counter = QLabel("Cycle: 0")
-        self.cycle_counter.setStyleSheet("font-size: 18px; font-weight: bold; margin: 10px; color: #4488cc;")
-        self.cycle_counter.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.cycle_counter)
-        
         tab_widget = QTabWidget()
         self.instruction_table = self.create_table(16, ["Memory Address", "Text Instruction", "Hex Instruction"])
         self.pipeline_table = self.create_table(5, ["Stage", "Status", "Instruction", "PC"])
@@ -215,9 +209,6 @@ class ISASimulatorUI(QWidget):
         layout.addSpacerItem(QSpacerItem(24, 24, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
         
         config_layout = QGridLayout()
-        config_layout.addWidget(QLabel("Add Breakpoint"), 0, 0)
-        self.breakpoint_input = QLineEdit()
-        config_layout.addWidget(self.breakpoint_input, 0, 1)
         config_layout.addWidget(QLabel("Cache Enabled"), 1, 0)
         self.cache_enabled = QCheckBox()
         self.cache_enabled.setChecked(True)
@@ -243,6 +234,17 @@ class ISASimulatorUI(QWidget):
         set_cfg = QPushButton("Set Configuration")
         set_cfg.clicked.connect(self.set_configuration)
         layout.addWidget(set_cfg)
+
+        status_frame = QWidget()
+        status_layout = QVBoxLayout()
+        status_frame.setLayout(status_layout)
+        status_layout.addWidget(QLabel("<b>Simulator Status</b>"))
+        self.cycle_display = QLabel("Cycle: 0")
+        self.pc_display    = QLabel("PC: 0")
+        for w in (self.cycle_display, self.pc_display):
+            w.setAlignment(Qt.AlignmentFlag.AlignLeft)
+            status_layout.addWidget(w)
+        layout.addWidget(status_frame)
 
         layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding))
         
@@ -377,49 +379,81 @@ class ISASimulatorUI(QWidget):
         self.step_thread.start()
     
     def handle_step_result(self, result):
+        """Handle the result from a step instruction request"""
+        # Check for errors
         if "error" in result:
             QMessageBox.information(self, "Error", result["error"])
             return
+
+        # Update pipeline visualization
         pipeline_state = result.get("pipeline", [])
-        stage_to_row = {"FETCH":0, "DECODE":1, "EXECUTE":2, "MEMORY":3, "WRITEBACK":4}
-        updated = {i:False for i in range(5)}
+        stage_to_row = {
+            "FETCH": 0,
+            "DECODE": 1,
+            "EXECUTE": 2,
+            "MEMORY": 3,
+            "WRITEBACK": 4
+        }
+        updated = {i: False for i in range(5)}
+
         for stage, instr, pc in pipeline_state:
             row = stage_to_row.get(stage)
-            if row is not None:
-                updated[row] = True
-                is_nop = instr.lower() in ("nop","bubble")
-                status_item = QTableWidgetItem("Bubble" if is_nop else "Valid")
-                color = QColor(40,15,15) if is_nop else QColor(15,40,15)
-                status_item.setBackground(color)
-                status_item.setForeground(QColor(180,180,180))
-                self.pipeline_table.setItem(row,1,status_item)
-                instr_item = QTableWidgetItem("-" if is_nop else instr)
-                instr_item.setBackground(color.darker())
-                instr_item.setForeground(QColor(180,180,180))
-                pc_item = QTableWidgetItem("-" if is_nop else str(pc))
-                pc_item.setBackground(color.darker())
-                pc_item.setForeground(QColor(180,180,180))
-                self.pipeline_table.setItem(row,2,instr_item)
-                self.pipeline_table.setItem(row,3,pc_item)
-        for r, used in updated.items():
-            if not used:
+            if row is None:
+                continue
+            updated[row] = True
+            is_nop = instr.lower() in ("nop", "bubble")
+            color = QColor(40, 15, 15) if is_nop else QColor(15, 40, 15)
+
+            # Status cell
+            status_item = QTableWidgetItem("Bubble" if is_nop else "Valid")
+            status_item.setBackground(color)
+            status_item.setForeground(QColor(180, 180, 180))
+            self.pipeline_table.setItem(row, 1, status_item)
+
+            # Instruction cell
+            instr_item = QTableWidgetItem("-" if is_nop else instr)
+            instr_item.setBackground(color.darker())
+            instr_item.setForeground(QColor(180, 180, 180))
+            self.pipeline_table.setItem(row, 2, instr_item)
+
+            # PC cell
+            pc_item = QTableWidgetItem("-" if is_nop else str(pc))
+            pc_item.setBackground(color.darker())
+            pc_item.setForeground(QColor(180, 180, 180))
+            self.pipeline_table.setItem(row, 3, pc_item)
+
+        # Fill in any untouched rows as bubbles
+        for r, seen in updated.items():
+            if not seen:
                 status = QTableWidgetItem("Bubble")
-                status.setBackground(QColor(40,15,15))
-                status.setForeground(QColor(180,180,180))
-                self.pipeline_table.setItem(r,1,status)
+                status.setBackground(QColor(40, 15, 15))
+                status.setForeground(QColor(180, 180, 180))
+                self.pipeline_table.setItem(r, 1, status)
+
                 dash = QTableWidgetItem("-")
-                dash.setBackground(QColor(35,10,10))
-                dash.setForeground(QColor(180,180,180))
-                self.pipeline_table.setItem(r,2,dash)
-                self.pipeline_table.setItem(r,3,dash.clone())
-        cycle = result.get("cycle",0)
-        self.cycle_counter.setText(f"Cycle: {cycle}")
+                dash.setBackground(QColor(35, 10, 10))
+                dash.setForeground(QColor(180, 180, 180))
+                self.pipeline_table.setItem(r, 2, dash)
+                self.pipeline_table.setItem(r, 3, dash.clone())
+
+        # Update cycle count display and window title
+        cycle = result.get("cycle", 0)
+        self.cycle_display.setText(f"Cycle: {cycle}")
         self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - Cycle {cycle}")
+
+        for reg, val in result.get("registers", []):
+            if reg == 15:
+                self.pc_display.setText(f"PC: {val}")
+                break
+
+        branch = result.get("branch_taken", False)
+
+        # And finally, update registers/memory/cache
         self.handle_execution_result(result)
+
     
     def set_configuration(self):
         payload = {
-            "breakpoint": self.breakpoint_input.text().strip() or None,
             "cache_enabled": self.cache_enabled.isChecked(),
             "pipeline_enabled": self.pipeline_enabled.isChecked(),
             "dram_delay": self.dram_delay.value(),
@@ -441,14 +475,17 @@ class ISASimulatorUI(QWidget):
     def handle_reset_result(self, result):
         """Handle the result from a reset request"""
         print("[DEBUG] handle_reset_result called with result:", result)
-        
-        # Reset cycle counter and window title
-        self.cycle_counter.setText("Cycle: 0")
+
+        # Reset cycle count display and window title
+        self.cycle_display.setText("Cycle: 0")
         self.setWindowTitle("ARCH-16: Instruction Set Architecture")
-        
+
+        # Reset PC and branch displays
+        self.pc_display.setText("PC: 0")
+
         # Clear the instruction table
         self.clear_table(self.instruction_table)
-        
+
         # Clear and reset the pipeline table to all “Bubble” rows
         for row in range(self.pipeline_table.rowCount()):
             # Status column → “Bubble”
@@ -456,21 +493,22 @@ class ISASimulatorUI(QWidget):
             status.setBackground(QColor(40, 15, 15))
             status.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 1, status)
-            
+
             # Instruction column → “-”
             instr = QTableWidgetItem("-")
             instr.setBackground(QColor(35, 10, 10))
             instr.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 2, instr)
-            
+
             # PC column → “-”
             pc = QTableWidgetItem("-")
             pc.setBackground(QColor(35, 10, 10))
             pc.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 3, pc)
-    
+
         # Finally, repopulate registers, memory and cache with the reset state
         self.handle_execution_result(result)
+
 
     
     def clear_table(self, table):

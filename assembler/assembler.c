@@ -192,33 +192,12 @@ uint16_t loadInstruction(const char *line){
       rrr.regB = rb;
 
       return RRRTypeEncode(&rrr);
-    } else if (strcmp(opcode, "LSL") == 0){ // RR Types
-      rr.opcode = 0b1000;
-      rr.type = type;
-      rr.regA = ra;
-      rr.regB = rb;
-
-      return RRTypeEncode(&rr);
-    } else if (strcmp(opcode, "LSR") == 0){
-      rr.opcode = 0b1000;
-      rr.type = type;
-      rr.regA = ra;
-      rr.regB = rb;
-
-      return RRTypeEncode(&rr);
-    } else if (strcmp(opcode, "ROL") == 0){
-      rr.opcode = 0b1000;
-      rr.type = type;
-      rr.regA = ra;
-      rr.regB = rb;
-
-      return RRTypeEncode(&rr);
-    } else if (strcmp(opcode, "ROR") == 0){
-      rr.opcode = 0b1000;
-      rr.type = type;
-      rr.regA = ra;
-      rr.regB = rb;
-
+    } else if (strcmp(opcode, "LSH") == 0){ // RR Types
+      rr.opcode = 0b1000;                      // same opcode for all shifts
+      rr.type   = atoi(values[1]);             // 0=LSL,1=LSR,2=ROL,3=ROR
+      rr.regA   = atoi(values[2] + 1);         // Rd
+      rr.regB   = atoi(values[3] + 1);         // Rs (amount)
+      
       return RRTypeEncode(&rr);
     } else if (strcmp(opcode, "BEQ") == 0){
       rri.opcode = 0b1011;

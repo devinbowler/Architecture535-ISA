@@ -3,8 +3,7 @@ import subprocess
 import threading
 from globals import (
     USER_DRAM_DELAY, USER_CACHE_DELAY,
-    CACHE_ENABLED,  PIPELINE_ENABLED,
-    BREAKPOINT_PC
+    CACHE_ENABLED,  PIPELINE_ENABLED
 )
 
 app = Flask(__name__)
@@ -60,12 +59,6 @@ def set_configuration():
 
     # -----  validate & store  -----
     try:
-        # breakpoint
-        if data.get("breakpoint") not in (None, "", "-1"):
-            BREAKPOINT_PC.value = int(data["breakpoint"])
-        else:
-            BREAKPOINT_PC.value = -1
-
         # plain booleans from check‑boxes
         CACHE_ENABLED.value     = bool(data.get("cache_enabled", True))
         PIPELINE_ENABLED.value  = bool(data.get("pipeline_enabled", True))
@@ -83,8 +76,7 @@ def set_configuration():
     # optionally tell the C process; simplest is one short command
     # e.g.  cfg 4 1 1 25
     cmd = f"cfg {USER_DRAM_DELAY.value} {USER_CACHE_DELAY.value} " \
-          f"{int(CACHE_ENABLED.value)} {int(PIPELINE_ENABLED.value)} " \
-          f"{BREAKPOINT_PC.value}"
+          f"{int(CACHE_ENABLED.value)} {int(PIPELINE_ENABLED.value)} "
     send_command(cmd)
 
     return jsonify({"message": "configuration updated"})
