@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(ProcessorSimulator LANGUAGES C CXX)
+project(ARCH16 LANGUAGES C CXX)
 
 # Set default build type to Debug if not specified
 if(NOT CMAKE_BUILD_TYPE)
