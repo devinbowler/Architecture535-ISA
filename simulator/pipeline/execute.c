@@ -1,3 +1,4 @@
+// pipeline/execute.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -5,23 +6,29 @@
 #include "execute.h"
 #include "../pipeline.h"
 #include "../memory.h"
-#include "../globals.h"    // for DATA_OFFSET
+#include "../globals.h"    // for any global offsets
 
 extern REGISTERS *registers;
 bool branch_taken = false;
 uint16_t branch_target_address = 0;
 
+/**
+ * Flush the front of the pipeline on a taken branch.
+ */
 void flush_pipeline(PipelineState *p) {
     p->IF_ID.valid      = false;
     p->ID_EX.valid      = false;
     p->IF_ID_next.valid = false;
     p->ID_EX_next.valid = false;
-
     printf("[PIPELINE] Branch detected: Flushing pipeline\n");
 }
 
+/**
+ * Execute stage: perform ALU / branch and push into EX_MEM_next.
+ */
 void execute(PipelineState *p) {
     uint16_t pc = p->ID_EX.pc;
+
     if (!p->ID_EX.valid) {
         p->EX_MEM_next.valid = false;
         printf("[PIPELINE]EXECUTE:NOP:%d\n", pc);
@@ -29,24 +36,25 @@ void execute(PipelineState *p) {
         return;
     }
 
-    p->EX_MEM_next.valid = true;
-    uint16_t op    = p->ID_EX.opcode;
+    // propagate common fields
+    p->EX_MEM_next.valid   = true;
+    p->EX_MEM_next.pc      = pc;
+    p->EX_MEM_next.opcode  = p->ID_EX.opcode;
+    p->EX_MEM_next.regD    = p->ID_EX.regD;
+    p->EX_MEM_next.regA    = p->ID_EX.regA;
+    p->EX_MEM_next.regB    = p->ID_EX.regB;
+    p->EX_MEM_next.imm     = p->ID_EX.imm;
+    p->EX_MEM_next.resMod  = 0;
+
+    uint16_t op   = p->ID_EX.opcode;
     uint16_t d    = p->ID_EX.regD;
     uint16_t a    = p->ID_EX.regA;
     uint16_t bimm = p->ID_EX.imm;
     uint16_t res  = 0;
-
-    uint16_t vA = registers->R[a];
-    uint16_t vB = registers->R[p->ID_EX.regB];
-
-    // Propagate fields
-    p->EX_MEM_next.regD   = d;
-    p->EX_MEM_next.regA   = a;
-    p->EX_MEM_next.regB   = p->ID_EX.regB;
-    p->EX_MEM_next.opcode = op;
-    p->EX_MEM_next.pc     = pc;
-
+    uint16_t vA   = registers->R[a];
+    uint16_t vB   = registers->R[p->ID_EX.regB];
     char txt[64];
+
     switch (op) {
         case 0x0:  // ADD
             res = vA + vB;
@@ -58,20 +66,15 @@ void execute(PipelineState *p) {
             sprintf(txt, "SUB R%u,R%u,R%u", d, a, p->ID_EX.regB);
             printf("[EXECUTE_SUB] R%u = %u - %u = %u\n", d, vA, vB, res);
             break;
-        case 0x2:  // AND
-            res = vA & vB;
-            sprintf(txt, "AND R%u,R%u,R%u", d, a, p->ID_EX.regB);
-            printf("[EXECUTE_AND] R%u = %u & %u = %u\n", d, vA, vB, res);
+        case 0x2:  // NAND
+            res = ~(vA & vB);
+            sprintf(txt, "NAND R%u,R%u,R%u", d, a, p->ID_EX.regB);
+            printf("[EXECUTE_NAND] R%u = ~( %u & %u ) = %u\n", d, vA, vB, res);
             break;
-        case 0x3:  // OR
-            res = vA | vB;
-            sprintf(txt, "OR  R%u,R%u,R%u", d, a, p->ID_EX.regB);
-            printf("[EXECUTE_OR] R%u = %u | %u = %u\n", d, vA, vB, res);
-            break;
-        case 0x4:  // XOR
-            res = vA ^ vB;
-            sprintf(txt, "XOR R%u,R%u,R%u", d, a, p->ID_EX.regB);
-            printf("[EXECUTE_XOR] R%u = %u ^ %u = %u\n", d, vA, vB, res);
+        case 0x3:  // LUI
+            res = (vB << 8) & 0xFF00;
+            sprintf(txt, "LUI R%u,%u", d, p->ID_EX.regB);
+            printf("[EXECUTE_LUI] R%u = %u << 8 = %u\n", d, p->ID_EX.regB, res);
             break;
         case 0x5:  // DIVMOD
             if (vB == 0) {
@@ -92,48 +95,44 @@ void execute(PipelineState *p) {
             printf("[EXECUTE_MUL] R%u = %u * %u = %u\n", d, vA, vB, res);
             break;
         case 0x7:  // CMP
-            res = registers->R[d] - vA;
-            sprintf(txt, "CMP R%u,R%u,R%u", d, a, p->ID_EX.regB);
+            res = (int16_t)registers->R[d] - (int16_t)vA;
             registers->R[14] = res;
+            sprintf(txt, "CMP R%u,R%u,R%u", d, a, p->ID_EX.regB);
             printf("[EXECUTE_CMP] SR = R%u - %u = %u\n", d, vA, res);
             break;
-        case 0x8: { // shifts
+        case 0x8: { // shifts/rotates
             uint16_t t = p->ID_EX.type, i = bimm;
             uint16_t opnd = registers->R[a];
             if      (t==0) res = opnd << i;
             else if (t==1) res = opnd >> i;
             else if (t==2) res = (opnd << i) | (opnd >> (16 - i));
             else           res = (opnd >> i) | (opnd << (16 - i));
-            sprintf(txt, "SH  (t=%u) R%u,R%u,%u", t, d, a, i);
+            sprintf(txt, "SH  t=%u R%u,R%u,%u", t, d, a, i);
             break;
         }
         case 0x9:  // LW
             res = registers->R[a] + bimm;
             sprintf(txt, "LW  R%u,[R%u+%u] @%u", d, a, bimm, res);
-            printf("[EXECUTE_LW] addr = %u + (%u-1) = %u\n",
-                   registers->R[a], bimm, res);
+            printf("[EXECUTE_LW] addr = %u + %u = %u\n", registers->R[a], bimm, res);
             break;
         case 0xA:  // SW
             res = registers->R[a] + bimm;
             sprintf(txt, "SW  [R%u+%u],R%u @%u", a, bimm, d, res);
-            printf("[EXECUTE_SW] addr = %u + (%u-1) = %u\n",
-                   registers->R[a], bimm, res);
+            printf("[EXECUTE_SW] addr = %u + %u = %u\n", registers->R[a], bimm, res);
             break;
         case 0xB:  // BEQ
             if (registers->R[d] == registers->R[a]) {
                 branch_taken = true;
-                branch_target_address = registers->R[15] + bimm;
+                branch_target_address = pc + bimm;
                 flush_pipeline(p);
                 printf("[EXECUTE_BEQ] Branch taken → PC=%u\n", branch_target_address);
-                res = registers->R[15] + bimm;
             } else {
-                res = pc + 1;
                 printf("[EXECUTE_BEQ] Not taken\n");
             }
             sprintf(txt, "BEQ R%u,R%u,%u", d, a, bimm);
             break;
         case 0xF:  // BLT
-            if (registers->R[d] < registers->R[a]) {
+            if ((int16_t)registers->R[d] < (int16_t)registers->R[a]) {
                 branch_taken = true;
                 branch_target_address = pc + bimm;
                 flush_pipeline(p);
@@ -144,13 +143,13 @@ void execute(PipelineState *p) {
             sprintf(txt, "BLT R%u,R%u,%u", d, a, bimm);
             break;
         default:
-            printf("[EXECUTE] Unknown opcode %u\n", op);
-            p->EX_MEM_next.valid = false;
             sprintf(txt, "UNK");
+            p->EX_MEM_next.valid = false;
             break;
     }
 
-    printf("[PIPELINE]EXECUTE:%s:%d\n", txt, pc);
+    // shove result into next latch
     p->EX_MEM_next.res = res;
+    printf("[PIPELINE]EXECUTE:%s:%d\n", txt, pc);
     fflush(stdout);
 }
