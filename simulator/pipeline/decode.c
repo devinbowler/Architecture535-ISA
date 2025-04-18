@@ -1,77 +1,87 @@
-// This file will take the response from fetch, and decode the binary encoding to get the information for execute.
+// pipeline/decode.c
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "decode.h"
 #include "../memory.h"
-#include "decode.h"
 #include "../pipeline.h"
 
-extern DRAM dram;
-extern REGISTERS* registers;
+extern DRAM        dram;
+extern REGISTERS  *registers;
 
-bool decode_ready(PipelineState* pipeline) {
-    return pipeline->IF_ID.valid;
-}
-
-void decode_stage(PipelineState* pipeline) {
-    if(!pipeline->IF_ID.valid){
-        pipeline->ID_EX_next.valid = false;
+void decode_stage(PipelineState *p)
+{
+    if (!p->IF_ID.valid) {
+        p->ID_EX_next.valid = false;
+        printf("[PIPELINE]DECODE:NOP:%d\n", p->IF_ID.pc);
         return;
     }
 
-    // If there is something to decode, mark stage as valid
-    pipeline->ID_EX_next.valid = true;
+    uint16_t ins = p->IF_ID.instruction;
+    uint16_t pc  = p->IF_ID.pc;
+    char     txt[64];
 
-    uint16_t instruction = pipeline->IF_ID.instruction;
-    uint16_t pc = pipeline->IF_ID.pc;
-
-    // Extract fields from instruction
-    uint16_t opcode = (instruction >> 12) & 0xF;
-    uint16_t rd = (instruction >> 8) & 0xF;
-    uint16_t ra = (instruction >> 4) & 0xF;
-    uint16_t rb_imm = instruction & 0xF;
-
-    // Debug all fields to ensure correct values
-    printf("[DECODE] opcode=%u rd=%u ra=%u rb=%u\n", opcode, rd, ra, rb_imm);
-
-    // Setup pipeline for next stage
-    pipeline->ID_EX_next.pc = pc;
-    pipeline->ID_EX_next.opcode = opcode;
-    pipeline->ID_EX_next.regD = rd;
-    pipeline->ID_EX_next.regA = ra;
-    pipeline->ID_EX_next.regB = rb_imm;
-    pipeline->ID_EX_next.imm = rb_imm;  // For RRI-Type instructions, rb is actually the immediate
-    pipeline->ID_EX_next.type = rd;     // For RR-Type, rd is actually the type.
-
-    // Make sure the immediate value is used correctly for LW/SW
-    if (opcode == 5 || opcode == 4 || opcode == 9 || opcode == 10) {  // LW or SW (both old and new opcodes)
-        printf("[DECODE_MEM] Memory instruction: ");
-        char instruction_text[50];
-        if (opcode == 5 || opcode == 9) {  // LW (both old and new opcode)
-            sprintf(instruction_text, "LW R%d, [R%d + %d]", rd, ra, rb_imm);
-            printf("LW R%u, [R%u + %u]\n", rd, ra, rb_imm);
-        } else {  // SW (both old and new opcode)
-            sprintf(instruction_text, "SW [R%d + %d], R%d", ra, rb_imm, rd);
-            printf("SW [R%u + %u], R%u\n", ra, rb_imm, rd);
-        }
-        printf("[PIPELINE]DECODE:%s:%d\n", instruction_text, pc);
+    if (ins == 0) {
+        p->ID_EX_next.valid = false;
+        sprintf(txt, "NOP");
     } else {
-        // Generate text for other instruction types
-        char instruction_text[50] = "Unknown";
-        switch(opcode) {
-            case 0: sprintf(instruction_text, "ADD R%d, R%d, R%d", rd, ra, rb_imm); break;
-            case 1: sprintf(instruction_text, "SUB R%d, R%d, R%d", rd, ra, rb_imm); break;
-            case 2: sprintf(instruction_text, "NAND R%d, R%d, R%d", rd, ra, rb_imm); break;
-            case 3: sprintf(instruction_text, "LUI R%d, %d", rd, rb_imm); break;
-            case 7: sprintf(instruction_text, "JALR R%d, R%d", rd, ra); break;
-            case 9: sprintf(instruction_text, "LW R%d, [R%d + %d]", rd, ra, rb_imm); break;
-            case 10: sprintf(instruction_text, "SW [R%d + %d], R%d", ra, rb_imm, rd); break;
-            case 11: sprintf(instruction_text, "BEQ R%d, R%d, %d", rd, ra, rb_imm); break;
-            default: sprintf(instruction_text, "NOP or Unknown (%d)", opcode);
+        uint16_t op = ins >> 12;
+
+        if (op == 0x8) {
+            // single‐opcode shifts/rotates
+            // bits[11:8]=type, bits[7:4]=Rd (also source), bits[3:0]=Rs (amt‐reg)
+            uint16_t type = (ins >> 8) & 0xF;
+            uint16_t rd   = (ins >> 4) & 0xF;
+            uint16_t rs   =  ins        & 0xF;
+
+            p->ID_EX_next.valid   = true;
+            p->ID_EX_next.pc      = pc;
+            p->ID_EX_next.opcode  = op;
+            p->ID_EX_next.type    = type;
+            p->ID_EX_next.regD    = rd;   // destination
+            p->ID_EX_next.regA    = rd;   // source value
+            p->ID_EX_next.regB    = rs;   // which register has shift amount
+            p->ID_EX_next.imm     = 0;    // unused here
+
+            const char *name = (type == 0) ? "LSL"
+                              : (type == 1) ? "LSR"
+                              : (type == 2) ? "ROL"
+                                            : "ROR";
+            sprintf(txt, "%s R%u, R%u, R%u", name, rd, rd, rs);
         }
-        printf("[PIPELINE]DECODE:%s:%d\n", instruction_text, pc);
+        else {
+            // “normal” RRR/RRI decoding
+            uint16_t rd  = (ins >>  8) & 0xF;
+            uint16_t ra  = (ins >>  4) & 0xF;
+            uint16_t imm =  ins        & 0xF;
+
+            p->ID_EX_next.valid   = true;
+            p->ID_EX_next.pc      = pc;
+            p->ID_EX_next.opcode  = op;
+            p->ID_EX_next.regD    = rd;
+            p->ID_EX_next.regA    = ra;
+            p->ID_EX_next.regB    = imm;
+            p->ID_EX_next.imm     = imm;
+            p->ID_EX_next.type    = 0;
+
+            switch (op) {
+                case 0x0: sprintf(txt, "ADD    R%u,R%u,%u", rd, ra, imm); break;
+                case 0x1: sprintf(txt, "SUB    R%u,R%u,%u", rd, ra, imm); break;
+                case 0x2: sprintf(txt, "AND    R%u,R%u,%u", rd, ra, imm); break;
+                case 0x3: sprintf(txt, "OR     R%u,R%u,%u", rd, ra, imm); break;
+                case 0x4: sprintf(txt, "XOR    R%u,R%u,%u", rd, ra, imm); break;
+                case 0x5: sprintf(txt, "DIVMOD R%u,R%u,%u", rd, ra, imm); break;
+                case 0x6: sprintf(txt, "MUL    R%u,R%u,%u", rd, ra, imm); break;
+                case 0x7: sprintf(txt, "CMP    R%u,R%u,%u", rd, ra, imm); break;
+                case 0x9: sprintf(txt, "LW     R%u,[R%u+%u]",   rd, ra, imm); break;
+                case 0xA: sprintf(txt, "SW     [R%u+%u],R%u",   ra, imm, rd); break;
+                case 0xB: sprintf(txt, "BEQ    R%u,R%u,%u",     rd, ra, imm); break;
+                case 0xF: sprintf(txt, "BLT    R%u,R%u,%u",     rd, ra, imm); break;
+                default:  sprintf(txt, "UNKNOWN"); p->ID_EX_next.valid = false;
+            }
+        }
     }
-    
-    // Always show instruction and PC, even during bubbles
+
+    printf("[PIPELINE]DECODE:%s:%d\n", txt, pc);
     fflush(stdout);
 }

@@ -16,7 +16,6 @@ extern PipelineState pipeline;
 void init_system();
 void executeInstructions();
 bool pipeline_empty(PipelineState* pipeline);
-void breakpointInstrcutions();
 void stepInstructions();
 void storeInstruction(const char *command);
 
