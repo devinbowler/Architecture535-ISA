@@ -114,7 +114,6 @@ The simulator will provide:
 - **Execution Control**:  
   - Single-step execution  
   - Run to completion  
-  - Breakpoints  
 - **Pipeline Execution Mode**:  
   - No cache, no pipeline  
   - Cache only  

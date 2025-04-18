@@ -36,7 +36,6 @@ USER_DRAM_DELAY               = _u16 ("USER_DRAM_DELAY")
 USER_CACHE_DELAY              = _u16 ("USER_CACHE_DELAY")
 CACHE_ENABLED                 = _bool("CACHE_ENABLED")
 PIPELINE_ENABLED              = _bool("PIPELINE_ENABLED")
-BREAKPOINT_PC                 = _i16 ("BREAKPOINT_PC")
 memory_operation_in_progress  = _bool("memory_operation_in_progress")
 # ──────────────────────────────────────────
 
