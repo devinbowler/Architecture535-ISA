@@ -89,6 +89,7 @@ uint16_t memory_read(Cache *cache, DRAM *dram, uint16_t address) {
         return read_cache(cache, dram, address);
     } else {
         // Direct DRAM read
+        printf("[MEM_READ] Cache disabled or not available, reading directly from DRAM\n");
         return readFromMemory(dram, address);
     }
 }
@@ -111,6 +112,7 @@ void memory_write(Cache *cache, DRAM *dram, uint16_t address, uint16_t data) {
         write_through(cache, dram, address, data);
     } else {
         // Direct DRAM write
+        printf("[MEM_WRITE] Cache disabled or not available, writing directly to DRAM\n");
         writeToMemory(dram, address, data);
     }
     

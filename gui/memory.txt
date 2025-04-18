@@ -4,3 +4,5 @@ SUB R9, R1, R0
 SW [R1 + 9], R2
 ADD R4, R3, R1
 LW R5, [R1 + 9]
+ADD R0, R0, R0
+SW [R1 + 9], R4 
