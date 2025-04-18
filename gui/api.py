@@ -244,7 +244,7 @@ def resetSimulator():
     
     # Initialize empty state
     memory_content = [(i, 0) for i in range(1000)]  # All memory locations set to 0
-    register_contents = [(i, 0) for i in range(16)]  # All registers set to 0
+    register_contents = [(i, 1) if i == 1 else (i, 0) for i in range(16)]
     cache_contents = []  # Empty cache
     cache_data_contents = []  # Empty cache data
     pipeline_state = [  # Empty pipeline stages

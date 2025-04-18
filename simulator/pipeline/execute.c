@@ -123,13 +123,13 @@ void execute(PipelineState *p) {
         case 0xB:  // BEQ
             if (registers->R[d] == registers->R[a]) {
                 branch_taken = true;
-                branch_target_address = pc + bimm;
+                branch_target_address = pc + (bimm + 1);
                 flush_pipeline(p);
                 printf("[EXECUTE_BEQ] Branch taken → PC=%u\n", branch_target_address);
             } else {
                 printf("[EXECUTE_BEQ] Not taken\n");
             }
-            sprintf(txt, "BEQ R%u,R%u,%u", d, a, bimm);
+            sprintf(txt, "BEQ R%u,R%u,%u", d, a, (bimm + 1));
             break;
         case 0xF:  // BLT
             if ((int16_t)registers->R[d] < (int16_t)registers->R[a]) {
