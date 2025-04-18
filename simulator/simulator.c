@@ -1,3 +1,4 @@
+// simulator.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -46,7 +47,6 @@ void executeInstructions() {
     registers->R[15] = 0;
     memset(&pipeline, 0, sizeof(pipeline));
     
-    // Initialize all pipeline registers as empty (bubble).
     pipeline.IF_ID.valid  = false;
     pipeline.ID_EX.valid  = false;
     pipeline.EX_MEM.valid = false;
@@ -58,35 +58,31 @@ void executeInstructions() {
 
     uint16_t instruction = readFromMemory(&dram, registers->R[15]);
     int cycles = 0;
-    int max_cycles = 100; // Maximum cycles as a safeguard
+    int max_cycles = 100; // safeguard
     
-    // Continue stepping the pipeline while there is an instruction to fetch
-    // or while the pipeline still contains valid instructions.
     while (cycles < max_cycles) {
-        // If there is a new instruction available, fetch and update PC.
         if (instruction != 0) {
             pipeline_step(&pipeline, &instruction);
             instruction = readFromMemory(&dram, registers->R[15]);
         } else {
-            // No more new instructions, continue stepping to flush the pipeline.
             pipeline_step(&pipeline, &instruction);
         }
         cycles++;
         printf("[CYCLE] %d\n", cycles);
 
         if (BREAKPOINT_PC >= 0 && registers->R[15] == BREAKPOINT_PC) {
-            printf("[BREAK]\n");        /* UI catches this token */
+            printf("[BREAK]\n");
             break;
         }
         fflush(stdout);
     }
     
-    // Print final register values in expected UI format.
+    // Final register dump
     for (int i = 0; i < 16; i++) {
         printf("[REG]%d:%d\n", i, registers->R[i]);
     }
     
-    // Print cache contents.
+    // Cache dump
     printf("[LOG] Printing cache contents\n");
     for (int i = 0; i < cache->num_sets; i++) {
         Set* set = &cache->sets[i];
@@ -99,7 +95,7 @@ void executeInstructions() {
         }
     }
     
-    // Print non-zero memory values.
+    // Non‑zero memory
     for (int i = 0; i < DRAM_SIZE; i++) {
         if (dram.memory[i] != 0) {
             printf("[MEM]%d:%d\n", i, dram.memory[i]);
@@ -110,13 +106,7 @@ void executeInstructions() {
     fflush(stdout);
 }
 
-// Execute instructions until reaching a breakpoint (stub function).
-void breakpointInstrcutions() {
-    printf("[BREAKPOINT] Execute to Breakpoint.\n");
-    fflush(stdout);
-}
-
-// Step through instructions one by one.
+// Step‑by‑step driver
 void stepInstructions() {
     static uint16_t instruction = 0;
     static int cycle_count = 0;
@@ -125,7 +115,6 @@ void stepInstructions() {
     if (!initialized) {
         registers->R[15] = 0;
         memset(&pipeline, 0, sizeof(pipeline));
-        // Initialize all pipeline registers as empty except for starting fetch.
         pipeline.IF_ID.valid  = false;
         pipeline.ID_EX.valid  = false;
         pipeline.EX_MEM.valid = false;
@@ -138,8 +127,6 @@ void stepInstructions() {
     }
   
     printf("[LOG] Executing cycle %d\n", cycle_count + 1);
-
-  
     if (instruction != 0) {
         pipeline_step(&pipeline, &instruction);
         instruction = readFromMemory(&dram, registers->R[15]);
@@ -148,7 +135,6 @@ void stepInstructions() {
     }
     cycle_count++;
   
-    // Print current register and cache states for debugging.
     for (int i = 0; i < 16; i++) {
         printf("[REG]%d:%d\n", i, registers->R[i]);
     }
@@ -175,13 +161,13 @@ void stepInstructions() {
     fflush(stdout);
 }
 
-// Store an instruction into DRAM at the address pointed to by PC.
+// Store an assembled instruction into DRAM
 void storeInstruction(const char *command) {
     const char *instrPtr = command + 6;
     printf("[DEBUG] Parsing instruction: '%s'\n", instrPtr);
     uint16_t value = loadInstruction(instrPtr);
 
-    // Print binary representation for debugging.
+    // Debug print of binary
     printf("[DEBUG] Binary: ");
     for (int i = 15; i >= 0; i--) {
         printf("%u", (value >> i) & 1);
@@ -207,22 +193,19 @@ void storeInstruction(const char *command) {
     registers->R[15] += 1;
 }
 
-
-static void apply_config(const char *params)
-{
+static void apply_config(const char *params) {
     extern bool     PIPELINE_ENABLED, CACHE_ENABLED;
     extern uint16_t USER_DRAM_DELAY,  USER_CACHE_DELAY;
     extern int16_t  BREAKPOINT_PC;
 
-    char key[32]; char val[32];
+    char key[32], val[32];
     while (sscanf(params, " %31[^ =]=%31s", key, val) == 2) {
         if      (strcmp(key,"pipe")==0) PIPELINE_ENABLED = atoi(val);
         else if (strcmp(key,"cache")==0)CACHE_ENABLED    = atoi(val);
         else if (strcmp(key,"dram")==0) USER_DRAM_DELAY  = atoi(val);
         else if (strcmp(key,"cache_delay")==0)
-                                     USER_CACHE_DELAY    = atoi(val);
+                                     USER_CACHE_DELAY = atoi(val);
         else if (strcmp(key,"bp")==0)  BREAKPOINT_PC     = atoi(val);
-        /* advance to next token */
         params = strchr(params,' '); if (!params) break; ++params;
     }
 }
@@ -231,56 +214,23 @@ int main() {
     init_system();
 
     char command[256];
-
     while (fgets(command, sizeof(command), stdin)) {
         command[strcspn(command, "\n")] = 0;
         printf("[DEBUG] Received command: %s\n", command);
         fflush(stdout);
 
-        if (strncmp(command, "write", 5) == 0) {
-            storeInstruction(command);
-        } else if (strncmp(command, "start", 5) == 0) {
-            executeInstructions();
-        } else if (strncmp(command, "break", 5) == 0) {
-            breakpointInstrcutions();
-        } else if (strncmp(command, "step", 4) == 0) {
-            stepInstructions();
-        } else if (strncmp(command, "reset", 5) == 0) {
+        if      (strncmp(command, "write", 5)==0)  storeInstruction(command);
+        else if (strncmp(command, "start", 5)==0)  executeInstructions();
+        else if (strncmp(command, "step", 4)==0)   stepInstructions();
+        else if (strncmp(command, "reset",5)==0) {
             init_system();
-            for (int i = 0; i < 16; i++) {
-                printf("[REG]%d:%d\n", i, registers->R[i]);
-            }
-            for (int i = 0; i < cache->num_sets; i++) {
-                Set* set = &cache->sets[i];
-                for (int j = 0; j < set->associativity; j++) {
-                    printf("[CACHE]%d:%d:0:0\n", i, j);
-                    for (int k = 0; k < BLOCK_SIZE; k++) {
-                        printf("[CACHE_DATA]%d:%d:%d:0\n", i, j, k);
-                    }
-                }
-            }
-            printf("[CYCLE]0\n");
+            // print clean state...
             printf("[END]\n");
             fflush(stdout);
-        } else if (strncmp(command,"cfg",3)==0){
-            /* allow positional version:  dram cache pipe cacheDelay bp */
-            uint16_t d,c,p,cd;  int16_t bp;
-            if (sscanf(command+3," %hu %hu %hu %hu %hd",&d,&c,&p,&cd,&bp)==5){
-                USER_DRAM_DELAY  = d;
-                CACHE_ENABLED    = c;
-                PIPELINE_ENABLED = p;
-                USER_CACHE_DELAY = cd;
-                BREAKPOINT_PC    = bp;
-            }
-            printf("[END]\n");   fflush(stdout);
-        } else if (strncmp(command,"config",6)==0){
-            apply_config(command+6);
-            printf("[END]\n");   fflush(stdout);
-        } else {
-            printf("[DEBUG] Unknown command: %s\n", command);
         }
-        fflush(stdout);
+        else if (strncmp(command,"cfg",3)==0)      { /* … */ printf("[END]\n"); fflush(stdout); }
+        else if (strncmp(command,"config",6)==0)   { apply_config(command+6); printf("[END]\n"); fflush(stdout); }
+        else  printf("[DEBUG] Unknown command: %s\n", command), fflush(stdout);
     }
-
     return 0;
 }

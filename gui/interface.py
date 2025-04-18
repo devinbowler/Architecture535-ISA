@@ -203,7 +203,6 @@ class ISASimulatorUI(QWidget):
         
         tab_widget = QTabWidget()
         self.instruction_table = self.create_table(16, ["Memory Address", "Text Instruction", "Hex Instruction"])
-        self.code_table = self.create_table(16, ["Code"])
         
         # Improved pipeline table with all 5 stages - show more details and values
         self.pipeline_table = self.create_table(5, ["Stage", "Status", "Instruction", "PC"])
@@ -229,7 +228,6 @@ class ISASimulatorUI(QWidget):
             self.pipeline_table.setItem(i, 3, pc_item)
         
         tab_widget.addTab(self.instruction_table, "Instructions")
-        tab_widget.addTab(self.code_table, "Code")
         tab_widget.addTab(self.pipeline_table, "Pipeline")
         
         layout.addWidget(tab_widget)
@@ -477,10 +475,8 @@ class ISASimulatorUI(QWidget):
         memory = result.get("memory", [])
 
         # Update code and instruction tables
-        self.code_table.setRowCount(len(raw))
         self.instruction_table.setRowCount(len(raw))
         for i, (asm, bin_val) in enumerate(zip(raw, binary)):
-            self.code_table.setItem(i, 0, QTableWidgetItem(asm))
             self.instruction_table.setItem(i, 0, QTableWidgetItem(str(i)))
             self.instruction_table.setItem(i, 1, QTableWidgetItem(asm))
             self.instruction_table.setItem(i, 2, QTableWidgetItem(bin_val))
@@ -664,7 +660,6 @@ class ISASimulatorUI(QWidget):
         
         # Clear instruction and code tables
         self.clear_table(self.instruction_table)
-        self.clear_table(self.code_table)
         
         # Update all other components using existing handler
         self.handle_execution_result(result)

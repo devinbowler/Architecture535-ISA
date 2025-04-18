@@ -1,3 +1,4 @@
+// pipeline.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -16,77 +17,56 @@ extern REGISTERS *registers;
 extern bool branch_taken;
 extern bool memory_operation_in_progress;
 
-
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
-    // ----------------- STAGE COMPUTATION -----------------
-    // Always run the write-back and memory-access stages first.
+    // 1) write‑back & memory
     write_back(pipeline);
     memory_access(pipeline);
 
-
-
-    // ----------------- STALL HANDLING FOR MEMORY -----------------
+    // 2) if memory is busy, stall IF/ID, ID/EX and EX/MEM
     if (memory_operation_in_progress) {
-        // Memory stage is busy (writing to DRAM or updating cache).
-        // In this case, stall the earlier stages so that we don’t commit new instructions.
-        // Only update the later stages (WB and MEM/WB) so that the ongoing memory operation
-        // can complete without interference.
-        pipeline->WB    = pipeline->WB_next;
+        pipeline->WB     = pipeline->WB_next;
         pipeline->MEM_WB = pipeline->MEM_WB_next;
-        printf("[PIPELINE_STALL] Memory operation in progress; stalling execute, decode, and fetch stages.\n");
+        printf("[PIPELINE_STALL] Memory op in progress; stalling.\n");
     } else {
-        // When no memory stall is present, run the remaining stages in order.
+        // 3) normal overlap: EX, ID, IF
         execute(pipeline);
         decode_stage(pipeline);
-
         if (PIPELINE_ENABLED) {
-            /* classic 5‑stage overlap */
             fetch_stage(pipeline, value);
         } else {
-            /* non‑pipelined: fetch ONLY when every stage is empty */
-            bool busy =
-                pipeline->IF_ID.valid  || pipeline->ID_EX.valid ||
-                pipeline->EX_MEM.valid || pipeline->MEM_WB.valid ||
-                memory_operation_in_progress;
-
+            bool busy = pipeline->IF_ID.valid  ||
+                        pipeline->ID_EX.valid  ||
+                        pipeline->EX_MEM.valid ||
+                        pipeline->MEM_WB.valid ||
+                        memory_operation_in_progress;
             if (!busy)
-                fetch_stage(pipeline, value);          /* safe to pull next instr */
+                fetch_stage(pipeline, value);
             else
-                pipeline->IF_ID_next.valid = false;    /* hold bubble in IF stage */
+                pipeline->IF_ID_next.valid = false;
         }
 
-        // Commit all pipeline stage next states.
-        pipeline->WB    = pipeline->WB_next;
+        // 4) commit all next‐states
+        pipeline->WB     = pipeline->WB_next;
         pipeline->MEM_WB = pipeline->MEM_WB_next;
         pipeline->EX_MEM = pipeline->EX_MEM_next;
         pipeline->ID_EX  = pipeline->ID_EX_next;
         pipeline->IF_ID  = pipeline->IF_ID_next;
     }
 
-    // ----------------- CLEAR NEXT-STATE REGISTERS -----------------
-    memset(&pipeline->WB_next,     0, sizeof(pipeline->WB_next));
-    memset(&pipeline->MEM_WB_next, 0, sizeof(pipeline->MEM_WB_next));
-    memset(&pipeline->EX_MEM_next, 0, sizeof(pipeline->EX_MEM_next));
-    memset(&pipeline->ID_EX_next,  0, sizeof(pipeline->ID_EX_next));
-    memset(&pipeline->IF_ID_next,  0, sizeof(pipeline->IF_ID_next));
+    // 5) clear next‐state
+    memset(&pipeline->WB_next,     0, sizeof pipeline->WB_next);
+    memset(&pipeline->MEM_WB_next, 0, sizeof pipeline->MEM_WB_next);
+    memset(&pipeline->EX_MEM_next, 0, sizeof pipeline->EX_MEM_next);
+    memset(&pipeline->ID_EX_next,  0, sizeof pipeline->ID_EX_next);
+    memset(&pipeline->IF_ID_next,  0, sizeof pipeline->IF_ID_next);
 
-    // ----------------- BRANCH HANDLING -----------------
-    // Two cases:
-    // 1) If a branch is taken and there's no memory operation in progress,
-    //    then we flush the pipeline immediately.
-    // 2) If a branch is taken but memory is still busy, we delay flushing until
-    //    the memory stage completes its operation.
+    // 6) handle branch flush if needed
     if (branch_taken && !memory_operation_in_progress) {
-        // Flush all stages by marking them as bubbles.
-        pipeline->IF_ID.valid  = false;
-        pipeline->ID_EX.valid  = false;
-
-        // Reset the branch flag after flushing.
+        pipeline->IF_ID.valid = false;
+        pipeline->ID_EX.valid = false;
         branch_taken = false;
-        printf("[PIPELINE] Branch detected and flushed: pipeline cleared.\n");
-    } else if (branch_taken && memory_operation_in_progress) {
-        // Branch detected but memory op is still ongoing.
-        // We delay the flush until the memory operation is complete.
-        printf("[PIPELINE] Branch detected but memory stage busy; awaiting memory completion to flush branch.\n");
+        printf("[PIPELINE] Branch flush: pipeline cleared.\n");
+    } else if (branch_taken) {
+        printf("[PIPELINE] Branch pending: awaiting memory completion.\n");
     }
 }
