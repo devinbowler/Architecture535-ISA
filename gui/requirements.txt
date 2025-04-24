@@ -1,0 +1,4 @@
+flask
+watchdog
+requests
+pyqt6

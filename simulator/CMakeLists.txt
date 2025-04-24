@@ -34,6 +34,7 @@ add_custom_command(TARGET simconf POST_BUILD
 add_executable(simulator
     ${CMAKE_CURRENT_LIST_DIR}/simulator.c
     ${CMAKE_CURRENT_LIST_DIR}/memory.c
+    ${CMAKE_CURRENT_LIST_DIR}/hazards.c
     ${CMAKE_CURRENT_LIST_DIR}/pipeline.c
     ${CMAKE_CURRENT_LIST_DIR}/pipeline/fetch.c
     ${CMAKE_CURRENT_LIST_DIR}/pipeline/decode.c
