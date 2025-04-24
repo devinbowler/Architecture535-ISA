@@ -160,7 +160,8 @@ Our communication includes weekly meetings (on Fridays) along with continuous co
 ### Building and Running
 
 #### Building and running Simulator
-You can compile and run the simulator using the scripts in the scripts folder.
+You can compile and run the simulator using the scripts in the scripts folder. Before running, ensure there is a .venv in the gui folder if needed and ensure
+all requirements have been installed.
 
 ### Linux
 ```bash
@@ -189,24 +190,6 @@ simulator_process = subprocess.Popen(
 to
 ```python
     ["../simulator/build/simulator.exe"],
-```
-
-## Running the API
-
-- Start the Flask API (which launches the simulator as a subprocess):
-
-```bash
-python3 api.py
-```
-
-The API will run on http://127.0.0.1:5000.
-
-## Running the GUI
-
-- After the API is running, start your GUI application:
-
-```bash
-python3 interface.py
 ```
 
 Contribution & Issues
