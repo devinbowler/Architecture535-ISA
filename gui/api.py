@@ -1,12 +1,16 @@
 from flask import Flask, request, jsonify
 import subprocess
 import threading
+from globals import (
+    USER_DRAM_DELAY, USER_CACHE_DELAY,
+    CACHE_ENABLED,  PIPELINE_ENABLED
+)
 
 app = Flask(__name__)
 
 # Launch C simulator executable
 simulator_process = subprocess.Popen(
-    ["../build/simulator"],
+    ["../simulator/build/simulator"],
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -43,6 +47,37 @@ def send_command(command):
     output = read_output()
     print(f"[DEBUG] Command output: {output}")
     return output
+
+@app.route("/set_configuration", methods=["POST"])
+def set_configuration():
+    data = request.get_json(force=True)
+    try:
+        # Extract configuration values
+        cache_enabled = bool(data.get("cache_enabled", True))
+        pipeline_enabled = bool(data.get("pipeline_enabled", True))
+        dram_delay = int(data.get("dram_delay", USER_DRAM_DELAY.value))
+        cache_delay = int(data.get("cache_delay", USER_CACHE_DELAY.value))
+        
+        # Set global values
+        CACHE_ENABLED.value = 1 if cache_enabled else 0
+        PIPELINE_ENABLED.value = 1 if pipeline_enabled else 0
+        USER_DRAM_DELAY.value = dram_delay
+        USER_CACHE_DELAY.value = cache_delay
+
+        # Send explicit config command to C program
+        config_cmd = f"config pipe={1 if pipeline_enabled else 0} cache={1 if cache_enabled else 0} dram={dram_delay} cache_delay={cache_delay}"
+        print(f"[DEBUG] Sending config command: {config_cmd}")
+        send_command(config_cmd)
+
+        return jsonify({
+            "message": "Configuration updated",
+            "cache_enabled": cache_enabled,
+            "pipeline_enabled": pipeline_enabled,
+            "dram_delay": dram_delay,
+            "cache_delay": cache_delay
+        })
+    except (ValueError, TypeError) as e:
+        return jsonify({"error": f"bad config value: {e}"}), 400
 
 @app.route("/load_instructions", methods=["POST"])
 def loadInstructions():
@@ -95,7 +130,7 @@ def executeInstructions():
             # Remove the [REG] prefix and split the rest
             reg_val = output[5:].split(":")
             register_contents.append((int(reg_val[0]), int(reg_val[1])))
-            print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
+            # print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
         elif output.startswith("[CACHE]"):
             # Format: [CACHE]index:offset:valid:data
             # Example: [CACHE]2:0:1:42
@@ -147,21 +182,21 @@ def stepInstruction():
             # Remove the [REG] prefix and split the rest
             reg_val = output[5:].split(":")
             register_contents.append((int(reg_val[0]), int(reg_val[1])))
-            print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
+            # print(f"[DEBUG] Found register update: {reg_val[0]} = {reg_val[1]}")
         elif output.startswith("[CACHE]"):
             # Format: [CACHE]index:offset:valid:data
             parts = output[7:].split(":")
             if len(parts) == 4:
                 index, offset, valid, data = parts
                 cache_contents.append((int(index), int(offset), int(valid) == 1, int(data)))
-                print(f"[DEBUG] Found cache update: index={index}, offset={offset}, valid={valid}, data={data}")
+                # print(f"[DEBUG] Found cache update: index={index}, offset={offset}, valid={valid}, data={data}")
         elif output.startswith("[CACHE_DATA]"):
             # Format: [CACHE_DATA]index:offset:data_index:data_value
             parts = output[12:].split(":")
             if len(parts) == 4:
                 index, offset, data_index, data_value = parts
                 cache_data_contents.append((int(index), int(offset), int(data_index), int(data_value)))
-                print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
+                # print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
         elif output.startswith("[PIPELINE]"):
             # Format: [PIPELINE]stage:instruction:pc
             # Example: [PIPELINE]FETCH:ADD R5, R4, R3:0
@@ -199,7 +234,7 @@ def resetSimulator():
     
     # Initialize empty state
     memory_content = [(i, 0) for i in range(1000)]  # All memory locations set to 0
-    register_contents = [(i, 0) for i in range(16)]  # All registers set to 0
+    register_contents = [(i, 1) if i == 1 else (i, 0) for i in range(16)]
     cache_contents = []  # Empty cache
     cache_data_contents = []  # Empty cache data
     pipeline_state = [  # Empty pipeline stages

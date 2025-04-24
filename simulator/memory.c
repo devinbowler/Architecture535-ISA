@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "memory.h"
+#include "globals.h"
 
+                    
 // REGISTER FUNCTIONS
 REGISTERS *init_registers() {
   REGISTERS *registers = malloc(sizeof(REGISTERS));
@@ -18,11 +20,10 @@ REGISTERS *init_registers() {
   // Initialize special registers
   registers->R[13] = 0;  // LR (Link Register)
   registers->R[14] = 0;  // SR (Status Register)
-  registers->R[15] = 0;  // PC (Program Counter)
+  registers->R[15] = 1;  // PC (Program Counter)
 
   return registers;
 }
-
 
 
 // DRAM FUNCTIONS
@@ -83,21 +84,12 @@ uint16_t memory_read(Cache *cache, DRAM *dram, uint16_t address) {
         return 0;
     }
     
-    // If it's a data access, adjust the address to the data space
-    if (address < DATA_SPACE && address >= 0) {
-        // It's an instruction access, no adjustment needed
-    } else {
-        // For other memory accesses, ensure they're going to data space
-        if (address < DATA_SPACE) {
-            address += DATA_SPACE;
-        }
-    }
-    
-    if (cache != NULL) {
+    if (CACHE_ENABLED && cache != NULL) {
         // Use cache for reads
         return read_cache(cache, dram, address);
     } else {
         // Direct DRAM read
+        printf("[MEM_READ] Cache disabled or not available, reading directly from DRAM\n");
         return readFromMemory(dram, address);
     }
 }
@@ -114,22 +106,13 @@ void memory_write(Cache *cache, DRAM *dram, uint16_t address, uint16_t data) {
         printf("Error: write address %u out-of-range.\n", address);
         return;
     }
-    
-    // If it's a data access, adjust the address to the data space
-    if (address < DATA_SPACE && address >= 0) {
-        // It's an instruction write, no adjustment needed
-    } else {
-        // For other memory accesses, ensure they're going to data space
-        if (address < DATA_SPACE) {
-            address += DATA_SPACE;
-        }
-    }
-    
-    if (cache != NULL) {
+        
+    if (CACHE_ENABLED && cache != NULL) {
         // Use write-through for cache writes
         write_through(cache, dram, address, data);
     } else {
         // Direct DRAM write
+        printf("[MEM_WRITE] Cache disabled or not available, writing directly to DRAM\n");
         writeToMemory(dram, address, data);
     }
     

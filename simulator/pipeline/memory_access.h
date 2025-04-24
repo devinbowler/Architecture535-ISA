@@ -7,6 +7,5 @@
 #include <stdlib.h>
 
 void memory_access(PipelineState *pipeline);
-bool memory_ready(PipelineState *pipeline);
 
 #endif
