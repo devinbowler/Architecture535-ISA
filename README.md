@@ -159,20 +159,26 @@ Our overall approach is as follows:
 Our communication includes weekly meetings (on Fridays) along with continuous communication through Google Chat. All progress and documentation are managed via GitHub using issues and pull requests.
 ### Building and Running
 
-#### Building the Simulator
-Compile the C simulator using CMake.
+#### Building and running Simulator
+You can compile and run the simulator using the scripts in the scripts folder.
 
-### CMake -
+### Linux
 ```bash
-mkdir build && cd build
-cmake ..
-make
+cd scripts
+cd Linux
+sh run_all.sh
+```
+
+### Windows
+```bat
+cd scripts\Windows
+run_all.bat
 ```
 If in Windows:
 - Change the line in this code block,
 ```python
 simulator_process = subprocess.Popen(
-    ["../build/simulator"], # This line.
+    ["../simulator/build/simulator"], # This line.
     stdin=subprocess.PIPE,
     stdout=subprocess.PIPE,
     stderr=subprocess.PIPE,
@@ -182,7 +188,7 @@ simulator_process = subprocess.Popen(
 ```
 to
 ```python
-    ["../build/simulator.exe"],
+    ["../simulator/build/simulator.exe"],
 ```
 
 ## Running the API

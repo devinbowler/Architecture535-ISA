@@ -24,7 +24,6 @@ HazardInfo detect_hazards(PipelineState *pipeline) {
     // Get source registers for the instruction in ID/EX
     uint16_t regA = pipeline->ID_EX.regA;
     uint16_t regB = pipeline->ID_EX.regB;
-    uint16_t opcode = pipeline->ID_EX.opcode;
 
     // For each possible source register, check for hazards
     // RAW Hazards from instruction in EX/MEM

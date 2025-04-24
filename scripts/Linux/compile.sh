@@ -1,5 +1,8 @@
 # Navigate to the root directory (up two levels from scripts/Linux)
-cd ../../simulator
+cd "$(dirname "$0")"/../../
+
+# Navigate to the simulator directory
+cd ./simulator
 
 # Create the build directory if it doesn't exist
 mkdir -p build
