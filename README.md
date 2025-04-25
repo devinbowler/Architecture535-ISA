@@ -160,8 +160,7 @@ Our communication includes weekly meetings (on Fridays) along with continuous co
 ### Building and Running
 
 #### Building and running Simulator
-You can compile and run the simulator using the scripts in the scripts folder. Before running, ensure there is a .venv in the gui folder if needed and ensure
-all requirements have been installed.
+You can compile and run the simulator using the scripts in the scripts folder.
 
 ### Linux
 ```bash
