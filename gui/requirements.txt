@@ -1,4 +1,4 @@
 flask
 watchdog
 requests
-pyqt6
+PyQt6
