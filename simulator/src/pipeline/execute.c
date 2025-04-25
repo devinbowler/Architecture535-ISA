@@ -4,9 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "execute.h"
-#include "../pipeline.h"
-#include "../memory.h"
-#include "../globals.h"    // for DATA_OFFSET, delays, etc.
+#include "pipeline.h"
+#include "memory.h"
+#include "globals.h"    // for DATA_OFFSET, delays, etc.
 
 extern REGISTERS *registers;
 bool branch_taken = false;

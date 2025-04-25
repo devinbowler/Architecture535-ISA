@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "memory_access.h"
-#include "../globals.h"
+#include "globals.h"
 
 extern DRAM      dram;
 extern Cache    *cache;

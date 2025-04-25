@@ -3,8 +3,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "write_back.h"
-#include "../pipeline.h"
-#include "../memory.h"
+#include "pipeline.h"
+#include "memory.h"
 
 extern REGISTERS *registers;
 

@@ -1,7 +1,7 @@
 #ifndef DECODE_H
 #define DECODE_H
 
-#include "../pipeline.h"
+#include "pipeline.h"
 
 void decode_stage(PipelineState* pipeline);
 

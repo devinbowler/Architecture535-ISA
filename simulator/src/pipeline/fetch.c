@@ -4,8 +4,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "fetch.h"
-#include "../memory.h"
-#include "../pipeline.h"
+#include "memory.h"
+#include "pipeline.h"
 
 extern DRAM        dram;
 extern REGISTERS  *registers;
