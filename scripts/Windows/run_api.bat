@@ -32,13 +32,14 @@ if not exist .venv\ (
     REM Activate the virtual environment
     call .venv\Scripts\activate.bat
     
-    REM Install required packages (uncomment and customize as needed)
-    REM pip install -r requirements.txt
+    REM Install required packages
+    pip install -r requirements.txt
     
     echo Virtual environment created and activated
 ) else (
     echo Virtual environment found, activating...
     call .venv\Scripts\activate.bat
+    pip install -r requirements.txt
 )
 
 REM Run the API script
