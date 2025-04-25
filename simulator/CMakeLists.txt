@@ -8,17 +8,30 @@ include_directories(
   ${CMAKE_CURRENT_LIST_DIR}/../assembler
 )
 
-# ----- simconf: Shared lib with globals.c -----
+# ---------------------------------------------------------------------------
+# Shared lib that only stores run‑time knobs
+# ---------------------------------------------------------------------------
 add_library(simconf SHARED
   ${CMAKE_CURRENT_LIST_DIR}/src/globals.c
 )
 set_target_properties(simconf PROPERTIES OUTPUT_NAME simconf)
 
+# Copy the lib next to the Python GUI (…/gui/)
+# Use file(COPY) to ensure it copies even if the file hasn't changed
 add_custom_command(TARGET simconf POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E copy
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_LIST_DIR}/../gui
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
     $<TARGET_FILE:simconf>
     ${CMAKE_CURRENT_LIST_DIR}/../gui
   COMMENT "Copying libsimconf to gui/ for ctypes")
+
+# Add a custom target to force copy
+add_custom_target(force_copy_simconf ALL
+  DEPENDS simconf
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:simconf>
+    ${CMAKE_CURRENT_LIST_DIR}/../gui
+  COMMENT "Force copying libsimconf to gui/ for ctypes")
 
 # ----- simulator executable -----
 add_executable(simulator
