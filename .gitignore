@@ -3,6 +3,10 @@
 *.o
 *.dll
 *.so
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 ARCH-16
 build/
 CMakeLists.txt.user
