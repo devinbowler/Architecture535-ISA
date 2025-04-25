@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "decode.h"
-#include "../memory.h"
-#include "../pipeline.h"
+#include "memory.h"
+#include "pipeline.h"
 
 extern DRAM        dram;
 extern REGISTERS  *registers;

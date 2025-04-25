@@ -7,11 +7,11 @@
 #include "pipeline.h"
 #include "memory.h"
 #include "globals.h"
-#include "pipeline/fetch.h"
-#include "pipeline/decode.h"
-#include "pipeline/execute.h"
-#include "pipeline/memory_access.h"
-#include "pipeline/write_back.h"
+#include "fetch.h"
+#include "decode.h"
+#include "execute.h"
+#include "memory_access.h"
+#include "write_back.h"
 #include "hazards.h"
 
 extern bool data_hazard_stall;

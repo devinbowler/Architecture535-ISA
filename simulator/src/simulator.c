@@ -6,7 +6,7 @@
 #include "memory.h"
 #include "pipeline.h"
 #include "simulator.h"
-#include "../assembler/assembler.h"
+#include "assembler.h"
 #include "globals.h"
 
 // --- stepping‑state globals for stepInstructions() ---
