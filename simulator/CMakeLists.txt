@@ -5,7 +5,6 @@ set(CMAKE_C_STANDARD 99)
 # ----- Include header files -----
 include_directories(
   ${CMAKE_CURRENT_LIST_DIR}/include
-  ${CMAKE_CURRENT_LIST_DIR}/../assembler
 )
 
 # ---------------------------------------------------------------------------
@@ -50,6 +49,6 @@ target_link_libraries(simulator PRIVATE simconf)
 
 # ----- Compiler flags -----
 if (CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-  target_compile_options(simulator PRIVATE -Wall -Wextra -O2)
-  target_compile_options(simconf PRIVATE -Wall -Wextra -O2)
+  target_compile_options(simulator PRIVATE -Wall -Wextra -Wunused -O2)
+  target_compile_options(simconf PRIVATE -Wall -Wextra -Wunused -O2)
 endif()

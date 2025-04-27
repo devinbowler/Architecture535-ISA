@@ -453,16 +453,20 @@ class ISASimulatorUI(QWidget):
 
     
     def set_configuration(self):
+        cache_type_value = self.cache_type.currentText()
         payload = {
             "cache_enabled": self.cache_enabled.isChecked(),
             "pipeline_enabled": self.pipeline_enabled.isChecked(),
             "dram_delay": self.dram_delay.value(),
             "cache_delay": self.cache_delay.value(),
+            "cache_type": self.cache_type.value(),
         }
         try:
             r = requests.post(f"{self.api_url}/set_configuration", json=payload, timeout=5)
             r.raise_for_status()
             QMessageBox.information(self, "Config applied", r.json().get("message","OK"))
+            if "cache_mode" in result:
+                print(f"[UI] Cache mode set to: {result['cache_mode']}")
         except Exception as e:
             QMessageBox.information(self, "Error", f"set-configuration failed: {e}")
     

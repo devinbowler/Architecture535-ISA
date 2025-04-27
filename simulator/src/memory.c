@@ -30,14 +30,14 @@ REGISTERS *init_registers() {
 
 // A function to write into memory at a immediate address.
 void writeToMemory(DRAM *dram, uint16_t addr, int16_t data) {
-  if (addr >= 0 && addr < DRAM_SIZE) {
+  if (addr < DRAM_SIZE) {
     dram->memory[addr] = (int16_t) data;
   }
 }
 
 // A function to read from a immediate address in memeory.
 uint16_t readFromMemory(DRAM *dram, uint16_t addr) {
-  if (addr >= 0 && addr < DRAM_SIZE) {
+  if (addr < DRAM_SIZE) {
       return dram->memory[addr];
   } else {
     printf("Error");
@@ -52,22 +52,22 @@ void clearMemory(DRAM *dram){
   }
 }
 
-// A function to print off a block of memory.
-void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[]){
-    // For simplicity, assume a block is 4 words.
-    uint16_t blockSize = 4;
-    // Only view one block regardless of numBlocks.
-    char temp[128];
-    values[0] = '\0';
+// // A function to print off a block of memory.
+// void viewBlockMemory(DRAM *dram, uint16_t addr, uint16_t numBlocks, char values[]){
+//     // For simplicity, assume a block is 4 words.
+//     // uint16_t blockSize = 4;
+//     // Only view one block regardless of numBlocks.
+//     char temp[128];
+//     values[0] = '\0';
 
-    snprintf(temp, sizeof(temp), "Memory Block [ %d ]: %d %d %d %d", 
-             addr,
-             dram->memory[addr],
-             dram->memory[addr + 1],
-             dram->memory[addr + 2],
-             dram->memory[addr + 3]);
-    strcat(values, temp);
-}
+//     snprintf(temp, sizeof(temp), "Memory Block [ %d ]: %d %d %d %d", 
+//              addr,
+//              dram->memory[addr],
+//              dram->memory[addr + 1],
+//              dram->memory[addr + 2],
+//              dram->memory[addr + 3]);
+//     strcat(values, temp);
+// }
 
 // Unified memory access functions
 
@@ -136,9 +136,8 @@ void updateDRAM(DRAM *dram, Cache *cache) {
                     // Use the unified memory_write function
                     memory_write(cache, dram, dram->pendingAddr, dram->pendingValue);
                 } else if (strcmp(dram->pendingCmd, "LW") == 0) {
-                    int16_t readValue;
                     // Use the unified memory_read function
-                    readValue = memory_read(cache, dram, dram->pendingAddr);
+                    memory_read(cache, dram, dram->pendingAddr);
                 } else {
                     printf("Error: unknown DRAM command.");
                 }

@@ -184,6 +184,9 @@ static void apply_config(const char *params) {
             USER_CACHE_DELAY = atoi(val);
             printf("[CONFIG] Cache delay set to %u cycles\n", USER_CACHE_DELAY);
         }
+        else if(strcmp(key, "cache_mode") == 0) {
+            
+        }
         params = strchr(params, ' ');
         if (!params) break;
         ++params;

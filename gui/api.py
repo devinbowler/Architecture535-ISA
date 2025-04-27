@@ -58,6 +58,12 @@ def set_configuration():
         dram_delay = int(data.get("dram_delay", USER_DRAM_DELAY.value))
         cache_delay = int(data.get("cache_delay", USER_CACHE_DELAY.value))
         
+        # Get Cache Mode
+        cache_type = data.get("cache_type", "Direct-Mapped")
+        cache_mode = 1  # Default to direct-mapped
+        if cache_type == "Set Associative":
+            cache_mode = 2
+        
         # Set global values
         CACHE_ENABLED.value = 1 if cache_enabled else 0
         PIPELINE_ENABLED.value = 1 if pipeline_enabled else 0
@@ -74,7 +80,9 @@ def set_configuration():
             "cache_enabled": cache_enabled,
             "pipeline_enabled": pipeline_enabled,
             "dram_delay": dram_delay,
-            "cache_delay": cache_delay
+            "cache_delay": cache_delay,
+            "cache_type": cache_type,
+            "cache_mode": cache_mode
         })
     except (ValueError, TypeError) as e:
         return jsonify({"error": f"bad config value: {e}"}), 400
