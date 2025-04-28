@@ -67,6 +67,23 @@ uint16_t loadInstruction(const char *line){
   strncpy(lineCopy, line, sizeof(lineCopy));
   lineCopy[sizeof(lineCopy)-1] = '\0';
 
+  // I want to remove the (so allow) comments within files.
+  char *comment = strchr(lineCopy, ';');
+  if (comment != NULL){
+    *comment = '\0'; 
+  }
+
+  // Also trim any white space.
+  int len = strlen(lineCopy);
+  while (len > 0 && (lineCopy[len-1] == ' ' || lineCopy[len-1] == '\t')){
+    lineCopy[--len] = '\0';
+  }
+
+  // Also skip any empty lines or lines that have only comments
+  if (len == 0) {
+    return 0;
+  }
+
   printf("Instruction Line: %s.\n", lineCopy);
 
   // First, replace commas with spaces for consistent parsing
