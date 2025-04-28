@@ -493,28 +493,80 @@ class ISASimulatorUI(QWidget):
         }
         updated = {i: False for i in range(5)}
 
+        # Check for fetch status
+        fetch_busy = False
+        fetch_counter = 0
+        fetch_target = 0
+        
+        fetch_status = result.get("fetch_status", "")
+        if fetch_status and fetch_status.startswith("[FETCH_STATUS]"):
+            parts = fetch_status[14:].split(":")
+            if len(parts) == 3 and parts[0] == "busy":
+                fetch_busy = True
+                fetch_counter = int(parts[1])
+                fetch_target = int(parts[2])
+                print(f"[UI] Detected fetch is busy: {fetch_counter}/{fetch_target}")
+
         for stage, instr, pc in pipeline_state:
             row = stage_to_row.get(stage)
             if row is None:
                 continue
             updated[row] = True
-            is_nop = instr.lower() in ("nop", "bubble")
+            
+            # Special handling for fetch stage if it's waiting for memory
+            if row == 0 and fetch_busy:
+                # Override with waiting status
+                status_item = QTableWidgetItem("Waiting")
+                status_item.setBackground(QColor(40, 40, 15))  # Special color for waiting
+                status_item.setForeground(QColor(220, 220, 150))
+                self.pipeline_table.setItem(row, 1, status_item)
+                
+                # Update instruction with waiting info
+                instr_text = f"FETCH waiting ({fetch_counter}/{fetch_target})"
+                instr_item = QTableWidgetItem(instr_text)
+                instr_item.setBackground(QColor(40, 40, 15))
+                instr_item.setForeground(QColor(220, 220, 150))
+                self.pipeline_table.setItem(row, 2, instr_item)
+                
+                # PC remains the same while waiting
+                pc_item = QTableWidgetItem(str(pc))
+                pc_item.setBackground(QColor(40, 40, 15))
+                pc_item.setForeground(QColor(220, 220, 150))
+                self.pipeline_table.setItem(row, 3, pc_item)
+                continue
+            
+            is_nop = instr.lower() in ("nop", "bubble") or "waiting" in instr.lower()
             color = QColor(40, 15, 15) if is_nop else QColor(15, 40, 15)
 
             # Status cell
-            status_item = QTableWidgetItem("Bubble" if is_nop else "Valid")
+            status_text = "Bubble"
+            if not is_nop:
+                status_text = "Valid"
+            elif "waiting" in instr.lower():
+                status_text = "Waiting"
+                color = QColor(40, 40, 15)  # Special color for waiting
+                
+            status_item = QTableWidgetItem(status_text)
             status_item.setBackground(color)
             status_item.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 1, status_item)
 
             # Instruction cell
-            instr_item = QTableWidgetItem("-" if is_nop else instr)
+            instr_text = "-" 
+            if not is_nop or "waiting" in instr.lower():
+                instr_text = instr
+                
+            instr_item = QTableWidgetItem(instr_text)
             instr_item.setBackground(color.darker())
             instr_item.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 2, instr_item)
 
             # PC cell
-            pc_item = QTableWidgetItem("-" if is_nop else str(pc))
+            pc_text = "-"
+            if not is_nop or "waiting" in instr.lower():
+                pc_text = str(pc)
+                
+            pc_item = QTableWidgetItem(pc_text)
             pc_item.setBackground(color.darker())
             pc_item.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 3, pc_item)
@@ -543,11 +595,11 @@ class ISASimulatorUI(QWidget):
                 self.pc_display.setText(f"PC: {val}")
                 break
 
-        branch = result.get("branch_taken", False)
-
         # And finally, update registers/memory/cache
         self.handle_execution_result(result)
-    
+
+
+
     def set_configuration(self):
         """Send the current configuration settings to the backend API"""
         config = {
