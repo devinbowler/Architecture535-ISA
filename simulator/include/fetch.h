@@ -9,6 +9,7 @@
 extern bool fetch_memory_busy;
 extern uint16_t fetch_delay_counter;
 extern uint16_t fetch_delay_target;
+extern uint16_t fetch_pending_address;
 
 void fetch_stage(PipelineState* pipeline, uint16_t* value);
 

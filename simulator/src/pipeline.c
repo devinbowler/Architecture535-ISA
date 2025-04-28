@@ -19,8 +19,7 @@ extern uint16_t stall_cycles_remaining;
 extern REGISTERS *registers;
 extern bool branch_taken;
 extern bool memory_operation_in_progress;
-
-
+extern bool fetch_memory_busy;
 
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // 1) Drain the tail of the pipeline
@@ -36,7 +35,7 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     }
 
     // ----------------- STALL HANDLING -----------------
-  // 3a) If DRAM/cache is busy, stall everything except WB/MEM_WB
+    // 3a) If memory operation (not fetch) is in progress, stall everything except WB/MEM_WB
     if (memory_operation_in_progress) {
         pipeline->WB     = pipeline->WB_next;
         pipeline->MEM_WB = pipeline->MEM_WB_next;
@@ -59,6 +58,9 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
         if (PIPELINE_ENABLED) {
             // Normal pipelined operation - run all stages in parallel
             decode_stage(pipeline);
+            
+            // Always execute fetch stage, even if busy with memory access
+            // It will handle its own internal delay logic
             fetch_stage(pipeline, value);
         } else {
             // Non-pipelined mode: Only one instruction in pipeline at a time
@@ -103,7 +105,7 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     memset(&pipeline->IF_ID_next,  0, sizeof pipeline->IF_ID_next);
 
     // 5) On branch, flush entire pipeline (once memory is done)
-    if (branch_taken && !memory_operation_in_progress) {
+    if (branch_taken && !memory_operation_in_progress && !fetch_memory_busy) {
         pipeline->IF_ID.valid  = false;
         pipeline->ID_EX.valid  = false;
         pipeline->EX_MEM.valid = false;

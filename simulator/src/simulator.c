@@ -123,6 +123,15 @@ void stepInstructions() {
     for (int i = 0; i < 16; i++)
         printf("[REG]%d:%d\n", i, registers->R[i]);
 
+    // Report fetch status
+    extern bool fetch_memory_busy;
+    extern uint16_t fetch_delay_counter;
+    extern uint16_t fetch_delay_target;
+    
+    if (fetch_memory_busy) {
+        printf("[FETCH_STATUS]busy:%d:%d\n", fetch_delay_counter, fetch_delay_target);
+    }
+
     printf("[LOG] Printing cache contents\n");
     for (int i = 0; i < cache->num_sets; i++) {
         Set *set = &cache->sets[i];

@@ -161,6 +161,7 @@ def executeInstructions():
         "cache_data": cache_data_contents
     })
 
+
 @app.route("/step_instruction", methods=["POST"])
 def stepInstruction():
     print("[DEBUG] Starting step_instruction")
@@ -170,6 +171,7 @@ def stepInstruction():
     cache_data_contents = []
     pipeline_state = []
     cycle_count = 0
+    fetch_status = None
 
     response = send_command("step")
     print(f"[DEBUG] Got response: {response}")
@@ -211,6 +213,10 @@ def stepInstruction():
             # Extract the cycle count
             cycle_count = int(output[7:])
             print(f"[DEBUG] Current cycle: {cycle_count}")
+        elif output.startswith("[FETCH_STATUS]"):
+            # Capture fetch status for UI
+            fetch_status = output
+            print(f"[DEBUG] Found fetch status: {output}")
 
     print(f"[DEBUG] Final pipeline state: {pipeline_state}")
     
@@ -221,7 +227,8 @@ def stepInstruction():
         "cache": cache_contents,
         "cache_data": cache_data_contents,
         "pipeline": pipeline_state,
-        "cycle": cycle_count  # Include actual cycle count
+        "cycle": cycle_count,  # Include actual cycle count
+        "fetch_status": fetch_status  # Include fetch status for UI
     })
 
 @app.route("/reset", methods=["POST"])
