@@ -20,10 +20,7 @@ extern REGISTERS *registers;
 extern bool branch_taken;
 extern bool memory_operation_in_progress;
 
-// External fetch state variables
-extern bool fetch_memory_busy;
-extern uint16_t fetch_delay_counter;
-extern uint16_t fetch_delay_target;
+
 
 void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     // 1) Drain the tail of the pipeline
@@ -39,18 +36,11 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     }
 
     // ----------------- STALL HANDLING -----------------
-    // 3a) If DRAM/cache is busy, stall everything except WB/MEM_WB
+  // 3a) If DRAM/cache is busy, stall everything except WB/MEM_WB
     if (memory_operation_in_progress) {
         pipeline->WB     = pipeline->WB_next;
         pipeline->MEM_WB = pipeline->MEM_WB_next;
-        
-        // Continue fetch stage if it's the one doing the memory operation
-        if (fetch_memory_busy) {
-            fetch_stage(pipeline, value);
-            printf("[PIPELINE_STALL] Memory operation in fetch; continuing fetch, stalling other stages\n");
-        } else {
-            printf("[PIPELINE_STALL] Memory operation in progress; stalling IF/ID, ID/EX, EX/MEM\n");
-        }
+        printf("[PIPELINE_STALL] Memory operation in progress; stalling IF/ID, ID/EX, EX/MEM\n");
     }
     // 3b) Else if RAW hazard, bubble EX/MEM, freeze IF/ID & ID/EX, but still retire WB/MEM_WB
     else if (data_hazard_stall) {
