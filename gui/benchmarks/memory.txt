@@ -1,8 +1,24 @@
-ADD R2, R1, R1
-ADD R6, R5, R1
-SUB R9, R1, R0
-SW [R1 + 9], R2
-ADD R4, R3, R1
-LW R5, [R1 + 9]
-ADD R0, R0, R0
-SW [R1 + 9], R4 
+Good afternoon Professor [Name],
+
+I hope you’re doing well. I apologize for missing the last few classes (including today) and office hours. As I prepare for our final demo this week, I have a few questions:
+
+    Branching Implementation
+
+        Right now my branch instruction uses its immediate operand to jump forward or backward by that number of instructions. Should I instead support more “realistic” control-flow (for example, branching to the start of a function or label)?
+
+        In my pipeline, when a branch is taken I clear the IF/ID and ID/EX registers in one cycle and let the branch instruction itself flow through as a no-op. You mentioned pipeline stalls—should I be inserting explicit stall cycles instead (e.g., to model DRAM vs. cache latency), or is my clear-and-flush approach okay for the demo?
+
+    Modeling Memory Access Delay
+
+        You noted that I didn’t simulate any delay on instruction fetch last time, so I added a configurable delay in my IF stage (e.g. 4 cycles to fetch from DRAM).
+
+        Do you also want me to model a delay when loading the initial instruction file into DRAM, or can I keep that loading instantaneous for setup?
+
+    Final Demo Expectations
+
+        For Wednesday’s demo, is it sufficient to run a 5×5 matrix multiply and a sorting algorithm, or would you like to see any additional benchmarks or features?
+
+Thank you for your time and help, and sorry again for my absences. I appreciate any guidance you can give before the demo.
+
+Best regards,
+Devin Bowler

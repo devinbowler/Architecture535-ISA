@@ -9,7 +9,6 @@
 extern bool branch_taken;
 extern uint16_t branch_target_address;
 
-void flush_pipeline(PipelineState *pipeline);
 void execute(PipelineState *pipeline);
 
 #endif
