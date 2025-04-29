@@ -34,7 +34,7 @@ fi
 # Check if virtual environment exists and create it if it doesn't
 if [ ! -d ".venv" ]; then
     echo "Virtual environment not found. Creating it now..."
-    python -m venv .venv
+    python3 -m venv .venv
     
     # Activate the virtual environment
     source .venv/bin/activate
@@ -51,7 +51,7 @@ fi
 
 # Run the interface script
 echo "Running interface.py..."
-python interface.py
+python3 interface.py
 
 # Keep the terminal open after the script finishes or is interrupted
 echo "Interface process has ended. Press Enter to close this terminal."

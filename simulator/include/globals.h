@@ -13,5 +13,6 @@ extern uint16_t USER_CACHE_DELAY;
 
 extern bool     PIPELINE_ENABLED;
 extern bool     CACHE_ENABLED;
+extern uint16_t CACHE_MODE;
 
 #endif

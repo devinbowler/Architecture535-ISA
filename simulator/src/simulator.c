@@ -30,7 +30,7 @@ void init_system() {
     strcpy(dram.pendingCmd, "");
 
     registers = init_registers();
-    cache     = init_cache(1);
+    cache     = init_cache(CACHE_MODE);
 
     // reset stepping state
     step_init      = false;
@@ -185,7 +185,8 @@ static void apply_config(const char *params) {
             printf("[CONFIG] Cache delay set to %u cycles\n", USER_CACHE_DELAY);
         }
         else if(strcmp(key, "cache_mode") == 0) {
-            
+            CACHE_MODE = atoi(val);
+            printf("[CONFIG] Cache mode set to %u\n", CACHE_MODE);
         }
         params = strchr(params, ' ');
         if (!params) break;
@@ -211,12 +212,13 @@ int main() {
             fflush(stdout);
         }
         else if (strncmp(command, "cfg", 3) == 0) {
-            uint16_t d, cd, ce, pe;
-            if (sscanf(command + 3, " %hu %hu %hu %hu", &d, &cd, &ce, &pe) == 4) {
+            uint16_t d, cd, ce, pe, cm;
+            if (sscanf(command + 3, " %hu %hu %hu %hu %hu", &d, &cd, &ce, &pe, &cm) == 5) {
                 USER_DRAM_DELAY   = d;
                 USER_CACHE_DELAY  = cd;
                 CACHE_ENABLED     = ce;
                 PIPELINE_ENABLED  = pe;
+                CACHE_MODE        = cm;
             }
             printf("[END]\n");
             fflush(stdout);

@@ -276,22 +276,32 @@ uint16_t read_cache(Cache *cache, DRAM *dram, uint16_t address) {
     Set *set = &cache->sets[index];
     for (int i = 0; i < cache->mode; i++) {
         if (set->lines[i].valid && set->lines[i].tag == tag) {
+            // Cache hit
             if (cache->mode == 2) {
-                set->lines[i].lru = 0;
-                set->lines[1 - i].lru = 1;
+                for (int j = 0; j < 2; j++) {
+                    set->lines[j].lru = (j == i) ? 0 : 1;
+                }
             }
             return set->lines[i].data[offset];
         }
     }
+    // Cache miss — find line to replace
     Line *line_to_replace = &set->lines[0];
     if (cache->mode == 2) {
         line_to_replace = (set->lines[0].lru == 1) ? &set->lines[0] : &set->lines[1];
     }
+    // Replace the chosen line
     line_to_replace->tag = tag;
     line_to_replace->valid = 1;
     uint16_t block_start = address - offset;
     for (int i = 0; i < BLOCK_SIZE; i++) {
         line_to_replace->data[i] = readFromMemory(dram, block_start + i);
+    }
+    // Update LRU state
+    if (cache->mode == 2) {
+        for (int j = 0; j < 2; j++) {
+            set->lines[j].lru = (&set->lines[j] == line_to_replace) ? 0 : 1;
+        }
     }
     return line_to_replace->data[offset];
 }

@@ -35,6 +35,7 @@ def _bool(sym):  return ctypes.c_int   .in_dll(_lib, sym)   # C `bool` = int
 USER_DRAM_DELAY               = _u16 ("USER_DRAM_DELAY")
 USER_CACHE_DELAY              = _u16 ("USER_CACHE_DELAY")
 CACHE_ENABLED                 = _bool("CACHE_ENABLED")
+CACHE_MODE                    = _u16("CACHE_MODE")
 PIPELINE_ENABLED              = _bool("PIPELINE_ENABLED")
 memory_operation_in_progress  = _bool("memory_operation_in_progress")
 # ──────────────────────────────────────────

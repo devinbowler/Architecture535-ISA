@@ -162,6 +162,8 @@ class ISASimulatorUI(QWidget):
         tab_widget = QTabWidget()
         self.register_table = self.create_table(16, ["QR - Integer Registers"])
         self.memory_table = self.create_table(1000, ["Value"])
+        
+        # We'll adapt the cache table headers dynamically based on the selected cache type
         self.cache_table = self.create_table(16, ["Index", "Offset", "Valid", "Tag", "Data[0]", "Data[1]", "Data[2]", "Data[3]"])
         
         tab_widget.addTab(self.register_table, "Registers")
@@ -283,6 +285,9 @@ class ISASimulatorUI(QWidget):
         return table
     
     def handle_instruction_error(self, result):
+        if isinstance(result, str):
+            QMessageBox.information(self, "Error", result)
+            return
         if "error" in result:
             QMessageBox.information(self, "Error", result["error"])
             return
@@ -310,6 +315,8 @@ class ISASimulatorUI(QWidget):
         if "error" in result:
             QMessageBox.information(self, "Error", result["error"])
             return
+            
+        # Update registers
         registers = result.get("registers", [])
         if len(registers) > self.register_table.rowCount():
             self.register_table.setRowCount(len(registers))
@@ -317,34 +324,124 @@ class ISASimulatorUI(QWidget):
             binary_val = format(val & 0xFFFF, "016b")
             item = QTableWidgetItem(binary_val)
             self.register_table.setItem(reg, 0, item)
+            
+        # Update memory
         memory = result.get("memory", [])
         for addr, val in memory:
             if addr >= self.memory_table.rowCount():
                 self.memory_table.setRowCount(addr + 1)
             binary_val = format(val & 0xFFFF, "016b")
             self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+            
+        # Update cache - with improved handling for associative caches
         cache = result.get("cache", [])
         cache_data = result.get("cache_data", [])
+        
+        # Determine cache type
+        cache_type = self.cache_type.currentText()
+        is_direct_mapped = cache_type == "Direct-Mapped"
+        is_fully_associative = cache_type == "Fully Associative"
+        is_set_associative = cache_type == "Set Associative"
+        
+        # Restructure cache table based on cache type
+        if is_direct_mapped:
+            self.cache_table.setColumnCount(8)
+            self.cache_table.setHorizontalHeaderLabels(
+                ["Index", "Offset", "Valid", "Tag", "Data[0]", "Data[1]", "Data[2]", "Data[3]"]
+            )
+        else:  # For set associative or fully associative
+            self.cache_table.setColumnCount(9)
+            self.cache_table.setHorizontalHeaderLabels(
+                ["Index", "Way", "Offset", "Valid", "Tag", "Data[0]", "Data[1]", "Data[2]", "Data[3]"]
+            )
+        
+        # Process cache entries
         cache_entries = {}
-        for index, offset, valid, tag in cache:
-            key = f"{index}:{offset}"
-            cache_entries[key] = {"index": index, "offset": offset, "valid": valid, "tag": tag, "data": [0,0,0,0]}
-        for index, offset, data_idx, data_val in cache_data:
-            key = f"{index}:{offset}"
+        
+        for cache_entry in cache:
+            if is_direct_mapped:
+                if len(cache_entry) >= 4:
+                    index, offset, valid, tag = cache_entry
+                    key = f"{index}:{offset}"
+                    if key not in cache_entries:
+                        cache_entries[key] = {
+                            "index": index, 
+                            "way": 0,  # Direct-mapped has only one way
+                            "offset": offset,
+                            "valid": valid, 
+                            "tag": tag, 
+                            "data": [0, 0, 0, 0]
+                        }
+            else:  # Set associative or fully associative
+                if len(cache_entry) == 5:  # If way information is included
+                    index, way, offset, valid, tag = cache_entry
+                elif len(cache_entry) == 4:
+                    index, offset, valid, tag = cache_entry
+                    way = 0  # Default way if not provided
+                else:
+                    continue
+                    
+                key = f"{index}:{way}:{offset}"
+                if key not in cache_entries:
+                    cache_entries[key] = {
+                        "index": index,
+                        "way": way,
+                        "offset": offset, 
+                        "valid": valid, 
+                        "tag": tag, 
+                        "data": [0, 0, 0, 0]
+                    }
+        
+        # Process cache data
+        for cache_data_entry in cache_data:
+            if is_direct_mapped:
+                if len(cache_data_entry) == 4:
+                    index, offset, data_idx, data_val = cache_data_entry
+                    key = f"{index}:{offset}"
+                else:
+                    continue
+            else:  # Set associative or fully associative
+                if len(cache_data_entry) == 5:
+                    index, way, offset, data_idx, data_val = cache_data_entry
+                    key = f"{index}:{way}:{offset}"
+                elif len(cache_data_entry) == 4:
+                    index, offset, data_idx, data_val = cache_data_entry
+                    way = 0  # Default way
+                    key = f"{index}:{way}:{offset}"
+                else:
+                    continue
+                    
             if key in cache_entries and 0 <= data_idx < 4:
                 cache_entries[key]["data"][data_idx] = data_val
+        
+        # Update the cache table
         self.cache_table.setRowCount(len(cache_entries))
         for i, entry in enumerate(cache_entries.values()):
-            self.cache_table.setItem(i, 0, QTableWidgetItem(str(entry["index"])))
-            self.cache_table.setItem(i, 1, QTableWidgetItem(str(entry["offset"])))
-            self.cache_table.setItem(i, 2, QTableWidgetItem("Valid" if entry["valid"] else "Invalid"))
-            self.cache_table.setItem(i, 3, QTableWidgetItem(str(entry["tag"])))
+            col = 0
+            self.cache_table.setItem(i, col, QTableWidgetItem(str(entry["index"])))
+            col += 1
+            
+            if not is_direct_mapped:
+                self.cache_table.setItem(i, col, QTableWidgetItem(str(entry["way"])))
+                col += 1
+                
+            self.cache_table.setItem(i, col, QTableWidgetItem(str(entry["offset"])))
+            col += 1
+            self.cache_table.setItem(i, col, QTableWidgetItem("Valid" if entry["valid"] else "Invalid"))
+            col += 1
+            self.cache_table.setItem(i, col, QTableWidgetItem(str(entry["tag"])))
+            col += 1
+            
             for j in range(4):
-                self.cache_table.setItem(i, 4+j, QTableWidgetItem(str(entry["data"][j])))
+                self.cache_table.setItem(i, col + j, QTableWidgetItem(str(entry["data"][j])))
+        
+        # Update tables
         self.register_table.update()
         self.memory_table.update()
         self.cache_table.update()
         self.update()
+        
+        # Show completion message if needed
         if "message" in result:
             QMessageBox.information(self, "Execution Complete", result["message"])
         else:
@@ -450,26 +547,26 @@ class ISASimulatorUI(QWidget):
 
         # And finally, update registers/memory/cache
         self.handle_execution_result(result)
-
     
     def set_configuration(self):
-        cache_type_value = self.cache_type.currentText()
-        payload = {
+        """Send the current configuration settings to the backend API"""
+        config = {
             "cache_enabled": self.cache_enabled.isChecked(),
             "pipeline_enabled": self.pipeline_enabled.isChecked(),
+            "cache_type": self.cache_type.currentText(),
             "dram_delay": self.dram_delay.value(),
             "cache_delay": self.cache_delay.value(),
-            "cache_type": self.cache_type.value(),
         }
         try:
-            r = requests.post(f"{self.api_url}/set_configuration", json=payload, timeout=5)
-            r.raise_for_status()
-            QMessageBox.information(self, "Config applied", r.json().get("message","OK"))
-            if "cache_mode" in result:
-                print(f"[UI] Cache mode set to: {result['cache_mode']}")
+            response = requests.post(f"{self.api_url}/set_configuration", json=config, timeout=5)
+            result = response.json()
+            if "error" in result:
+                QMessageBox.warning(self, "Configuration Error", result["error"])
+            else:
+                QMessageBox.information(self, "Configuration Set", result.get("message", "Configuration applied."))
         except Exception as e:
-            QMessageBox.information(self, "Error", f"set-configuration failed: {e}")
-    
+            QMessageBox.critical(self, "API Error", f"Failed to set configuration: {str(e)}")
+            
     def reset_simulator(self):
         self.reset_thread = resetThread(self.api_url)
         self.reset_thread.finished.connect(self.handle_reset_result)
@@ -490,21 +587,21 @@ class ISASimulatorUI(QWidget):
         # Clear the instruction table
         self.clear_table(self.instruction_table)
 
-        # Clear and reset the pipeline table to all “Bubble” rows
+        # Clear and reset the pipeline table to all "Bubble" rows
         for row in range(self.pipeline_table.rowCount()):
-            # Status column → “Bubble”
+            # Status column → "Bubble"
             status = QTableWidgetItem("Bubble")
             status.setBackground(QColor(40, 15, 15))
             status.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 1, status)
 
-            # Instruction column → “-”
+            # Instruction column → "-"
             instr = QTableWidgetItem("-")
             instr.setBackground(QColor(35, 10, 10))
             instr.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 2, instr)
 
-            # PC column → “-”
+            # PC column → "-"
             pc = QTableWidgetItem("-")
             pc.setBackground(QColor(35, 10, 10))
             pc.setForeground(QColor(180, 180, 180))
@@ -512,13 +609,31 @@ class ISASimulatorUI(QWidget):
 
         # Finally, repopulate registers, memory and cache with the reset state
         self.handle_execution_result(result)
-
-
     
     def clear_table(self, table):
         for row in range(table.rowCount()):
             for col in range(table.columnCount()):
                 table.setItem(row, col, QTableWidgetItem(""))
+
+def start_application():
+    print("Starting ISASimulatorUI...")
+    proc = subprocess.Popen([sys.executable, SCRIPT_PATH])
+    
+    # Set up file watcher
+    observer = Observer()
+    handler = FileChangeHandler(proc)
+    observer.schedule(handler, path=os.path.dirname(SCRIPT_PATH), recursive=False)
+    observer.start()
+    
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Exiting...")
+        observer.stop()
+        proc.terminate()
+    observer.join()
+    proc.wait()
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--watch":

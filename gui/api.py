@@ -3,7 +3,7 @@ import subprocess
 import threading
 from globals import (
     USER_DRAM_DELAY, USER_CACHE_DELAY,
-    CACHE_ENABLED,  PIPELINE_ENABLED
+    CACHE_ENABLED,  PIPELINE_ENABLED, CACHE_MODE
 )
 
 app = Flask(__name__)
@@ -69,9 +69,10 @@ def set_configuration():
         PIPELINE_ENABLED.value = 1 if pipeline_enabled else 0
         USER_DRAM_DELAY.value = dram_delay
         USER_CACHE_DELAY.value = cache_delay
+        CACHE_MODE.value = cache_mode
 
         # Send explicit config command to C program
-        config_cmd = f"config pipe={1 if pipeline_enabled else 0} cache={1 if cache_enabled else 0} dram={dram_delay} cache_delay={cache_delay}"
+        config_cmd = f"config pipe={1 if pipeline_enabled else 0} cache={1 if cache_enabled else 0} dram={dram_delay} cache_delay={cache_delay} cache_mode={cache_mode}"
         print(f"[DEBUG] Sending config command: {config_cmd}")
         send_command(config_cmd)
 
