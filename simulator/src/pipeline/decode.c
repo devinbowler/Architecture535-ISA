@@ -17,6 +17,19 @@ void decode_stage(PipelineState *p)
         return;
     }
 
+    // If the instruction is squashed, just propagate it but don't really decode
+    if (p->IF_ID.squashed) {
+        p->ID_EX_next.valid = true;
+        p->ID_EX_next.squashed = true;
+        p->ID_EX_next.pc = p->IF_ID.pc;
+        // Here's where the error was - ID_EX_Register doesn't have an instruction field
+        // We'll just set the necessary fields for propagation
+        p->ID_EX_next.opcode = 0;  // Use a dummy opcode
+        
+        printf("[PIPELINE]DECODE:SQUASHED:%d\n", p->IF_ID.pc);
+        return;
+    }
+
     uint16_t ins = p->IF_ID.instruction;
     uint16_t pc  = p->IF_ID.pc;
     char     txt[64];
@@ -35,6 +48,7 @@ void decode_stage(PipelineState *p)
             uint16_t rs   =  ins        & 0xF;
 
             p->ID_EX_next.valid   = true;
+            p->ID_EX_next.squashed = false;
             p->ID_EX_next.pc      = pc;
             p->ID_EX_next.opcode  = op;
             p->ID_EX_next.type    = type;
@@ -50,12 +64,13 @@ void decode_stage(PipelineState *p)
             sprintf(txt, "%s R%u, R%u, R%u", name, rd, rd, rs);
         }
         else {
-            // “normal” RRR/RRI decoding
+            // "normal" RRR/RRI decoding
             uint16_t rd  = (ins >>  8) & 0xF;
             uint16_t ra  = (ins >>  4) & 0xF;
             uint16_t imm =  ins        & 0xF;
 
             p->ID_EX_next.valid   = true;
+            p->ID_EX_next.squashed = false;
             p->ID_EX_next.pc      = pc;
             p->ID_EX_next.opcode  = op;
             p->ID_EX_next.regD    = rd;

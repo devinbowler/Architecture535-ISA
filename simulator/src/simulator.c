@@ -24,7 +24,7 @@ PipelineState pipeline;
 void init_system() {
     clearMemory(&dram);
     dram.state        = DRAM_IDLE;
-    dram.delayCounter = 0;
+    dram.delayCounter = 1;
     dram.pendingAddr  = 0;
     dram.pendingValue = 0;
     strcpy(dram.pendingCmd, "");
@@ -36,6 +36,8 @@ void init_system() {
     step_init      = false;
     step_cycle_cnt = 0;
     step_instr_val = 0;
+
+    registers->R[15] = 0;
 
     printf("[LOG] System is Initialized\n");
     fflush(stdout);

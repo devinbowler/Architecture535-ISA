@@ -282,10 +282,8 @@ class ISASimulatorUI(QWidget):
         table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         return table
     
-    def handle_instruction_error(self, result):
-        if "error" in result:
-            QMessageBox.information(self, "Error", result["error"])
-            return
+    def handle_instruction_error(self, error):
+        QMessageBox.information(self, "Error", str(error))
     
     def load_instructions(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Instruction File", "", "Text Files (*.txt)")
@@ -310,6 +308,7 @@ class ISASimulatorUI(QWidget):
         if "error" in result:
             QMessageBox.information(self, "Error", result["error"])
             return
+        
         registers = result.get("registers", [])
         if len(registers) > self.register_table.rowCount():
             self.register_table.setRowCount(len(registers))
@@ -317,12 +316,14 @@ class ISASimulatorUI(QWidget):
             binary_val = format(val & 0xFFFF, "016b")
             item = QTableWidgetItem(binary_val)
             self.register_table.setItem(reg, 0, item)
+        
         memory = result.get("memory", [])
         for addr, val in memory:
             if addr >= self.memory_table.rowCount():
                 self.memory_table.setRowCount(addr + 1)
             binary_val = format(val & 0xFFFF, "016b")
             self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+        
         cache = result.get("cache", [])
         cache_data = result.get("cache_data", [])
         cache_entries = {}
@@ -333,6 +334,7 @@ class ISASimulatorUI(QWidget):
             key = f"{index}:{offset}"
             if key in cache_entries and 0 <= data_idx < 4:
                 cache_entries[key]["data"][data_idx] = data_val
+        
         self.cache_table.setRowCount(len(cache_entries))
         for i, entry in enumerate(cache_entries.values()):
             self.cache_table.setItem(i, 0, QTableWidgetItem(str(entry["index"])))
@@ -341,36 +343,59 @@ class ISASimulatorUI(QWidget):
             self.cache_table.setItem(i, 3, QTableWidgetItem(str(entry["tag"])))
             for j in range(4):
                 self.cache_table.setItem(i, 4+j, QTableWidgetItem(str(entry["data"][j])))
+        
         self.register_table.update()
         self.memory_table.update()
         self.cache_table.update()
         self.update()
+        
+        # Update cycle display if total_cycles is available
+        total_cycles = result.get("total_cycles", 0)
+        if total_cycles > 0:
+            self.cycle_display.setText(f"Cycle: {total_cycles}")
+            self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - Total Cycles: {total_cycles}")
+        
+        # Instead of showing a popup, just print a message to console
         if "message" in result:
-            QMessageBox.information(self, "Execution Complete", result["message"])
+            message = result["message"]
+            if total_cycles > 0:
+                message += f" Completed in {total_cycles} cycles."
+            print(f"[INFO] {message}")
+            # Also update status bar or window title
+            self.setWindowTitle(f"ARCH-16: {message}")
         else:
-            QMessageBox.information(self, "Execution Complete", "Execution finished without a message.")
+            print("[INFO] Execution complete")
     
     def handle_instruction_result(self, result):
         if "error" in result:
             QMessageBox.information(self, "Error", result["error"])
             return
+            
         binary = result.get("binary", [])
         raw = result.get("raw", [])
         memory = result.get("memory", [])
         self.instruction_table.setRowCount(len(raw))
+        
         for i, (asm, bin_val) in enumerate(zip(raw, binary)):
             self.instruction_table.setItem(i, 0, QTableWidgetItem(str(i)))
             self.instruction_table.setItem(i, 1, QTableWidgetItem(asm))
             self.instruction_table.setItem(i, 2, QTableWidgetItem(bin_val))
+        
         address_labels = [str(i) for i in range(1000)]
         self.memory_table.setVerticalHeaderLabels(address_labels)
+        
         for i in range(1000):
             self.memory_table.setItem(i, 0, QTableWidgetItem("0000000000000000"))
+        
         for addr, val in memory:
             if addr < 1000:
                 binary_val = format(val & 0xFFFF, "016b")
                 self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
-        QMessageBox.information(self, "file loaded", result["message"])
+        
+        # Instead of showing a popup, just update status in the window title
+        message = result.get("message", "File loaded")
+        self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - {message}")
+        print(f"[INFO] {message}")
     
     def step_instruction(self):
         self.step_thread = step_instructionThread(self.api_url)
@@ -438,17 +463,22 @@ class ISASimulatorUI(QWidget):
                 self.pipeline_table.setItem(row, 3, pc_item)
                 continue
             
+            # Check for squashed instructions
+            is_squashed = "SQUASHED" in instr.upper()
             is_nop = instr.lower() in ("nop", "bubble") or "waiting" in instr.lower()
-            color = QColor(40, 15, 15) if is_nop else QColor(15, 40, 15)
-
-            # Status cell
-            status_text = "Bubble"
-            if not is_nop:
+            
+            # Choose appropriate color based on instruction status
+            if is_squashed:
+                color = QColor(80, 15, 15)  # Darker red for squashed
+                status_text = "Squashed"
+            elif is_nop:
+                color = QColor(40, 15, 15)  # Normal bubble color
+                status_text = "Bubble"
+            else:
+                color = QColor(15, 40, 15)  # Valid instruction color
                 status_text = "Valid"
-            elif "waiting" in instr.lower():
-                status_text = "Waiting"
-                color = QColor(40, 40, 15)  # Special color for waiting
                 
+            # Status cell
             status_item = QTableWidgetItem(status_text)
             status_item.setBackground(color)
             status_item.setForeground(QColor(180, 180, 180))
@@ -456,7 +486,9 @@ class ISASimulatorUI(QWidget):
 
             # Instruction cell
             instr_text = "-" 
-            if not is_nop or "waiting" in instr.lower():
+            if is_squashed:
+                instr_text = instr
+            elif not is_nop or "waiting" in instr.lower():
                 instr_text = instr
                 
             instr_item = QTableWidgetItem(instr_text)
@@ -466,7 +498,7 @@ class ISASimulatorUI(QWidget):
 
             # PC cell
             pc_text = "-"
-            if not is_nop or "waiting" in instr.lower():
+            if not is_nop or "waiting" in instr.lower() or is_squashed:
                 pc_text = str(pc)
                 
             pc_item = QTableWidgetItem(pc_text)
@@ -498,10 +530,53 @@ class ISASimulatorUI(QWidget):
                 self.pc_display.setText(f"PC: {val}")
                 break
 
-        # And finally, update registers/memory/cache
-        self.handle_execution_result(result)
+        # Update registers/memory/cache WITHOUT showing popup
+        self.update_tables_from_result(result)
 
-
+    def update_tables_from_result(self, result):
+        """Update tables from result without showing popup"""
+        registers = result.get("registers", [])
+        if len(registers) > self.register_table.rowCount():
+            self.register_table.setRowCount(len(registers))
+        
+        for reg, val in registers:
+            binary_val = format(val & 0xFFFF, "016b")
+            item = QTableWidgetItem(binary_val)
+            self.register_table.setItem(reg, 0, item)
+        
+        memory = result.get("memory", [])
+        for addr, val in memory:
+            if addr >= self.memory_table.rowCount():
+                self.memory_table.setRowCount(addr + 1)
+            binary_val = format(val & 0xFFFF, "016b")
+            self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+        
+        cache = result.get("cache", [])
+        cache_data = result.get("cache_data", [])
+        cache_entries = {}
+        
+        for index, offset, valid, tag in cache:
+            key = f"{index}:{offset}"
+            cache_entries[key] = {"index": index, "offset": offset, "valid": valid, "tag": tag, "data": [0,0,0,0]}
+        
+        for index, offset, data_idx, data_val in cache_data:
+            key = f"{index}:{offset}"
+            if key in cache_entries and 0 <= data_idx < 4:
+                cache_entries[key]["data"][data_idx] = data_val
+        
+        self.cache_table.setRowCount(len(cache_entries))
+        for i, entry in enumerate(cache_entries.values()):
+            self.cache_table.setItem(i, 0, QTableWidgetItem(str(entry["index"])))
+            self.cache_table.setItem(i, 1, QTableWidgetItem(str(entry["offset"])))
+            self.cache_table.setItem(i, 2, QTableWidgetItem("Valid" if entry["valid"] else "Invalid"))
+            self.cache_table.setItem(i, 3, QTableWidgetItem(str(entry["tag"])))
+            for j in range(4):
+                self.cache_table.setItem(i, 4+j, QTableWidgetItem(str(entry["data"][j])))
+        
+        self.register_table.update()
+        self.memory_table.update()
+        self.cache_table.update()
+        self.update()
 
     def set_configuration(self):
         payload = {
@@ -513,7 +588,10 @@ class ISASimulatorUI(QWidget):
         try:
             r = requests.post(f"{self.api_url}/set_configuration", json=payload, timeout=5)
             r.raise_for_status()
-            QMessageBox.information(self, "Config applied", r.json().get("message","OK"))
+            # Instead of showing a popup, just print a message
+            message = r.json().get("message", "Configuration applied")
+            print(f"[INFO] {message}")
+            self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - {message}")
         except Exception as e:
             QMessageBox.information(self, "Error", f"set-configuration failed: {e}")
     
@@ -537,30 +615,29 @@ class ISASimulatorUI(QWidget):
         # Clear the instruction table
         self.clear_table(self.instruction_table)
 
-        # Clear and reset the pipeline table to all “Bubble” rows
+        # Clear and reset the pipeline table to all "Bubble" rows
         for row in range(self.pipeline_table.rowCount()):
-            # Status column → “Bubble”
+            # Status column → "Bubble"
             status = QTableWidgetItem("Bubble")
             status.setBackground(QColor(40, 15, 15))
             status.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 1, status)
 
-            # Instruction column → “-”
+            # Instruction column → "-"
             instr = QTableWidgetItem("-")
             instr.setBackground(QColor(35, 10, 10))
             instr.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 2, instr)
 
-            # PC column → “-”
+            # PC column → "-"
             pc = QTableWidgetItem("-")
             pc.setBackground(QColor(35, 10, 10))
             pc.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 3, pc)
 
-        # Finally, repopulate registers, memory and cache with the reset state
-        self.handle_execution_result(result)
-
-
+        # Update tables without showing popup
+        self.update_tables_from_result(result)
+        print("[INFO] Simulator reset complete")
     
     def clear_table(self, table):
         for row in range(table.rowCount()):

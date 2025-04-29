@@ -22,17 +22,30 @@ void memory_access(PipelineState *pipeline) {
         return;
     }
 
-    // prepare to pass most fields into MEM/WB
-    pipeline->MEM_WB_next.valid  = true;
-    pipeline->MEM_WB_next.pc     = pipeline->EX_MEM.pc;
+    // If this instruction is squashed, propagate it but don't perform memory operations
+    if (pipeline->EX_MEM.squashed) {
+        pipeline->MEM_WB_next.valid = true;
+        pipeline->MEM_WB_next.squashed = true;
+        pipeline->MEM_WB_next.pc = pipeline->EX_MEM.pc;
+        pipeline->MEM_WB_next.opcode = pipeline->EX_MEM.opcode;
+        pipeline->MEM_WB_next.regD = pipeline->EX_MEM.regD;
+        
+        printf("[PIPELINE]MEMORY:SQUASHED:%d\n", pipeline->EX_MEM.pc);
+        return;
+    }
+
+    // prepare to pass most fields into MEM/WB for non-squashed instructions
+    pipeline->MEM_WB_next.valid = true;
+    pipeline->MEM_WB_next.squashed = false;  // Explicitly mark as not squashed
+    pipeline->MEM_WB_next.pc = pipeline->EX_MEM.pc;
     pipeline->MEM_WB_next.opcode = pipeline->EX_MEM.opcode;
-    pipeline->MEM_WB_next.regD   = pipeline->EX_MEM.regD;
+    pipeline->MEM_WB_next.regD = pipeline->EX_MEM.regD;
     pipeline->MEM_WB_next.resMod = pipeline->EX_MEM.resMod;
 
-    uint16_t opcode  = pipeline->EX_MEM.opcode;
+    uint16_t opcode = pipeline->EX_MEM.opcode;
     uint16_t address = pipeline->EX_MEM.res;  // ALU result
-    static bool     busy       = false;
-    static uint16_t delay      = 0, target = 0;
+    static bool     busy = false;
+    static uint16_t delay = 0, target = 0;
     static uint16_t pend_addr, pend_opcode, pend_regD, pend_val;
 
     char instruction_text[64];
@@ -90,15 +103,15 @@ void memory_access(PipelineState *pipeline) {
                     cache->sets[idx].lines[i].tag == tag)
                     hit = true;
         } else {
-          target = USER_DRAM_DELAY;
-          printf("[MEMORY] Cache disabled, using DRAM access delay of %d cycles\n", USER_DRAM_DELAY);
+            target = USER_DRAM_DELAY;
+            printf("[MEMORY] Cache disabled, using DRAM access delay of %d cycles\n", USER_DRAM_DELAY);
         }
-        target      = (CACHE_ENABLED && cache && hit) ? USER_CACHE_DELAY : USER_DRAM_DELAY;
-        pend_addr   = address;
+        target = (CACHE_ENABLED && cache && hit) ? USER_CACHE_DELAY : USER_DRAM_DELAY;
+        pend_addr = address;
         pend_opcode = opcode;
-        pend_regD   = pipeline->EX_MEM.regD;
-        busy        = true;
-        delay       = 0;
+        pend_regD = pipeline->EX_MEM.regD;
+        busy = true;
+        delay = 0;
         memory_operation_in_progress = true;
         sprintf(instruction_text, "LW  R%u,[%u] start", pend_regD, pend_addr);
         pipeline->MEM_WB_next.valid = false;
@@ -115,12 +128,12 @@ void memory_access(PipelineState *pipeline) {
                     cache->sets[idx].lines[i].tag == tag)
                     hit = true;
         }
-        target      = (CACHE_ENABLED && cache && hit) ? USER_CACHE_DELAY : USER_DRAM_DELAY;
-        pend_addr   = address;
+        target = (CACHE_ENABLED && cache && hit) ? USER_CACHE_DELAY : USER_DRAM_DELAY;
+        pend_addr = address;
         pend_opcode = opcode;
-        pend_val    = val;
-        busy        = true;
-        delay       = 0;
+        pend_val = val;
+        busy = true;
+        delay = 0;
         memory_operation_in_progress = true;
         sprintf(instruction_text, "SW  [%u] <= %u start", pend_addr, pend_val);
         pipeline->MEM_WB_next.valid = false;

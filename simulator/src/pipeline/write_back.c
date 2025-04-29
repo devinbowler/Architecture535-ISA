@@ -7,27 +7,42 @@
 #include "memory.h"
 
 extern REGISTERS *registers;
+extern bool branch_taken;
+extern uint16_t branch_target_address;
 
 void write_back(PipelineState *pipeline) {
-    // If there’s no valid entry from MEM/WB, bubble
+    // If there's no valid entry from MEM/WB, bubble
     if (!pipeline->MEM_WB.valid) {
-        pipeline->MEM_WB_next.valid = false;
+        pipeline->WB_next.valid = false;
         printf("[PIPELINE]WRITEBACK:NOP:%d\n", pipeline->MEM_WB.pc);
         return;
     }
 
-    // Otherwise, we’ll write results back and pass through the fields
+    // If this instruction is squashed, just propagate it but don't perform any operations
+    if (pipeline->MEM_WB.squashed) {
+        pipeline->WB_next.valid = true;
+        pipeline->WB_next.squashed = true;
+        pipeline->WB_next.pc = pipeline->MEM_WB.pc;
+        pipeline->WB_next.opcode = pipeline->MEM_WB.opcode;
+        
+        printf("[PIPELINE]WRITEBACK:SQUASHED:%d\n", pipeline->MEM_WB.pc);
+        return;
+    }
+
+    // Otherwise, we'll write results back and pass through the fields
     uint16_t opcode = pipeline->MEM_WB.opcode;
-    uint16_t regD   = pipeline->MEM_WB.regD;
+    uint16_t regD = pipeline->MEM_WB.regD;
     uint16_t result = pipeline->MEM_WB.res;
     char instruction_text[64];
 
     // Prepare next-stage state
-    pipeline->WB_next.valid  = true;
-    pipeline->WB_next.pc     = pipeline->MEM_WB.pc;
+    pipeline->WB_next.valid = true;
+    pipeline->WB_next.squashed = false;  // Explicitly mark as not squashed
+    pipeline->WB_next.pc = pipeline->MEM_WB.pc;
     pipeline->WB_next.opcode = opcode;
-    pipeline->WB_next.regD   = regD;
-    pipeline->WB_next.res    = result;
+    pipeline->WB_next.regD = regD;
+    pipeline->WB_next.res = result;
+
 
     switch (opcode) {
         case 0:  // ADD
@@ -73,10 +88,30 @@ void write_back(PipelineState *pipeline) {
             sprintf(instruction_text, "SW    (no reg)");
             break;
         case 11: // BEQ
-            sprintf(instruction_text, "BEQ   (branch)");
+            // For branches, we now update the PC in writeback if branch_taken is true
+            if (branch_taken) {
+                // Set PC directly to branch target (don't rely on PC increment)
+                registers->R[15] = branch_target_address;
+                
+                printf("[WRITEBACK_BEQ] Updated PC to %u\n", branch_target_address);
+                branch_taken = false;  // Reset flag after updating PC
+                sprintf(instruction_text, "BEQ   branch taken → PC=%u", branch_target_address);
+            } else {
+                sprintf(instruction_text, "BEQ   branch not taken");
+            }
             break;
         case 0xF:// BLT
-            sprintf(instruction_text, "BLT   (branch)");
+            // For branches, we now update the PC in writeback if branch_taken is true
+            if (branch_taken) {
+                // Set PC directly to branch target (don't rely on PC increment)
+                registers->R[15] = branch_target_address;
+                
+                printf("[WRITEBACK_BLT] Updated PC to %u\n", branch_target_address);
+                branch_taken = false;  // Reset flag after updating PC
+                sprintf(instruction_text, "BLT   branch taken → PC=%u", branch_target_address);
+            } else {
+                sprintf(instruction_text, "BLT   branch not taken");
+            }
             break;
         default:
             // Unexpected opcode: treat as NOP

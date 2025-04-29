@@ -103,17 +103,20 @@ void pipeline_step(PipelineState* pipeline, uint16_t* value) {
     memset(&pipeline->EX_MEM_next, 0, sizeof pipeline->EX_MEM_next);
     memset(&pipeline->ID_EX_next,  0, sizeof pipeline->ID_EX_next);
     memset(&pipeline->IF_ID_next,  0, sizeof pipeline->IF_ID_next);
+}
 
-    // 5) On branch, flush entire pipeline (once memory is done)
-    if (branch_taken && !memory_operation_in_progress && !fetch_memory_busy) {
-        pipeline->IF_ID.valid  = false;
-        pipeline->ID_EX.valid  = false;
-        pipeline->EX_MEM.valid = false;
-        pipeline->MEM_WB.valid = false;
-        pipeline->WB.valid     = false;
-        branch_taken = false;
-        printf("[PIPELINE] Branch taken; pipeline flushed\n");
-    } else if (branch_taken) {
-        printf("[PIPELINE] Branch pending; awaiting memory completion to flush\n");
+// Implementation of mark_subsequent_instructions_as_squashed function
+// This is declared in pipeline.h but needs to be defined here
+void mark_subsequent_instructions_as_squashed(PipelineState *p) {
+    // Mark only instructions in fetch and decode as squashed
+    // The branch itself in execute should not be squashed
+    if (p->IF_ID.valid) {
+        p->IF_ID.squashed = true;
+        printf("[BRANCH] Squashing instruction in IF/ID stage at PC=%u\n", p->IF_ID.pc);
+    }
+    
+    if (p->ID_EX.valid) {
+        p->ID_EX.squashed = true;
+        printf("[BRANCH] Squashing instruction in ID/EX stage at PC=%u\n", p->ID_EX.pc);
     }
 }

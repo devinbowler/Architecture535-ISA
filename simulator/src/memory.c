@@ -20,7 +20,7 @@ REGISTERS *init_registers() {
   // Initialize special registers
   registers->R[13] = 0;  // LR (Link Register)
   registers->R[14] = 0;  // SR (Status Register)
-  registers->R[15] = 1;  // PC (Program Counter)
+  registers->R[15] = 0;  // PC (Program Counter)
 
   return registers;
 }

@@ -12,14 +12,6 @@ extern REGISTERS *registers;
 bool branch_taken = false;
 uint16_t branch_target_address = 0;
 
-void flush_pipeline(PipelineState *p) {
-    p->IF_ID.valid      = false;
-    p->ID_EX.valid      = false;
-    p->IF_ID_next.valid = false;
-    p->ID_EX_next.valid = false;
-    printf("[PIPELINE] Branch detected: Flushing pipeline\n");
-}
-
 void execute(PipelineState *p) {
     uint16_t pc = p->ID_EX.pc;
 
@@ -30,24 +22,37 @@ void execute(PipelineState *p) {
         return;
     }
 
-    // common propagation
-    p->EX_MEM_next.valid   = true;
-    p->EX_MEM_next.pc      = pc;
-    p->EX_MEM_next.opcode  = p->ID_EX.opcode;
-    p->EX_MEM_next.regD    = p->ID_EX.regD;
-    p->EX_MEM_next.regA    = p->ID_EX.regA;
-    p->EX_MEM_next.regB    = p->ID_EX.regB;
-    p->EX_MEM_next.imm     = p->ID_EX.imm;
-    p->EX_MEM_next.resMod  = 0;
+    // If this instruction is squashed, just propagate it with the squashed flag
+    if (p->ID_EX.squashed) {
+        p->EX_MEM_next.valid = true;
+        p->EX_MEM_next.squashed = true;
+        p->EX_MEM_next.pc = pc;
+        p->EX_MEM_next.opcode = p->ID_EX.opcode;
+        p->EX_MEM_next.regD = p->ID_EX.regD;
+        printf("[PIPELINE]EXECUTE:SQUASHED:%d\n", pc);
+        fflush(stdout);
+        return;
+    }
 
-    uint16_t op    = p->ID_EX.opcode;
-    uint16_t d     = p->ID_EX.regD;
-    uint16_t a     = p->ID_EX.regA;
-    uint16_t rb    = p->ID_EX.regB;
-    uint16_t imm   = p->ID_EX.imm;
-    uint16_t res   = 0;
-    uint16_t vA    = registers->R[a];
-    uint16_t vB    = registers->R[rb];
+    // common propagation for non-squashed instructions
+    p->EX_MEM_next.valid = true;
+    p->EX_MEM_next.squashed = false;  // Explicitly mark as not squashed
+    p->EX_MEM_next.pc = pc;
+    p->EX_MEM_next.opcode = p->ID_EX.opcode;
+    p->EX_MEM_next.regD = p->ID_EX.regD;
+    p->EX_MEM_next.regA = p->ID_EX.regA;
+    p->EX_MEM_next.regB = p->ID_EX.regB;
+    p->EX_MEM_next.imm = p->ID_EX.imm;
+    p->EX_MEM_next.resMod = 0;
+
+    uint16_t op = p->ID_EX.opcode;
+    uint16_t d = p->ID_EX.regD;
+    uint16_t a = p->ID_EX.regA;
+    uint16_t rb = p->ID_EX.regB;
+    uint16_t imm = p->ID_EX.imm;
+    uint16_t res = 0;
+    uint16_t vA = registers->R[a];
+    uint16_t vB = registers->R[rb];
     char txt[64];
 
     switch (op) {
@@ -101,22 +106,22 @@ void execute(PipelineState *p) {
             printf("[EXECUTE_CMP] SR = R%u - %u = %u\n", d, vA, res);
             break;
         case 0x8: {  // shifts/rotates
-            uint16_t t      = p->ID_EX.type;  // 0=LSL,1=LSR,2=ROL,3=ROR
-            uint16_t rd     = d;               // original dest
-            uint16_t rs     = rb;              // amt‐reg
-            uint16_t opnd   = registers->R[rd];
-            uint16_t amount= registers->R[rs];
-            const char *name = (t==0?"LSL":t==1?"LSR":t==2?"ROL":"ROR");
+            uint16_t t = p->ID_EX.type;  // 0=LSL,1=LSR,2=ROL,3=ROR
+            uint16_t rd = d;               // original dest
+            uint16_t rs = rb;              // amt‐reg
+            uint16_t opnd = registers->R[rd];
+            uint16_t amount = registers->R[rs];
+            const char *name = (t == 0 ? "LSL" : t == 1 ? "LSR" : t == 2 ? "ROL" : "ROR");
 
-            if      (t == 0) res = opnd << amount;
+            if (t == 0) res = opnd << amount;
             else if (t == 1) res = opnd >> amount;
             else if (t == 2) res = (opnd << amount) | (opnd >> (16 - amount));
-            else             res = (opnd >> amount) | (opnd << (16 - amount));
+            else res = (opnd >> amount) | (opnd << (16 - amount));
 
             p->EX_MEM_next.res = res;
             sprintf(txt, "%s R%u, R%u, %u", name, rd, rd, amount);
             printf("[EXECUTE_%s] R%u = R%u %s %u → %u\n",
-                   name, rd, rd, (t<2?"<<":">>"), amount, res);
+                   name, rd, rd, (t < 2 ? "<<" : ">>"), amount, res);
             break;
         }
         case 0x9:  // LW
@@ -131,21 +136,31 @@ void execute(PipelineState *p) {
             break;
         case 0xB:  // BEQ
             if (registers->R[d] == registers->R[a]) {
+                // Branch will be taken, but PC will be updated at writeback
                 branch_taken = true;
                 branch_target_address = pc + imm + 1;
-                flush_pipeline(p);
-                printf("[EXECUTE_BEQ] taken → PC=%u\n", branch_target_address);
+                
+                // Mark subsequent instructions as squashed
+                mark_subsequent_instructions_as_squashed(p);
+                
+                printf("[EXECUTE_BEQ] Branch will be taken → PC=%u (will update at writeback)\n", 
+                       branch_target_address);
             } else {
                 printf("[EXECUTE_BEQ] not taken\n");
             }
-            sprintf(txt, "BEQ R%u,R%u,%u", d, a, imm+1);
+            sprintf(txt, "BEQ R%u,R%u,%u", d, a, imm + 1);
             break;
         case 0xF:  // BLT
             if ((int16_t)registers->R[d] < (int16_t)registers->R[a]) {
+                // Branch will be taken, but PC will be updated at writeback
                 branch_taken = true;
                 branch_target_address = pc + imm;
-                flush_pipeline(p);
-                printf("[EXECUTE_BLT] taken → PC=%u\n", branch_target_address);
+                
+                // Mark subsequent instructions as squashed
+                mark_subsequent_instructions_as_squashed(p);
+                
+                printf("[EXECUTE_BLT] Branch will be taken → PC=%u (will update at writeback)\n", 
+                       branch_target_address);
             } else {
                 printf("[EXECUTE_BLT] not taken\n");
             }

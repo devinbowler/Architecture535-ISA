@@ -7,24 +7,27 @@
 // Pipeline registers
 
 typedef struct {
-    bool     valid; // Is the instruction a bubble or no.
+    bool     valid;       // Is the instruction a bubble or no.
+    bool     squashed;    // Is the instruction squashed due to branch
     uint16_t pc;
     uint16_t instruction;
 } IF_ID_Register;
 
 typedef struct {
-    bool     valid; // Is the instruction a bubble or no.
+    bool     valid;       // Is the instruction a bubble or no.
+    bool     squashed;    // Is the instruction squashed due to branch
     uint16_t pc;
     uint16_t regD;
     uint16_t regA;
     uint16_t regB;
-    uint16_t imm;  // Make sure this is 16 bits for correct offset values
+    uint16_t imm;         // Make sure this is 16 bits for correct offset values
     uint16_t opcode;
     uint16_t type;
 } ID_EX_Register;
 
 typedef struct {
-    bool valid;
+    bool     valid;
+    bool     squashed;    // Is the instruction squashed due to branch
     uint16_t pc;
     uint16_t regD;
     uint16_t regA;
@@ -37,7 +40,8 @@ typedef struct {
 } EX_MEM_Register;
 
 typedef struct {
-    bool valid;
+    bool     valid;
+    bool     squashed;    // Is the instruction squashed due to branch
     uint16_t pc;
     uint16_t regD;
     uint16_t regA;
@@ -50,7 +54,8 @@ typedef struct {
 } MEM_WB_Register;
 
 typedef struct {
-    bool valid;
+    bool     valid;
+    bool     squashed;    // Is the instruction squashed due to branch
     uint16_t pc;
     uint16_t regD;
     uint16_t regA;
@@ -78,6 +83,6 @@ typedef struct {
 extern PipelineState pipeline;
 
 void pipeline_step(PipelineState* pipeline, uint16_t* value);
-
+void mark_subsequent_instructions_as_squashed(PipelineState* pipeline);
 
 #endif
