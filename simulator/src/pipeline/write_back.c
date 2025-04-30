@@ -100,6 +100,17 @@ void write_back(PipelineState *pipeline) {
                 sprintf(instruction_text, "BEQ   branch not taken");
             }
             break;
+        case 0xC: // JMP
+            // For JMP, we always update the PC in writeback
+            if (branch_taken) {
+                // Set PC directly to jump target address
+                registers->R[15] = branch_target_address;
+                
+                printf("[WRITEBACK_JMP] Updated PC to %u\n", branch_target_address);
+                branch_taken = false;  // Reset flag after updating PC
+                sprintf(instruction_text, "JMP   → PC=%u", branch_target_address);
+            }
+            break;
         case 0xF:// BLT
             // For branches, we now update the PC in writeback if branch_taken is true
             if (branch_taken) {

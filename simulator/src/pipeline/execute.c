@@ -150,6 +150,18 @@ void execute(PipelineState *p) {
             }
             sprintf(txt, "BEQ R%u,R%u,%u", d, a, imm + 1);
             break;
+        case 0xC:  // JMP - Direct jump to the target address in imm
+            // Set branch flags to trigger PC update in writeback
+            branch_taken = true;
+            branch_target_address = imm;
+            
+            // Mark subsequent instructions as squashed
+            mark_subsequent_instructions_as_squashed(p);
+            
+            printf("[EXECUTE_JMP] Jump will be taken → PC=%u (will update at writeback)\n", 
+                   branch_target_address);
+            sprintf(txt, "JMP %u", imm);
+            break;
         case 0xF:  // BLT
             if ((int16_t)registers->R[d] < (int16_t)registers->R[a]) {
                 // Branch will be taken, but PC will be updated at writeback

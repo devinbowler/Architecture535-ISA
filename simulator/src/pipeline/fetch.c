@@ -34,6 +34,8 @@ static void fmt_instr(uint16_t instr, char *out) {
     uint16_t rd    = (instr >>  8) & 0xF;
     uint16_t ra    = (instr >>  4) & 0xF;
     uint16_t rbimm =  instr        & 0xF;
+    uint16_t imm12 =  instr        & 0xFFF;  // For JMP, we use a 12-bit immediate
+    
     switch (op) {
         case 0x0: sprintf(out, "ADD  R%u,R%u,R%u", rd, ra, rbimm); break;
         case 0x1: sprintf(out, "SUB  R%u,R%u,R%u", rd, ra, rbimm); break;
@@ -51,6 +53,7 @@ static void fmt_instr(uint16_t instr, char *out) {
         case 0x9:  sprintf(out, "LW   R%u,[R%u+%u]", rd, ra, rbimm); break;
         case 0xA:  sprintf(out, "SW   [R%u+%u],R%u", ra, rbimm, rd); break;
         case 0xB:  sprintf(out, "BEQ  R%u,R%u,%u", rd, ra, rbimm); break;
+        case 0xC:  sprintf(out, "JMP  %u", imm12); break;  // New JMP instruction with 12-bit immediate
         case 0xF:  sprintf(out, "BLT  R%u,R%u,%u", rd, ra, rbimm); break;
         default:   sprintf(out, "UNKNOWN 0x%X", instr);
     }
@@ -66,10 +69,11 @@ void fetch_stage(PipelineState *p, uint16_t *prev_instr) {
     uint16_t pc = registers->R[15];
 
     // Detect a branch in the EX stage (ID_EX pipeline register) and schedule one squash
-    if (p->ID_EX.valid && (p->ID_EX.opcode == 0xB || p->ID_EX.opcode == 0xF) && !fetch_squash_pending) {
+    // Include JMP (opcode 0xC) in the list of instructions that require squashing
+    if (p->ID_EX.valid && (p->ID_EX.opcode == 0xB || p->ID_EX.opcode == 0xF || p->ID_EX.opcode == 0xC) && !fetch_squash_pending) {
         fetch_squash_pending = true;
         // Debug log:
-        printf("[FETCH] Scheduled squash for next fetch due to branch at PC=%u\n", p->ID_EX.pc);
+        printf("[FETCH] Scheduled squash for next fetch due to branch/jump at PC=%u\n", p->ID_EX.pc);
     }
 
     // 1. If a memory operation is already in progress, tick the countdown

@@ -57,7 +57,7 @@ void executeInstructions() {
     fflush(stdout);
 
     uint16_t instruction = readFromMemory(&dram, registers->R[15]);
-    int cycles = 0, max_cycles = 600;
+    int cycles = 0, max_cycles = 3000;
 
     while (cycles < max_cycles) {
         if (instruction != 0) {
