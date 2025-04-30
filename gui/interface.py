@@ -266,6 +266,24 @@ class ISASimulatorUI(QWidget):
         button_layout.addWidget(run_button)
         layout.addLayout(button_layout)
 
+        # Add multi-step feature
+        multistep_frame = QWidget()
+        multistep_layout = QHBoxLayout()
+        multistep_frame.setLayout(multistep_layout)
+        
+        multistep_layout.addWidget(QLabel("Number of steps:"))
+        self.step_count = QSpinBox()
+        self.step_count.setMinimum(1)
+        self.step_count.setMaximum(1000)
+        self.step_count.setValue(10)
+        multistep_layout.addWidget(self.step_count)
+        
+        multistep_button = QPushButton("Run Multiple Steps")
+        multistep_button.clicked.connect(self.run_multiple_steps)
+        multistep_layout.addWidget(multistep_button)
+        
+        layout.addWidget(multistep_frame)
+
         widget.setLayout(layout)
         return widget
     
@@ -402,6 +420,38 @@ class ISASimulatorUI(QWidget):
         self.step_thread.finished.connect(self.handle_step_result)
         self.step_thread.error.connect(self.handle_instruction_error)
         self.step_thread.start()
+    
+    def run_multiple_steps(self):
+        """Run multiple step instructions in sequence"""
+        steps = self.step_count.value()
+        print(f"[INFO] Running {steps} instruction steps...")
+        
+        # Create a progress dialog to show operation is in progress
+        progress = QMessageBox()
+        progress.setWindowTitle("Running Multiple Steps")
+        progress.setText(f"Running {steps} instruction steps...\nPlease wait.")
+        progress.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        progress.show()
+        QApplication.processEvents()  # Make sure UI updates
+        
+        # Run the specified number of steps
+        for i in range(steps):
+            # Update progress every 10 steps
+            if i % 10 == 0:
+                progress.setText(f"Running step {i+1}/{steps}...")
+                QApplication.processEvents()  # Make sure UI updates
+                
+            self.step_thread = step_instructionThread(self.api_url)
+            self.step_thread.finished.connect(self.handle_step_result)
+            self.step_thread.error.connect(self.handle_instruction_error)
+            self.step_thread.start()
+            self.step_thread.wait()  # Wait for thread to finish before next step
+        
+        # Close progress dialog
+        progress.close()
+        
+        # Show completion message
+        QMessageBox.information(self, "Complete", f"Completed {steps} instruction steps.")
     
     def handle_step_result(self, result):
         """Handle the result from a step instruction request"""
@@ -593,29 +643,33 @@ class ISASimulatorUI(QWidget):
             print(f"[INFO] {message}")
             self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - {message}")
         except Exception as e:
+            # Add the missing except block
+            print(f"[ERROR] Configuration error: {e}")
             QMessageBox.information(self, "Error", f"set-configuration failed: {e}")
     
     def reset_simulator(self):
-        self.reset_thread = resetThread(self.api_url)
-        self.reset_thread.finished.connect(self.handle_reset_result)
-        self.reset_thread.error.connect(self.handle_instruction_error)
-        self.reset_thread.start()
-    
-    def handle_reset_result(self, result):
-        """Handle the result from a reset request"""
-        print("[DEBUG] handle_reset_result called with result:", result)
-
-        # Reset cycle count display and window title
+        print("[INFO] Starting simulator reset...")
+        
+        # Make reset more visible to user
+        progress = QMessageBox()
+        progress.setWindowTitle("Resetting Simulator")
+        progress.setText("Resetting simulator state...\nPlease wait.")
+        progress.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        progress.show()
+        QApplication.processEvents()  # Make sure UI updates
+        
+        # First reset UI state
         self.cycle_display.setText("Cycle: 0")
-        self.setWindowTitle("ARCH-16: Instruction Set Architecture")
-
-        # Reset PC and branch displays
         self.pc_display.setText("PC: 0")
-
-        # Clear the instruction table
+        self.setWindowTitle("ARCH-16: Instruction Set Architecture")
+        
+        # Clear tables
         self.clear_table(self.instruction_table)
-
-        # Clear and reset the pipeline table to all "Bubble" rows
+        self.clear_table(self.memory_table)
+        self.clear_table(self.register_table)
+        self.clear_table(self.cache_table)
+        
+        # Reset pipeline visualization
         for row in range(self.pipeline_table.rowCount()):
             # Status column → "Bubble"
             status = QTableWidgetItem("Bubble")
@@ -634,10 +688,65 @@ class ISASimulatorUI(QWidget):
             pc.setBackground(QColor(35, 10, 10))
             pc.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 3, pc)
-
-        # Update tables without showing popup
-        self.update_tables_from_result(result)
+        
+        # Now reset backend state via API
+        self.reset_thread = resetThread(self.api_url)
+        self.reset_thread.finished.connect(self.handle_reset_result)
+        self.reset_thread.error.connect(self.handle_instruction_error)
+        self.reset_thread.start()
+        self.reset_thread.wait()  # Wait for reset to complete
+        
+        # Force a configuration reset too to ensure all state is reset
+        try:
+            payload = {
+                "cache_enabled": self.cache_enabled.isChecked(),
+                "pipeline_enabled": self.pipeline_enabled.isChecked(),
+                "dram_delay": self.dram_delay.value(),
+                "cache_delay": self.cache_delay.value(),
+            }
+            requests.post(f"{self.api_url}/set_configuration", json=payload, timeout=5)
+        except Exception as e:
+            print(f"[WARNING] Post-reset configuration failed: {e}")
+        
+        progress.close()
         print("[INFO] Simulator reset complete")
+
+    def handle_reset_result(self, result):
+        """Handle the result from a reset request"""
+        print("[DEBUG] handle_reset_result called with result:", result)
+
+        # Initialize registers
+        for i in range(16):
+            value = 1 if i == 1 else 0  # R1 should be 1, others 0
+            binary_val = format(value & 0xFFFF, "016b")
+            self.register_table.setItem(i, 0, QTableWidgetItem(binary_val))
+        
+        # Initialize memory
+        if self.memory_table.rowCount() < 1000:
+            self.memory_table.setRowCount(1000)
+        
+        address_labels = [str(i) for i in range(1000)]
+        self.memory_table.setVerticalHeaderLabels(address_labels)
+        
+        for i in range(1000):
+            self.memory_table.setItem(i, 0, QTableWidgetItem("0000000000000000"))
+        
+        # Update with any memory values from backend
+        memory = result.get("memory", [])
+        for addr, val in memory:
+            if addr < 1000:
+                binary_val = format(val & 0xFFFF, "016b")
+                self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+        
+        # Update cache table if needed
+        self.cache_table.setRowCount(0)
+        
+        # Update everything on screen
+        self.register_table.update()
+        self.memory_table.update()
+        self.cache_table.update()
+        self.pipeline_table.update()
+        self.update()
     
     def clear_table(self, table):
         for row in range(table.rowCount()):
