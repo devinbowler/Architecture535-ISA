@@ -287,6 +287,13 @@ uint16_t loadInstruction(const char *line){
       rri.imm = rb & 0xF; // Limit to 4 bits but allow parsing larger values
 
       return RRITypeEncode(&rri);
+    } else if (strcmp(opcode, "BLT") == 0){
+      rri.opcode = 0xF;
+      rri.regD = rd;
+      rri.regA = ra;
+      rri.imm = rb & 0xF; // Limit to 4 bits but allow parsing larger values
+
+      return RRITypeEncode(&rri);
     }
   }
   
