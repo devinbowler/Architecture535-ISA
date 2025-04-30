@@ -1,30 +1,18 @@
-Address	Value (decimal)
-32	19
-33	23
-34	27
-35	31
-36	71
-37	75
-38	79
-39	83
-40	38
-41	46
-42	54
-43	62
-44	25
-45	33
-46	41
-47	49
+Result Matrix (stored at [32-47])
+19      23      27      31
+46      42      38      34
+38      46      54      62
+92      84      76      68
 
 
-Matrix A   (stored at [R0 + 0…15])
+Matrix A   (stored at [0-15])
 			
 1	2	3	4
 4	3	2	1
 2	4	6	8
 8	6	4	2
 
-Matrix B   (stored at [R10 + 0…15], where R10 = 16)
+Matrix B   (stored at [15-31])
 			
 8	7	6	5
 4	3	2	1

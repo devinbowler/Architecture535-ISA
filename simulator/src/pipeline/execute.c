@@ -99,11 +99,22 @@ void execute(PipelineState *p) {
             sprintf(txt, "MUL R%u,R%u,R%u", d, a, rb);
             printf("[EXECUTE_MUL] R%u = %u * %u = %u\n", d, vA, vB, res);
             break;
-        case 0x7:  // CMP
-            res = (int16_t)registers->R[d] - (int16_t)vA;
-            registers->R[14] = res;
+        case 0x7:  // CMP - Updated to properly set status register
+            // Set status register value correctly for proper comparisons
+            if ((int16_t)registers->R[d] < (int16_t)vA) {
+                // Less than - set negative value
+                registers->R[14] = 0xFFFF;  // -1 in two's complement
+            } else if (registers->R[d] == vA) {
+                // Equal - set zero
+                registers->R[14] = 0;
+            } else {
+                // Greater than - set positive value
+                registers->R[14] = 1;
+            }
+            res = registers->R[14];
             sprintf(txt, "CMP R%u,R%u,R%u", d, a, rb);
-            printf("[EXECUTE_CMP] SR = R%u - %u = %u\n", d, vA, res);
+            printf("[EXECUTE_CMP] SR = %d (result of comparing R%u and R%u)\n", 
+                   (int16_t)res, d, a);
             break;
         case 0x8: {  // shifts/rotates
             uint16_t t = p->ID_EX.type;  // 0=LSL,1=LSR,2=ROL,3=ROR
@@ -134,22 +145,23 @@ void execute(PipelineState *p) {
             sprintf(txt, "SW  [R%u+%u],R%u", a, imm, d);
             printf("[EXECUTE_SW] addr = %u + %u = %u\n", registers->R[a], imm, res);
             break;
-        case 0xB:  // BEQ
+        case 0xB:  // BEQ - Updated to properly check for equality
             if (registers->R[d] == registers->R[a]) {
-                // Branch will be taken, but PC will be updated at writeback
+                // Branch will be taken, PC-relative addressing
                 branch_taken = true;
-                branch_target_address = pc + imm + 1;
+                branch_target_address = pc + imm;
                 
                 // Mark subsequent instructions as squashed
                 mark_subsequent_instructions_as_squashed(p);
                 
-                printf("[EXECUTE_BEQ] Branch will be taken → PC=%u (will update at writeback)\n", 
-                       branch_target_address);
+                printf("[EXECUTE_BEQ] Branch taken (R%u == R%u) → PC=%u\n", 
+                       d, a, branch_target_address);
             } else {
-                printf("[EXECUTE_BEQ] not taken\n");
+                printf("[EXECUTE_BEQ] Branch not taken (R%u != R%u)\n", d, a);
             }
-            sprintf(txt, "BEQ R%u,R%u,%u", d, a, imm + 1);
+            sprintf(txt, "BEQ R%u,R%u,%u", d, a, imm);
             break;
+
         case 0xC:  // JMP - Direct jump to the target address in imm
             // Set branch flags to trigger PC update in writeback
             branch_taken = true;
@@ -162,25 +174,23 @@ void execute(PipelineState *p) {
                    branch_target_address);
             sprintf(txt, "JMP %u", imm);
             break;
-        case 0xF:  // BLT
+
+        case 0xF:  // BLT - Updated for proper signed comparison
+            // Compare as signed 16-bit values
             if ((int16_t)registers->R[d] < (int16_t)registers->R[a]) {
-                // Branch will be taken, but PC will be updated at writeback
+                // Branch will be taken, PC-relative addressing
                 branch_taken = true;
                 branch_target_address = pc + imm;
                 
                 // Mark subsequent instructions as squashed
                 mark_subsequent_instructions_as_squashed(p);
                 
-                printf("[EXECUTE_BLT] Branch will be taken → PC=%u (will update at writeback)\n", 
-                       branch_target_address);
+                printf("[EXECUTE_BLT] Branch taken (R%u < R%u) → PC=%u\n", 
+                       d, a, branch_target_address);
             } else {
-                printf("[EXECUTE_BLT] not taken\n");
+                printf("[EXECUTE_BLT] Branch not taken (R%u >= R%u)\n", d, a);
             }
             sprintf(txt, "BLT R%u,R%u,%u", d, a, imm);
-            break;
-        default:
-            sprintf(txt, "UNKNOWN");
-            p->EX_MEM_next.valid = false;
             break;
     }
 
