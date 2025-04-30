@@ -170,30 +170,47 @@ uint16_t loadInstruction(const char *line){
     value = strtok(NULL, " ");
   }
 
-  if (valueCount >= 3) {
+  if (valueCount >= 1) {
     char *opcode = values[0];
+    
+    // Handle JMP instruction (no registers, just 12-bit immediate)
+    if (strcmp(opcode, "JMP") == 0) {
+      uint16_t imm12 = 0;
+      
+      // Parse the immediate value
+      if (valueCount >= 2) {
+        imm12 = atoi(values[1]) & 0xFFF;  // Limit to 12 bits
+      }
+      
+      // Encode as: 0xC (opcode) + 12-bit immediate
+      uint16_t encoded = 0;
+      encoded |= (0xC & 0xF) << 12;  // opcode = 0xC (JMP)
+      encoded |= (imm12 & 0xFFF);    // 12-bit immediate
+      
+      printf("Parsing JMP: JMP %d\n", imm12);
+      printf("Encoded as: opcode=0xC, immediate=%u\n", imm12);
+      
+      return encoded;
+    }
     
     // Improved register parsing with proper error handling
     uint16_t rd = 0, ra = 0, rb = 0, type = 0;
     
     // Parse register values for different instruction formats
-    if (valueCount == 4) {
+    if (valueCount >= 3) {
       // Three-register format: OP Rd, Ra, Rb
       if (values[1][0] == 'R') rd = atoi(values[1] + 1); else rd = atoi(values[1]);
       if (values[2][0] == 'R') ra = atoi(values[2] + 1); else ra = atoi(values[2]);
-      if (values[3][0] == 'R') rb = atoi(values[3] + 1); else rb = atoi(values[3]);
-    } else if (valueCount == 3) {
+      if (valueCount >= 4) {
+        if (values[3][0] == 'R') rb = atoi(values[3] + 1); else rb = atoi(values[3]);
+      }
+      
       // LSH format or truncated three-register format
       if (strcmp(opcode, "LSH") == 0) {
         type = atoi(values[1]);
         if (values[2][0] == 'R') ra = atoi(values[2] + 1); else ra = atoi(values[2]);
         if (valueCount >= 4 && values[3][0] == 'R') rb = atoi(values[3] + 1); 
         else if (valueCount >= 4) rb = atoi(values[3]);
-      } else {
-        // Fallback for truncated format
-        if (values[1][0] == 'R') rd = atoi(values[1] + 1); else rd = atoi(values[1]);
-        if (values[2][0] == 'R') ra = atoi(values[2] + 1); else ra = atoi(values[2]);
-        rb = 0; // Default value
       }
     }
 

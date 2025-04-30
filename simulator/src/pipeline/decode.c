@@ -63,6 +63,24 @@ void decode_stage(PipelineState *p)
                                             : "ROR";
             sprintf(txt, "%s R%u, R%u, R%u", name, rd, rd, rs);
         }
+        else if (op == 0xC) {
+            // JMP with 12-bit immediate
+            // bits[11:0] = 12-bit immediate target address
+            uint16_t imm12 = ins & 0xFFF;
+            
+            p->ID_EX_next.valid   = true;
+            p->ID_EX_next.squashed = false;
+            p->ID_EX_next.pc      = pc;
+            p->ID_EX_next.opcode  = op;
+            // For JMP, we don't use registers, but still need to pass the immediate
+            p->ID_EX_next.regD    = 0;    // No destination register
+            p->ID_EX_next.regA    = 0;    // No source register A
+            p->ID_EX_next.regB    = 0;    // No source register B
+            p->ID_EX_next.imm     = imm12; // 12-bit immediate is the jump target
+            p->ID_EX_next.type    = 0;     // Not used for JMP
+            
+            sprintf(txt, "JMP    %u", imm12);
+        }
         else {
             // "normal" RRR/RRI decoding
             uint16_t rd  = (ins >>  8) & 0xF;
