@@ -1,55 +1,129 @@
 ADD R1, R0, R1
-ADD R2, R0, R2
-ADD R3, R0, R3
-ADD R4, R0, R4
-
-SW [R0 + 100], R1
-SW [R0 + 101], R2
-SW [R0 + 102], R3
-SW [R0 + 103], R4
-
-ADD R5, R0, R5
-ADD R6, R0, R6
-ADD R7, R0, R7
-ADD R8, R0, R8
-
-SW [R0 + 200], R5
-SW [R0 + 201], R6
-SW [R0 + 202], R7
-SW [R0 + 203], R8
-
-LW R9, [R0 + 100]
-LW R10, [R0 + 200]
-MUL R11, R9, R10
-LW R9, [R0 + 101]
-LW R10, [R0 + 202]
-MUL R12, R9, R10
-ADD R13, R11, R12
-SW [R0 + 300], R13
-
-LW R9, [R0 + 100]
-LW R10, [R0 + 201]
-MUL R11, R9, R10
-LW R9, [R0 + 101]
-LW R10, [R0 + 203]
-MUL R12, R9, R10
-ADD R13, R11, R12
-SW [R0 + 301], R13
-
-LW R9, [R0 + 102]
-LW R10, [R0 + 200]
-MUL R11, R9, R10
-LW R9, [R0 + 103]
-LW R10, [R0 + 202]
-MUL R12, R9, R10
-ADD R13, R11, R12
-SW [R0 + 302], R13
-
-LW R9, [R0 + 102]
-LW R10, [R0 + 201]
-MUL R11, R9, R10
-LW R9, [R0 + 103]
-LW R10, [R0 + 203]
-MUL R12, R9, R10
-ADD R13, R11, R12
-SW [R0 + 303], R13	
+ADD R2, R1, R1
+ADD R3, R2, R1
+SW [R0 + 0], R1
+SW [R0 + 1], R2
+SW [R0 + 2], R3
+SW [R0 + 3], R3
+SW [R0 + 4], R2
+SW [R0 + 5], R1
+SW [R0 + 6], R1
+SW [R0 + 7], R2
+SW [R0 + 8], R3
+SW [R0 + 9], R3
+SW [R0 + 10], R2
+SW [R0 + 11], R1
+SW [R0 + 12], R1
+SW [R0 + 13], R2
+SW [R0 + 14], R3
+SW [R0 + 15], R3
+SW [R0 + 0], R2
+SW [R0 + 1], R1
+LW R4, [R0 + 0]
+LW R5, [R0 + 9]
+MUL R6, R4, R5
+LW R4, [R0 + 1]
+LW R5, [R0 + 12]
+MUL R7, R4, R5
+ADD R8, R6, R7
+LW R4, [R0 + 2]
+LW R5, [R0 + 15]
+MUL R6, R4, R5
+ADD R7, R8, R6
+SW [R0 + 0], R7
+LW R4, [R0 + 0]
+LW R5, [R0 + 10]
+MUL R6, R4, R5
+LW R4, [R0 + 1]
+LW R5, [R0 + 13]
+MUL R7, R4, R5
+ADD R8, R6, R7
+LW R4, [R0 + 2]
+LW R5, [R0 + 0]
+MUL R6, R4, R5
+ADD R7, R8, R6
+SW [R0 + 1], R7
+LW R4, [R0 + 0]
+LW R5, [R0 + 11]
+MUL R6, R4, R5
+LW R4, [R0 + 1]
+LW R5, [R0 + 14]
+MUL R7, R4, R5
+ADD R8, R6, R7
+LW R4, [R0 + 2]
+LW R5, [R0 + 1]
+MUL R6, R4, R5
+ADD R7, R8, R6
+SW [R0 + 2], R7
+LW R4, [R0 + 3]
+LW R5, [R0 + 9]
+MUL R6, R4, R5
+LW R4, [R0 + 4]
+LW R5, [R0 + 12]
+MUL R7, R4, R5
+ADD R8, R6, R7
+LW R4, [R0 + 5]
+LW R5, [R0 + 15]
+MUL R6, R4, R5
+ADD R7, R8, R6
+SW [R0 + 3], R7
+LW R4, [R0 + 3]
+LW R5, [R0 + 10]
+MUL R6, R4, R5
+LW R4, [R0 + 4]
+LW R5, [R0 + 13]
+MUL R7, R4, R5
+ADD R8, R6, R7
+LW R4, [R0 + 5]
+LW R5, [R0 + 0]
+MUL R6, R4, R5
+ADD R7, R8, R6
+SW [R0 + 4], R7
+LW R4, [R0 + 3]
+LW R5, [R0 + 11]
+MUL R6, R4, R5
+LW R4, [R0 + 4]
+LW R5, [R0 + 14]
+MUL R7, R4, R5
+ADD R8, R6, R7
+LW R4, [R0 + 5]
+LW R5, [R0 + 1]
+MUL R6, R4, R5
+ADD R7, R8, R6
+SW [R0 + 5], R7
+LW R4, [R0 + 6]
+LW R5, [R0 + 9]
+MUL R6, R4, R5
+LW R4, [R0 + 7]
+LW R5, [R0 + 12]
+MUL R7, R4, R5
+ADD R8, R6, R7
+LW R4, [R0 + 8]
+LW R5, [R0 + 15]
+MUL R6, R4, R5
+ADD R7, R8, R6
+SW [R0 + 6], R7
+LW R4, [R0 + 6]
+LW R5, [R0 + 10]
+MUL R6, R4, R5
+LW R4, [R0 + 7]
+LW R5, [R0 + 13]
+MUL R7, R4, R5
+ADD R8, R6, R7
+LW R4, [R0 + 8]
+LW R5, [R0 + 0]
+MUL R6, R4, R5
+ADD R7, R8, R6
+SW [R0 + 7], R7
+LW R4, [R0 + 6]
+LW R5, [R0 + 11]
+MUL R6, R4, R5
+LW R4, [R0 + 7]
+LW R5, [R0 + 14]
+MUL R7, R4, R5
+ADD R8, R6, R7
+LW R4, [R0 + 8]
+LW R5, [R0 + 1]
+MUL R6, R4, R5
+ADD R7, R8, R6
+SW [R0 + 8], R7

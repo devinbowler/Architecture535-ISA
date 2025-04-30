@@ -1,9 +1,9 @@
-// pipeline.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdint.h>
+
 #include "pipeline.h"
 #include "memory.h"
 #include "globals.h"
@@ -12,111 +12,103 @@
 #include "execute.h"
 #include "memory_access.h"
 #include "write_back.h"
-#include "hazards.h"
+#include "hazards.h"    //  <— new: centralised RAW / load‑use detection
 
-extern bool data_hazard_stall;
-extern uint16_t stall_cycles_remaining;
-extern REGISTERS *registers;
-extern bool branch_taken;
-extern bool memory_operation_in_progress;
-extern bool fetch_memory_busy;
+extern bool data_hazard_stall;           // set by resolve_hazards() when a stall is required
+extern uint16_t stall_cycles_remaining;  // countdown handled right here each cycle
+extern REGISTERS *registers;             // architectural register file (for bypassing etc.)
+extern bool branch_taken;                // asserted by execute() when branch target chosen
+extern bool memory_operation_in_progress;// long‑latency memory op (not cache) in MEM stage
+extern bool fetch_memory_busy;           // IF stage is currently waiting on ICACHE miss
 
-void pipeline_step(PipelineState* pipeline, uint16_t* value) {
-    // 1) Drain the tail of the pipeline
-    write_back(pipeline);
-    memory_access(pipeline);
+void pipeline_step(PipelineState *p, uint16_t *value)
+{
+    // 1) Commit tail stages first (WB → MEM)
+    write_back(p);
+    memory_access(p);
 
-    // ----------------- DATA HAZARD DETECTION -----------------
-    HazardInfo hazard = detect_hazards(pipeline);
+    // 2) Hazrd Detection
+    HazardInfo h = detect_hazards(p);          // consult ID/EX + EX/MEM + MEM/WB
 
-    // Always resolve hazards (whether they need stalling or not)
-    if (hazard.detected) {
-        resolve_hazards(pipeline, &hazard);
+    if (h.detected) {
+        resolve_hazards(p, &h);                // may set data_hazard_stall & countdown
     }
 
-    // ----------------- STALL HANDLING -----------------
-    // 3a) If memory operation (not fetch) is in progress, stall everything except WB/MEM_WB
+    // 3) Stall Logic
+    // (priority: memory busy  >  explicit RAW stall  >  normal advance)
+
     if (memory_operation_in_progress) {
-        pipeline->WB     = pipeline->WB_next;
-        pipeline->MEM_WB = pipeline->MEM_WB_next;
-        printf("[PIPELINE_STALL] Memory operation in progress; stalling IF/ID, ID/EX, EX/MEM\n");
+        // Freeze everything *except* MEM/WB & WB so the long latency op can retire.
+        p->WB     = p->WB_next;
+        p->MEM_WB = p->MEM_WB_next;
+        printf("[PIPELINE_STALL] Memory op in progress → stalling IF/ID, ID/EX, EX/MEM\n");
     }
-    // 3b) Else if RAW hazard, bubble EX/MEM, freeze IF/ID & ID/EX, but still retire WB/MEM_WB
     else if (data_hazard_stall) {
-        pipeline->EX_MEM.valid = false;            // turn EX/MEM into a bubble
-        pipeline->WB     = pipeline->WB_next;
-        pipeline->MEM_WB = pipeline->MEM_WB_next;
-        stall_cycles_remaining--;
-        if(stall_cycles_remaining == 0) {
-            data_hazard_stall = false;
+        // Inject bubble at EX/MEM, hold earlier latches.  (Classic load‑use solution)
+        p->EX_MEM.valid = false;          // bubble
+        p->WB     = p->WB_next;
+        p->MEM_WB = p->MEM_WB_next;
+
+        if (stall_cycles_remaining) {
+            --stall_cycles_remaining;
+        }
+        if (stall_cycles_remaining == 0) {
+            data_hazard_stall = false;    // stall window has elapsed – resume next cycle
         }
     }
-    // 3c) Otherwise, normal 5‑stage advance
     else {
-        execute(pipeline);
-        
+        // 4) Normal Advance
+        execute(p);
+
         if (PIPELINE_ENABLED) {
-            // Normal pipelined operation - run all stages in parallel
-            decode_stage(pipeline);
-            
-            // Always execute fetch stage, even if busy with memory access
-            // It will handle its own internal delay logic
-            fetch_stage(pipeline, value);
+            // five‑stage parallel flow
+            decode_stage(p);
+            fetch_stage(p, value);   // handles its own icache penalties via fetch_memory_busy
         } else {
-            // Non-pipelined mode: Only one instruction in pipeline at a time
-            
-            // Check if pipeline is completely empty except possibly for IF/ID
-            bool pipeline_empty = !pipeline->ID_EX.valid && 
-                                 !pipeline->EX_MEM.valid && 
-                                 !pipeline->MEM_WB.valid;
-                                 
-            if (pipeline_empty) {
-                // Pipeline is empty (except maybe IF/ID), so we can advance IF/ID to ID/EX
-                if (pipeline->IF_ID.valid) {
-                    decode_stage(pipeline);
-                    printf("[PIPELINE] Non-pipelined mode: decoding instruction\n");
-                    // Don't fetch yet - we just moved an instruction to decode
+            // single‑issue / non‑pipelined debug mode
+            bool empty = !p->ID_EX.valid && !p->EX_MEM.valid && !p->MEM_WB.valid;
+
+            if (empty) {
+                if (p->IF_ID.valid) {
+                    decode_stage(p);
+                    printf("[PIPELINE] Non‑pipe: decoding\n");
                 } else {
-                    // Nothing in IF/ID, and rest of pipeline is empty, safe to fetch
-                    fetch_stage(pipeline, value);
-                    printf("[PIPELINE] Non-pipelined mode: fetching instruction\n");
+                    fetch_stage(p, value);
+                    printf("[PIPELINE] Non‑pipe: fetching\n");
                 }
             } else {
-                // Pipeline not empty yet, hold all stages before execute
-                pipeline->ID_EX_next.valid = false;
-                pipeline->IF_ID_next.valid = false;
-                printf("[PIPELINE] Non-pipelined mode: waiting for pipeline to drain\n");
+                p->ID_EX_next.valid = false;
+                p->IF_ID_next.valid = false;
+                printf("[PIPELINE] Non‑pipe: draining\n");
             }
         }
 
-        // commit all stages
-        pipeline->WB     = pipeline->WB_next;
-        pipeline->MEM_WB = pipeline->MEM_WB_next;
-        pipeline->EX_MEM = pipeline->EX_MEM_next;
-        pipeline->ID_EX  = pipeline->ID_EX_next;
-        pipeline->IF_ID  = pipeline->IF_ID_next;
+        // 5) Commit next state
+        p->WB     = p->WB_next;
+        p->MEM_WB = p->MEM_WB_next;
+        p->EX_MEM = p->EX_MEM_next;
+        p->ID_EX  = p->ID_EX_next;
+        p->IF_ID  = p->IF_ID_next;
     }
 
-    // 4) Clear next‑state latches
-    memset(&pipeline->WB_next,     0, sizeof pipeline->WB_next);
-    memset(&pipeline->MEM_WB_next, 0, sizeof pipeline->MEM_WB_next);
-    memset(&pipeline->EX_MEM_next, 0, sizeof pipeline->EX_MEM_next);
-    memset(&pipeline->ID_EX_next,  0, sizeof pipeline->ID_EX_next);
-    memset(&pipeline->IF_ID_next,  0, sizeof pipeline->IF_ID_next);
+    // 6) Zero out
+    memset(&p->WB_next,     0, sizeof p->WB_next);
+    memset(&p->MEM_WB_next, 0, sizeof p->MEM_WB_next);
+    memset(&p->EX_MEM_next, 0, sizeof p->EX_MEM_next);
+    memset(&p->ID_EX_next,  0, sizeof p->ID_EX_next);
+    memset(&p->IF_ID_next,  0, sizeof p->IF_ID_next);
 }
 
-// Implementation of mark_subsequent_instructions_as_squashed function
-// This is declared in pipeline.h but needs to be defined here
-void mark_subsequent_instructions_as_squashed(PipelineState *p) {
-    // Mark only instructions in fetch and decode as squashed
-    // The branch itself in execute should not be squashed
+// Called by execute() the cycle a branch is resolved & taken.  We squash only the
+// younger (earlier‑stage) instructions – not the branch itself.
+void mark_subsequent_instructions_as_squashed(PipelineState *p)
+{
     if (p->IF_ID.valid) {
         p->IF_ID.squashed = true;
-        printf("[BRANCH] Squashing instruction in IF/ID stage at PC=%u\n", p->IF_ID.pc);
+        printf("[BRANCH] Squashing IF/ID @ PC=%u\n", p->IF_ID.pc);
     }
-    
     if (p->ID_EX.valid) {
         p->ID_EX.squashed = true;
-        printf("[BRANCH] Squashing instruction in ID/EX stage at PC=%u\n", p->ID_EX.pc);
+        printf("[BRANCH] Squashing ID/EX @ PC=%u\n", p->ID_EX.pc);
     }
 }
