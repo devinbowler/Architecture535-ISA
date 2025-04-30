@@ -1,166 +1,103 @@
-#include "hazards.h"
 #include <stdio.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include "hazards.h"
+#include "pipeline.h"
+#include "globals.h"
 
-// Global variable to track if pipeline is stalled due to data hazard
-bool data_hazard_stall = false;
+
+bool     data_hazard_stall      = false;
 uint16_t stall_cycles_remaining = 0;
 
-/**
- * @brief Detects data hazards between instructions in different pipeline stages
- *
- * This function checks for RAW hazards where an instruction in ID/EX
- * needs a register value that is being produced by an instruction in
- * EX/MEM or MEM/WB stage
- *
- * @param pipeline the pipeline
- * @return the hazard results
- */
-HazardInfo detect_hazards(PipelineState *pipeline) {
-    HazardInfo hazard = {false, false, 0, 0, 0, 0, 0};
-    // If ID/EX stage isn't valid, no hazard to detect
-    if (!pipeline->ID_EX.valid) {
-        return hazard;
-    }
-    // Get source registers for the instruction in ID/EX
-    uint16_t regA = pipeline->ID_EX.regA;
-    uint16_t regB = pipeline->ID_EX.regB;
 
-    // For each possible source register, check for hazards
-    // RAW Hazards from instruction in EX/MEM
-    if (pipeline->EX_MEM.valid) {
-        uint16_t ex_mem_dest = pipeline->EX_MEM.regD;
-        uint16_t ex_mem_opcode = pipeline->EX_MEM.opcode;
-        
-        // Only consider instructions that write to registers
-        bool ex_mem_writes_reg = (ex_mem_opcode <= 6) || // ALU ops
-                                 (ex_mem_opcode == 9); // LW 
-        
-        // Check if regA depends on previous result
-        if (ex_mem_writes_reg && regA == ex_mem_dest && regA != 0) {
-            hazard.detected = true;
-            hazard.source_reg = ex_mem_dest;
-            hazard.target_reg = regA;
-            hazard.source_stage = 1; // EX/MEM stage
-            
-            // LW (Load Word) needs an extra cycle - can't forward directly from EX/MEM
-            if (ex_mem_opcode == 9) {
-                hazard.requires_stall = true;
-                hazard.stall_cycles = 1;
-                printf("[HAZARD] Load-use hazard detected: R%u depends on LW result\n", regA);
-            } else {
-                // Can forward the result
-                hazard.forwarded_value = pipeline->EX_MEM.res;
-                printf("[HAZARD] RAW hazard detected: R%u depends on EX/MEM result, forwarding value %u\n", 
-                       regA, hazard.forwarded_value);
-            }
-            return hazard;
-        }
-        
-        // Check if regB depends on previous result
-        if (ex_mem_writes_reg && regB == ex_mem_dest && regB != 0) { // Only for ops that use regB as source
-            hazard.detected = true;
-            hazard.source_reg = ex_mem_dest;
-            hazard.target_reg = regB;
-            hazard.source_stage = 1; // EX/MEM stage
-            
-            // LW (Load Word) needs an extra cycle
-            if (ex_mem_opcode == 9) {
-                hazard.requires_stall = true;
-                hazard.stall_cycles = 1;
-                printf("[HAZARD] Load-use hazard detected: R%u depends on LW result\n", regB);
-            } else {
-                // Can forward the result
-                hazard.forwarded_value = pipeline->EX_MEM.res;
-                printf("[HAZARD] RAW hazard detected: R%u depends on EX/MEM result, forwarding value %u\n", 
-                       regB, hazard.forwarded_value);
-            }
-            return hazard;
-        }
-    }
-    
-    // RAW Hazards from instruction in MEM/WB
-    if (pipeline->MEM_WB.valid) {
-        uint16_t mem_wb_dest = pipeline->MEM_WB.regD;
-        uint16_t mem_wb_opcode = pipeline->MEM_WB.opcode;
-        
-        // Only consider instructions that write to registers
-        bool mem_wb_writes_reg = (mem_wb_opcode <= 6) || // ALU ops
-                                 (mem_wb_opcode == 9); // LW
-        
-        // Check if regA depends on previous result
-        if (mem_wb_writes_reg && regA == mem_wb_dest && regA != 0) {
-            hazard.detected = true;
-            hazard.source_reg = mem_wb_dest;
-            hazard.target_reg = regA;
-            hazard.source_stage = 2; // MEM/WB stage
-            hazard.forwarded_value = pipeline->MEM_WB.res;
-            printf("[HAZARD] RAW hazard detected: R%u depends on MEM/WB result, forwarding value %u\n", 
-                   regA, hazard.forwarded_value);
-            return hazard;
-        }
-        
-        // Check if regB depends on previous result
-        if (mem_wb_writes_reg && regB == mem_wb_dest && regB != 0) { // Only for ops that use regB as source
-            hazard.detected = true;
-            hazard.source_reg = mem_wb_dest;
-            hazard.target_reg = regB;
-            hazard.source_stage = 2; // MEM/WB stage
-            hazard.forwarded_value = pipeline->MEM_WB.res;
-            printf("[HAZARD] RAW hazard detected: R%u depends on MEM/WB result, forwarding value %u\n", 
-                   regB, hazard.forwarded_value);
-            return hazard;
-        }
-    }
-    
-    return hazard;
+/* helper: does this opcode write to a register? */
+static inline bool writes_reg(uint16_t op){
+    /* 0-6  : ALU ops -- write
+       7-8  : store/branch -- no write
+       9    : LW -- write
+       10-? : mul/div/etc → assume write                              */
+    return (op <= 6) || op == 9 || op >= 10;
 }
 
-/**
- * @brief Resolves detected data hazards by forwarding values or stalling the pipeline
- * @param pipeline the pipeline
- * @param hazard the hazard results in the pipeline
- */
-void resolve_hazards(PipelineState *pipeline, HazardInfo *hazard) {
-    if (!hazard->detected) {
+/* helper: does the current instruction *use* rt (regB) as a source?  */
+static inline bool uses_regB(uint16_t op){
+    /* immediate / unary ops would not use rt; here only 0-2 (ADD/SUB/MUL)
+       and 11 (CMP) need rt                                            */
+    return (op <= 2) || op == 11;
+}
+
+
+HazardInfo detect_hazards(PipelineState *p)
+{
+    HazardInfo hz = {false,false,0,0,0,0,0};
+
+    if (!p->ID_EX.valid) return hz;          /* nothing to check */
+
+    uint16_t rs = p->ID_EX.regA;             /* source regs of instr in Decode */
+    uint16_t rt = p->ID_EX.regB;
+
+    /* -------- check EX/MEM stage (just executed) ------------------- */
+    if (p->EX_MEM.valid && writes_reg(p->EX_MEM.opcode)){
+        uint16_t rd = p->EX_MEM.regD;
+
+        if (rd != 0 && (rd == rs || (uses_regB(p->ID_EX.opcode) && rd == rt))){
+            hz.detected     = true;
+            hz.source_reg   = rd;
+            hz.target_reg   = (rd == rs) ? rs : rt;
+            hz.source_stage = 1;                 /* EX/MEM */
+
+            if (p->EX_MEM.opcode == 9){          /* load-use hazard */
+                hz.requires_stall = true;
+                hz.stall_cycles   = 1;
+            }else{
+                hz.forwarded_value = p->EX_MEM.res;
+            }
+            return hz;
+        }
+    }
+
+    /* -------- check MEM/WB stage (about to write back) -------------- */
+    if (p->MEM_WB.valid && writes_reg(p->MEM_WB.opcode)){
+        uint16_t rd = p->MEM_WB.regD;
+
+        if (rd != 0 && (rd == rs || (uses_regB(p->ID_EX.opcode) && rd == rt))){
+            hz.detected         = true;
+            hz.source_reg       = rd;
+            hz.target_reg       = (rd == rs) ? rs : rt;
+            hz.source_stage     = 2;                 /* MEM/WB */
+            hz.forwarded_value  = p->MEM_WB.res;
+        }
+    }
+    return hz;
+}
+
+
+void resolve_hazards(PipelineState *p, HazardInfo *hz)
+{
+    if (!hz->detected) return;
+
+    /* need to stall? (load-use) */
+    if (hz->requires_stall){
+        data_hazard_stall      = true;
+        stall_cycles_remaining = hz->stall_cycles;
+        printf("[HAZARD] load-use, stalling %u cycle(s)\n", hz->stall_cycles);
         return;
     }
-    
-    // If stall is required, set up stalling state
-    if (hazard->requires_stall) {
-        data_hazard_stall = true;
-        stall_cycles_remaining = hazard->stall_cycles;
-        printf("[HAZARD] Stalling pipeline for %u cycles\n", stall_cycles_remaining);
-    } else {
-        // Forward result
-        forward_result(pipeline, hazard);
-    }
+
+    /* otherwise forward right into the register file for EXEC stage   */
+    forward_result(p, hz);
 }
 
-/**
- * @brief Forwards the result from a later pipeline stage to the execute stage
- * @param pipeline the pipeline
- * @param hazard the hazards in the pipeline
- */
-void forward_result(PipelineState *pipeline, HazardInfo *hazard) {
-    extern REGISTERS *registers;
-    
-    // Check which register needs the forwarded value
-    uint16_t regA = pipeline->ID_EX.regA;
-    uint16_t regB = pipeline->ID_EX.regB;
-    uint16_t opcode = pipeline->ID_EX.opcode;
-    
-    // For debugging, store original values before forwarding
-    uint16_t orig_valA = registers->R[regA];
-    uint16_t orig_valB = opcode <= 2 || opcode == 11 ? registers->R[regB] : 0;
-    
-    // Forward to the appropriate register
-    if (hazard->target_reg == regA) {
-        registers->R[regA] = hazard->forwarded_value;
-        printf("[FORWARD] R%u updated from %u to %u for execution\n", 
-               regA, orig_valA, hazard->forwarded_value);
-    } else if (hazard->target_reg == regB) {
-        registers->R[regB] = hazard->forwarded_value;
-        printf("[FORWARD] R%u updated from %u to %u for execution\n", 
-               regB, orig_valB, hazard->forwarded_value);
-    }
+void forward_result(PipelineState *p, HazardInfo *hz)
+{
+    if (!hz->detected || hz->requires_stall) return;
+
+    extern REGISTERS *registers;   /* from globals */
+
+    uint16_t reg = hz->target_reg;
+    uint16_t old = registers->R[reg];
+    registers->R[reg] = hz->forwarded_value;
+
+    printf("[FORWARD] R%u: %u → %u (from stage %u)\n",
+           reg, old, hz->forwarded_value, hz->source_stage);
 }

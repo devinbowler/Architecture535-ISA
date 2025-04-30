@@ -1,4 +1,3 @@
-
 // fetch.c
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,7 +79,14 @@ void fetch_stage(PipelineState *p, uint16_t *prev_instr) {
 
         // Delay complete?
         if (fetch_delay_counter >= fetch_delay_target) {
-            uint16_t word = readFromMemory(&dram, fetch_pending_address);
+            bool cache_hit = false;
+            uint16_t word = 0;
+            
+            if (CACHE_ENABLED && cache) {
+                word = fetch_with_cache(cache, &dram, fetch_pending_address, &cache_hit);
+            } else {
+                word = readFromMemory(&dram, fetch_pending_address);
+            }
 
             if (fetch_squash_pending) {
                 // squash this one
@@ -100,8 +106,9 @@ void fetch_stage(PipelineState *p, uint16_t *prev_instr) {
                 p->IF_ID_next.instruction = word;
                 fmt_instr(word, txt);
                 registers->R[15]++;
-                printf("[FETCH] inst=0x%04X pc=%u (after %u cycles)\n",
-                       word, fetch_pending_address, fetch_delay_target);
+                printf("[FETCH] inst=0x%04X pc=%u (after %u cycles), cache hit=%s\n",
+                       word, fetch_pending_address, fetch_delay_target, 
+                       cache_hit ? "true" : "false");
             }
             *prev_instr = word;
             fetch_memory_busy   = false;
@@ -123,27 +130,44 @@ void fetch_stage(PipelineState *p, uint16_t *prev_instr) {
         } else {
             // normal fetch issue
             fetch_pending_address = pc;
-            bool hit = false;
+            bool cache_hit = false;
+            
             if (CACHE_ENABLED && cache) {
-                uint16_t idx = (pc / BLOCK_SIZE) % cache->num_sets;
-                uint16_t tag = pc / (BLOCK_SIZE * cache->num_sets);
+                // Check if the instruction is already in the cache
+                uint16_t block_offset = pc % BLOCK_SIZE;
+                uint16_t block_address = pc - block_offset;
+                uint16_t set_index = (block_address / BLOCK_SIZE) % cache->num_sets;
+                uint16_t tag = block_address / (BLOCK_SIZE * cache->num_sets);
+                
+                // Check if this block is in the cache
+                Set *set = &cache->sets[set_index];
                 for (int i = 0; i < cache->mode; i++) {
-                    if (cache->sets[idx].lines[i].valid && cache->sets[idx].lines[i].tag == tag) {
-                        hit = true;
+                    if (set->lines[i].valid && set->lines[i].tag == tag) {
+                        cache_hit = true;
                         break;
                     }
                 }
             }
-            fetch_delay_target = (CACHE_ENABLED && cache && hit) ? USER_CACHE_DELAY : USER_DRAM_DELAY;
+            
+            // Set appropriate delay based on whether it's a cache hit or miss
+            fetch_delay_target = (CACHE_ENABLED && cache && cache_hit) ? USER_CACHE_DELAY : USER_DRAM_DELAY;
 
             if (fetch_delay_target > 0) {
                 fetch_memory_busy   = true;
                 fetch_delay_counter = 0;
                 p->IF_ID_next.valid = false;
                 snprintf(txt, sizeof(txt), "FETCH waiting (0/%u)", fetch_delay_target);
-                printf("[FETCH] start memory at PC=%u delay=%u\n", pc, fetch_delay_target);
+                printf("[FETCH] start memory at PC=%u delay=%u, cache hit=%s\n", 
+                       pc, fetch_delay_target, cache_hit ? "true" : "false");
             } else {
-                uint16_t word = readFromMemory(&dram, pc);
+                bool cache_hit = false;
+                uint16_t word = 0;
+                
+                if (CACHE_ENABLED && cache) {
+                    word = fetch_with_cache(cache, &dram, pc, &cache_hit);
+                } else {
+                    word = readFromMemory(&dram, pc);
+                }
 
                 if (fetch_squash_pending) {
                     p->IF_ID_next.valid       = true;
@@ -161,7 +185,8 @@ void fetch_stage(PipelineState *p, uint16_t *prev_instr) {
                     p->IF_ID_next.instruction = word;
                     fmt_instr(word, txt);
                     registers->R[15]++;
-                    printf("[FETCH] inst=0x%04X pc=%u immediate\n", word, pc);
+                    printf("[FETCH] inst=0x%04X pc=%u immediate, cache hit=%s\n", 
+                           word, pc, cache_hit ? "true" : "false");
                 }
                 *prev_instr = word;
             }
@@ -170,5 +195,11 @@ void fetch_stage(PipelineState *p, uint16_t *prev_instr) {
 
     // emit UI state
     printf("[PIPELINE]FETCH:%s:%u\n", txt, fetch_pending_address);
+    
+    // For UI visualization of fetch status
+    if (fetch_memory_busy) {
+        printf("[FETCH_STATUS]busy:%u:%u\n", fetch_delay_counter, fetch_delay_target);
+    }
+    
     fflush(stdout);
 }
