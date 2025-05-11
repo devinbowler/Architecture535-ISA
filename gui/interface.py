@@ -712,7 +712,7 @@ class ISASimulatorUI(QWidget):
 
     def set_configuration(self):
         """Send the current configuration settings to the backend API"""
-        config = {
+        payload = {
             "cache_enabled": self.cache_enabled.isChecked(),
             "pipeline_enabled": self.pipeline_enabled.isChecked(),
             "cache_type": self.cache_type.currentText(),

@@ -164,7 +164,15 @@ Cache *init_cache(uint16_t mode) {
     if (!cache) return NULL;
     
     cache->mode = mode;
-    cache->num_sets = (mode == 1) ? 16 : 8;  // Fixed cache size to 16 sets for direct-mapped
+    if (mode == 1) {
+        cache->num_sets = 16; // Direct-mapped cache: 1 set per line
+    } else if (mode == 2) {
+            cache->num_sets = 8; // Set-associative cache: 8 sets (or whatever value you want)
+    } else {
+        // Handle fully-associative or invalid mode
+        cache->num_sets = 16; // Default fallback
+    }
+
     
     // Allocate memory for the sets
     cache->sets = (Set *)malloc(cache->num_sets * sizeof(Set));
@@ -271,6 +279,7 @@ uint16_t read_cache(Cache *cache, DRAM *dram, uint16_t address) {
     
     // Determine which line to replace
     Line *victim_line = NULL;
+    int victim_index = 0;
     
     if (cache->mode == 1) {
         // Direct-mapped: only one choice
@@ -326,12 +335,11 @@ uint16_t read_cache(Cache *cache, DRAM *dram, uint16_t address) {
     }
     
     // Output cache state for UI visualization
-    printf("[CACHE]%u:%u:%u:%u\n", set_index, 0, 1, tag);
+    printf("[CACHE]%u:%u:%u:%u\n", set_index, victim_index, 1, tag);
     
     // Output all block data for UI
     for (int i = 0; i < BLOCK_SIZE; i++) {
-        printf("[CACHE_DATA]%u:%u:%u:%u\n", 
-               set_index, 0, i, victim_line->data[i]);
+        printf("[CACHE_DATA]%u:%u:%u:%u\n", set_index, victim_index, i, victim_line->data[i]);
     }
     
     // Return the requested data

@@ -9,4 +9,4 @@ uint16_t USER_CACHE_DELAY  = 1;      /* default 1  cycle  */
 
 bool     PIPELINE_ENABLED  = true;   /* “Pipeline Enabled” check‑box  */
 bool     CACHE_ENABLED     = true;   /* “Cache Enabled”    check‑box  */
-uint16_t CACHE_MODE        = 1;      /*default direct-mapped*/
+uint16_t CACHE_MODE        = 2;      /*Set Associative*/

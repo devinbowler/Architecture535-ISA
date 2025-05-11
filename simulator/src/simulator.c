@@ -198,6 +198,8 @@ static void apply_config(const char *params) {
         else if(strcmp(key, "cache_mode") == 0) {
             CACHE_MODE = atoi(val);
             printf("[CONFIG] Cache mode set to %u\n", CACHE_MODE);
+            destroy_cache(cache);
+            cache = init_cache(CACHE_MODE);
         }
         params = strchr(params, ' ');
         if (!params) break;
@@ -230,6 +232,8 @@ int main() {
                 CACHE_ENABLED     = ce;
                 PIPELINE_ENABLED  = pe;
                 CACHE_MODE        = cm;
+                destroy_cache(cache);
+                cache = init_cache(CACHE_MODE);
             }
             printf("[END]\n");
             fflush(stdout);
