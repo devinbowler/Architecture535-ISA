@@ -127,6 +127,10 @@ def executeInstructions():
     register_contents = []
     cache_contents = []
     cache_data_contents = []
+    pipeline_state = []
+    cycle_count = 0
+    fetch_status = None
+    pc_val = None
 
     response = send_command("start")
     print(f"[DEBUG] Got response: {response}")
@@ -156,6 +160,21 @@ def executeInstructions():
                 index, offset, data_index, data_value = parts
                 cache_data_contents.append((int(index), int(offset), int(data_index), int(data_value)))
                 # print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
+        elif output.startswith("[PIPELINE]"):
+            parts = output[10:].split(":")
+            if len(parts) >= 3:
+                stage = parts[0]
+                instruction = parts[1]
+                pc = int(parts[2])
+                pc_val = pc
+                pipeline_state.append((stage, instruction, pc))
+                print(f"[DEBUG] Found pipeline state: stage={stage}, instruction={instruction}, pc={pc}")
+        elif output.startswith("[CYCLE]"):
+            cycle_count = int(output[7:])
+            print(f"[DEBUG] Current cycle: {cycle_count}")
+        elif output.startswith("[FETCH_STATUS]"):
+            fetch_status = output
+            print(f"[DEBUG] Found fetch status: {output}")
 
     print(f"[DEBUG] Final register contents: {register_contents}")
     # print(f"[DEBUG] Final memory contents (showing first 10): {memory_content[:10]}")
@@ -167,7 +186,11 @@ def executeInstructions():
         "memory": memory_content,
         "registers": register_contents,
         "cache": cache_contents,
-        "cache_data": cache_data_contents
+        "cache_data": cache_data_contents,
+        "pipeline": pipeline_state,
+        "cycle": cycle_count,
+        "fetch_status": fetch_status,
+        "pc": pc_val
     })
 
 

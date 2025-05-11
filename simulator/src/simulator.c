@@ -57,16 +57,19 @@ void executeInstructions() {
     fflush(stdout);
 
     uint16_t instruction = readFromMemory(&dram, registers->R[15]);
-    int cycles = 0, max_cycles = 5000;
-
-    while (cycles < max_cycles) {
-        if (instruction != 0) {
-            pipeline_step(&pipeline, &instruction);
+    int cycles = 0;
+    while (true) {
+        bool pipeline_empty =
+        !pipeline.IF_ID.valid &&
+        !pipeline.ID_EX.valid &&
+        !pipeline.EX_MEM.valid &&
+        !pipeline.MEM_WB.valid &&
+        !pipeline.WB.valid;
+        if (pipeline_empty && instruction == 0)
+            break;
+        pipeline_step(&pipeline, &instruction);
+        if (instruction != 0)
             instruction = readFromMemory(&dram, registers->R[15]);
-        } else {
-            pipeline_step(&pipeline, &instruction);
-        }
-
         cycles++;
         printf("[CYCLE] %d\n", cycles);
         fflush(stdout);

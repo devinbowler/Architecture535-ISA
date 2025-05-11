@@ -344,6 +344,12 @@ class ISASimulatorUI(QWidget):
             binary_val = format(val & 0xFFFF, "016b")
             self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
         
+        # Extract and update the PC
+        pc_val = result.get("pc", None)
+        if pc_val is not None:
+            self.pc_display.setText(f"PC: {pc_val}")
+            self.setWindowTitle(f"ARCH-16: PC={pc_val} | Total Cycles: {result.get('cycle', 0)}")
+        
         cache = result.get("cache", [])
         cache_data = result.get("cache_data", [])
         
@@ -450,7 +456,7 @@ class ISASimulatorUI(QWidget):
         self.update()
         
         # Update cycle display if total_cycles is available
-        total_cycles = result.get("total_cycles", 0)
+        total_cycles = result.get("cycle", 0)
         if total_cycles > 0:
             self.cycle_display.setText(f"Cycle: {total_cycles}")
             self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - Total Cycles: {total_cycles}")
