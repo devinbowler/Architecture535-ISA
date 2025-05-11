@@ -221,7 +221,7 @@ class ISASimulatorUI(QWidget):
         config_layout.addWidget(self.pipeline_enabled, 2, 1)
         config_layout.addWidget(QLabel("Cache Type"), 3, 0)
         self.cache_type = QComboBox()
-        self.cache_type.addItems(["Direct-Mapped", "Fully Associative", "Set Associative"])
+        self.cache_type.addItems(["Direct-Mapped", "Set Associative"])
         config_layout.addWidget(self.cache_type, 3, 1)
         config_layout.addWidget(QLabel("DRAM Delay"), 4, 0)
         self.dram_delay = QSpinBox()
