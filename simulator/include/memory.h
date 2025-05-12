@@ -74,7 +74,7 @@ void updateDRAM(DRAM *dram, Cache *cache);
 // Unified memory access functions
 uint16_t memory_read(Cache *cache, DRAM *dram, uint16_t address);
 void memory_write(Cache *cache, DRAM *dram, uint16_t address, uint16_t data);
-
+uint16_t fetch_with_cache(Cache *cache, DRAM *dram, uint16_t address, bool *is_hit);
 int write_through(Cache *cache, DRAM *dram, uint16_t address, uint16_t data);
 Cache *init_cache(uint16_t mode);
 Set *init_set(uint16_t mode);

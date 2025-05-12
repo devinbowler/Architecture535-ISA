@@ -7,8 +7,6 @@
 #include <string.h>
 #include "assembler.h"
 
-
-
 // Each function will take in its own type and make the binary encoding.
 // This uses the bit operation of & to check the opcode to 00001111, this not
 // only ensures this field is 4 bits, but also copys the code correctly. Then
@@ -23,7 +21,6 @@ uint16_t RRRTypeEncode(RRRinstr *instr){
  encoded |= (instr->regA & 0xF) << 4;    // top 4 bits  | Source Register A
  encoded |= (instr->regB & 0xF);         // last 4 bits | Source Register B
 
-
  return encoded;
 }
 
@@ -36,7 +33,6 @@ uint16_t RRTypeEncode(RRinstr *instr){
  encoded |= (instr->type & 0xF) << 8;    // next 4 bits  | Type
  encoded |= (instr->regA & 0xF) << 4;    // top 4 bits   | Source Register A
  encoded |= (instr->regB & 0xF);         // last 4 bits  | Source Register B
-
 
  return encoded;
 }
@@ -51,10 +47,8 @@ uint16_t RRITypeEncode(RRIinstr *instr){
  encoded |= (instr->regA & 0xF) << 4;    // top 4 bits  | Source Register A
  encoded |= (instr->imm & 0xF);          // last 4 bits | Immediate
 
-
  return encoded;
 }
-
 
 // We will from UI call to this for each line, and directly save to DRAM from 
 uint16_t loadInstruction(const char *line){
@@ -63,9 +57,26 @@ uint16_t loadInstruction(const char *line){
   RRinstr rr;
   RRIinstr rri;
 
-  char lineCopy[128];
+  char lineCopy[256]; // Increased buffer size
   strncpy(lineCopy, line, sizeof(lineCopy));
   lineCopy[sizeof(lineCopy)-1] = '\0';
+
+  // I want to remove the (so allow) comments within files.
+  char *comment = strchr(lineCopy, ';');
+  if (comment != NULL){
+    *comment = '\0'; 
+  }
+
+  // Also trim any white space.
+  int len = strlen(lineCopy);
+  while (len > 0 && (lineCopy[len-1] == ' ' || lineCopy[len-1] == '\t')){
+    lineCopy[--len] = '\0';
+  }
+
+  // Also skip any empty lines or lines that have only comments
+  if (len == 0) {
+    return 0;
+  }
 
   printf("Instruction Line: %s.\n", lineCopy);
 
@@ -81,35 +92,68 @@ uint16_t loadInstruction(const char *line){
   char *sw_pattern = strstr(lineCopy, "SW ");
   
   if (lw_pattern) {
-    char rd_str[16], ra_str[16], imm_str[16];
-    int rd, ra, imm;
+    // Improved parsing for LW instruction
+    char reg_dest[16], reg_base[16], offset_str[32];
+    int rd = 0, ra = 0, imm = 0;
     
-    // Handle "LW Rd, [Ra + imm]" format
-    if (sscanf(lineCopy, "LW R%d [R%d + %d]", &rd, &ra, &imm) == 3) {
-      rri.opcode = 0b1001;
-      rri.regD = rd;
-      rri.regA = ra;
-      rri.imm = imm;
-      
-      printf("Parsing LW: LW R%d, [R%d + %d]\n", rd, ra, imm);
-      printf("Encoded as: destination=R%u, base=R%u, offset=%u\n", rd, ra, imm);
-      return RRITypeEncode(&rri);
+    // Extract the three main parts of the LW instruction
+    char *bracket_start = strchr(lineCopy, '[');
+    char *bracket_end = strchr(lineCopy, ']');
+    
+    if (bracket_start && bracket_end && bracket_start < bracket_end) {
+      // Extract destination register
+      if (sscanf(lineCopy, "LW R%d", &rd) == 1) {
+        // Extract base register and offset
+        char bracket_content[128];
+        strncpy(bracket_content, bracket_start + 1, bracket_end - bracket_start - 1);
+        bracket_content[bracket_end - bracket_start - 1] = '\0';
+        
+        // Check for R0 + offset pattern
+        if (sscanf(bracket_content, "R%d + %d", &ra, &imm) == 2) {
+          rri.opcode = 0b1001;
+          rri.regD = rd;
+          rri.regA = ra;
+          rri.imm = imm & 0xF; // Limit to 4 bits but allow parsing larger values
+          
+          printf("Parsing LW: LW R%d, [R%d + %d]\n", rd, ra, imm);
+          printf("Encoded as: destination=R%u, base=R%u, offset=%u (truncated to %u for encoding)\n", 
+                 rd, ra, imm, rri.imm);
+          return RRITypeEncode(&rri);
+        }
+      }
     }
   }
   else if (sw_pattern) {
-    char rd_str[16], ra_str[16], imm_str[16];
-    int rd, ra, imm;
+    // Improved parsing for SW instruction
+    char reg_src[16], reg_base[16], offset_str[32];
+    int rd = 0, ra = 0, imm = 0;
     
-    // Handle "SW [Ra + imm], Rd" format
-    if (sscanf(lineCopy, "SW [R%d + %d] R%d", &ra, &imm, &rd) == 3) {
-      rri.opcode = 0b1010;
-      rri.regD = rd;
-      rri.regA = ra;
-      rri.imm = imm;
-      
-      printf("Parsing SW: SW [R%d + %d], R%d\n", ra, imm, rd);
-      printf("Encoded as: source=R%u, base=R%u, offset=%u\n", rd, ra, imm);
-      return RRITypeEncode(&rri);
+    // Extract the three main parts of the SW instruction
+    char *bracket_start = strchr(lineCopy, '[');
+    char *bracket_end = strchr(lineCopy, ']');
+    char *last_r = strrchr(lineCopy, 'R');
+    
+    if (bracket_start && bracket_end && bracket_start < bracket_end && last_r && last_r > bracket_end) {
+      // Extract source register (after the closing bracket)
+      if (sscanf(last_r, "R%d", &rd) == 1) {
+        // Extract base register and offset
+        char bracket_content[128];
+        strncpy(bracket_content, bracket_start + 1, bracket_end - bracket_start - 1);
+        bracket_content[bracket_end - bracket_start - 1] = '\0';
+        
+        // Check for R0 + offset pattern
+        if (sscanf(bracket_content, "R%d + %d", &ra, &imm) == 2) {
+          rri.opcode = 0b1010;
+          rri.regD = rd;
+          rri.regA = ra;
+          rri.imm = imm & 0xF; // Limit to 4 bits but allow parsing larger values
+          
+          printf("Parsing SW: SW [R%d + %d], R%d\n", ra, imm, rd);
+          printf("Encoded as: source=R%u, base=R%u, offset=%u (truncated to %u for encoding)\n", 
+                 rd, ra, imm, rri.imm);
+          return RRITypeEncode(&rri);
+        }
+      }
     }
   }
 
@@ -126,12 +170,49 @@ uint16_t loadInstruction(const char *line){
     value = strtok(NULL, " ");
   }
 
-  if (valueCount == 4){
+  if (valueCount >= 1) {
     char *opcode = values[0];
-    uint16_t rd = atoi(values[1] + 1);
-    uint16_t type = atoi(values[1]);
-    uint16_t ra = atoi(values[2] + 1);
-    uint16_t rb = atoi(values[3] + 1);
+    
+    // Handle JMP instruction (no registers, just 12-bit immediate)
+    if (strcmp(opcode, "JMP") == 0) {
+      uint16_t imm12 = 0;
+      
+      // Parse the immediate value
+      if (valueCount >= 2) {
+        imm12 = atoi(values[1]) & 0xFFF;  // Limit to 12 bits
+      }
+      
+      // Encode as: 0xC (opcode) + 12-bit immediate
+      uint16_t encoded = 0;
+      encoded |= (0xC & 0xF) << 12;  // opcode = 0xC (JMP)
+      encoded |= (imm12 & 0xFFF);    // 12-bit immediate
+      
+      printf("Parsing JMP: JMP %d\n", imm12);
+      printf("Encoded as: opcode=0xC, immediate=%u\n", imm12);
+      
+      return encoded;
+    }
+    
+    // Improved register parsing with proper error handling
+    uint16_t rd = 0, ra = 0, rb = 0, type = 0;
+    
+    // Parse register values for different instruction formats
+    if (valueCount >= 3) {
+      // Three-register format: OP Rd, Ra, Rb
+      if (values[1][0] == 'R') rd = atoi(values[1] + 1); else rd = atoi(values[1]);
+      if (values[2][0] == 'R') ra = atoi(values[2] + 1); else ra = atoi(values[2]);
+      if (valueCount >= 4) {
+        if (values[3][0] == 'R') rb = atoi(values[3] + 1); else rb = atoi(values[3]);
+      }
+      
+      // LSH format or truncated three-register format
+      if (strcmp(opcode, "LSH") == 0) {
+        type = atoi(values[1]);
+        if (values[2][0] == 'R') ra = atoi(values[2] + 1); else ra = atoi(values[2]);
+        if (valueCount >= 4 && values[3][0] == 'R') rb = atoi(values[3] + 1); 
+        else if (valueCount >= 4) rb = atoi(values[3]);
+      }
+    }
 
     // Standard ALU operations
     if (strcmp(opcode, "ADD") == 0){        // RRR Types
@@ -193,39 +274,29 @@ uint16_t loadInstruction(const char *line){
 
       return RRRTypeEncode(&rrr);
     } else if (strcmp(opcode, "LSH") == 0){ // RR Types
-      rr.opcode = 0b1000;                      // same opcode for all shifts
-      rr.type   = atoi(values[1]);             // 0=LSL,1=LSR,2=ROL,3=ROR
-      rr.regA   = atoi(values[2] + 1);         // Rd
-      rr.regB   = atoi(values[3] + 1);         // Rs (amount)
+      rr.opcode = 0b1000;                     // same opcode for all shifts
+      rr.type   = type;                       // 0=LSL,1=LSR,2=ROL,3=ROR
+      rr.regA   = ra;                         // Rd
+      rr.regB   = rb;                         // Rs (amount)
       
       return RRTypeEncode(&rr);
     } else if (strcmp(opcode, "BEQ") == 0){
       rri.opcode = 0b1011;
       rri.regD = rd;
       rri.regA = ra;
-      rri.imm = rb;
+      rri.imm = rb & 0xF; // Limit to 4 bits but allow parsing larger values
+
+      return RRITypeEncode(&rri);
+    } else if (strcmp(opcode, "BLT") == 0){
+      rri.opcode = 0xF;
+      rri.regD = rd;
+      rri.regA = ra;
+      rri.imm = rb & 0xF; // Limit to 4 bits but allow parsing larger values
 
       return RRITypeEncode(&rri);
     }
-  } else {
-    printf("Invalid instruction, [ %s ].\n", line);
   }
-}
-
-/* void printBinary16(uint16_t value) {
-  printf("Encoded Instruction (Binary): ");
-  for (int i = 15; i >= 0; i--) {
-    printf("%u", (value >> i) & 1);
-    if (i % 4 == 0 && i != 0) printf(" "); // Space between 4 bits.
-  }
-  printf("\n");
-}
-
-
-int main() {
-  const char *line = "LSL 4 R2 R3";
-  uint16_t encoded = loadInstruction(line);
-  printf("Encoded Instruction (Hex): 0x%04X\n", encoded);
-  printBinary16(encoded);
+  
+  printf("Invalid instruction, [ %s ].\n", line);
   return 0;
-} */
+}

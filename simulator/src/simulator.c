@@ -24,18 +24,20 @@ PipelineState pipeline;
 void init_system() {
     clearMemory(&dram);
     dram.state        = DRAM_IDLE;
-    dram.delayCounter = 0;
+    dram.delayCounter = 1;
     dram.pendingAddr  = 0;
     dram.pendingValue = 0;
     strcpy(dram.pendingCmd, "");
 
     registers = init_registers();
-    cache     = init_cache(1);
+    cache     = init_cache(CACHE_MODE);
 
     // reset stepping state
     step_init      = false;
     step_cycle_cnt = 0;
     step_instr_val = 0;
+
+    registers->R[15] = 0;
 
     printf("[LOG] System is Initialized\n");
     fflush(stdout);
@@ -55,16 +57,19 @@ void executeInstructions() {
     fflush(stdout);
 
     uint16_t instruction = readFromMemory(&dram, registers->R[15]);
-    int cycles = 0, max_cycles = 100;
-
-    while (cycles < max_cycles) {
-        if (instruction != 0) {
-            pipeline_step(&pipeline, &instruction);
+    int cycles = 0;
+    while (true) {
+        bool pipeline_empty =
+        !pipeline.IF_ID.valid &&
+        !pipeline.ID_EX.valid &&
+        !pipeline.EX_MEM.valid &&
+        !pipeline.MEM_WB.valid &&
+        !pipeline.WB.valid;
+        if (pipeline_empty && instruction == 0)
+            break;
+        pipeline_step(&pipeline, &instruction);
+        if (instruction != 0)
             instruction = readFromMemory(&dram, registers->R[15]);
-        } else {
-            pipeline_step(&pipeline, &instruction);
-        }
-
         cycles++;
         printf("[CYCLE] %d\n", cycles);
         fflush(stdout);
@@ -122,6 +127,15 @@ void stepInstructions() {
 
     for (int i = 0; i < 16; i++)
         printf("[REG]%d:%d\n", i, registers->R[i]);
+
+    // Report fetch status
+    extern bool fetch_memory_busy;
+    extern uint16_t fetch_delay_counter;
+    extern uint16_t fetch_delay_target;
+    
+    if (fetch_memory_busy) {
+        printf("[FETCH_STATUS]busy:%d:%d\n", fetch_delay_counter, fetch_delay_target);
+    }
 
     printf("[LOG] Printing cache contents\n");
     for (int i = 0; i < cache->num_sets; i++) {
@@ -184,6 +198,12 @@ static void apply_config(const char *params) {
             USER_CACHE_DELAY = atoi(val);
             printf("[CONFIG] Cache delay set to %u cycles\n", USER_CACHE_DELAY);
         }
+        else if(strcmp(key, "cache_mode") == 0) {
+            CACHE_MODE = atoi(val);
+            printf("[CONFIG] Cache mode set to %u\n", CACHE_MODE);
+            destroy_cache(cache);
+            cache = init_cache(CACHE_MODE);
+        }
         params = strchr(params, ' ');
         if (!params) break;
         ++params;
@@ -208,12 +228,15 @@ int main() {
             fflush(stdout);
         }
         else if (strncmp(command, "cfg", 3) == 0) {
-            uint16_t d, cd, ce, pe;
-            if (sscanf(command + 3, " %hu %hu %hu %hu", &d, &cd, &ce, &pe) == 4) {
+            uint16_t d, cd, ce, pe, cm;
+            if (sscanf(command + 3, " %hu %hu %hu %hu %hu", &d, &cd, &ce, &pe, &cm) == 5) {
                 USER_DRAM_DELAY   = d;
                 USER_CACHE_DELAY  = cd;
                 CACHE_ENABLED     = ce;
                 PIPELINE_ENABLED  = pe;
+                CACHE_MODE        = cm;
+                destroy_cache(cache);
+                cache = init_cache(CACHE_MODE);
             }
             printf("[END]\n");
             fflush(stdout);

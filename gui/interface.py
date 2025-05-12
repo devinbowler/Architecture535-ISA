@@ -162,6 +162,8 @@ class ISASimulatorUI(QWidget):
         tab_widget = QTabWidget()
         self.register_table = self.create_table(16, ["QR - Integer Registers"])
         self.memory_table = self.create_table(1000, ["Value"])
+        
+        # We'll adapt the cache table headers dynamically based on the selected cache type
         self.cache_table = self.create_table(16, ["Index", "Offset", "Valid", "Tag", "Data[0]", "Data[1]", "Data[2]", "Data[3]"])
         
         tab_widget.addTab(self.register_table, "Registers")
@@ -219,7 +221,7 @@ class ISASimulatorUI(QWidget):
         config_layout.addWidget(self.pipeline_enabled, 2, 1)
         config_layout.addWidget(QLabel("Cache Type"), 3, 0)
         self.cache_type = QComboBox()
-        self.cache_type.addItems(["Direct-Mapped", "Fully Associative", "Set Associative"])
+        self.cache_type.addItems(["Direct-Mapped", "Set Associative"])
         config_layout.addWidget(self.cache_type, 3, 1)
         config_layout.addWidget(QLabel("DRAM Delay"), 4, 0)
         self.dram_delay = QSpinBox()
@@ -266,6 +268,24 @@ class ISASimulatorUI(QWidget):
         button_layout.addWidget(run_button)
         layout.addLayout(button_layout)
 
+        # Add multi-step feature
+        multistep_frame = QWidget()
+        multistep_layout = QHBoxLayout()
+        multistep_frame.setLayout(multistep_layout)
+        
+        multistep_layout.addWidget(QLabel("Number of steps:"))
+        self.step_count = QSpinBox()
+        self.step_count.setMinimum(1)
+        self.step_count.setMaximum(1000)
+        self.step_count.setValue(10)
+        multistep_layout.addWidget(self.step_count)
+        
+        multistep_button = QPushButton("Run Multiple Steps")
+        multistep_button.clicked.connect(self.run_multiple_steps)
+        multistep_layout.addWidget(multistep_button)
+        
+        layout.addWidget(multistep_frame)
+
         widget.setLayout(layout)
         return widget
     
@@ -282,10 +302,8 @@ class ISASimulatorUI(QWidget):
         table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         return table
     
-    def handle_instruction_error(self, result):
-        if "error" in result:
-            QMessageBox.information(self, "Error", result["error"])
-            return
+    def handle_instruction_error(self, error):
+        QMessageBox.information(self, "Error", str(error))
     
     def load_instructions(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "Select Instruction File", "", "Text Files (*.txt)")
@@ -310,6 +328,7 @@ class ISASimulatorUI(QWidget):
         if "error" in result:
             QMessageBox.information(self, "Error", result["error"])
             return
+        
         registers = result.get("registers", [])
         if len(registers) > self.register_table.rowCount():
             self.register_table.setRowCount(len(registers))
@@ -317,66 +336,210 @@ class ISASimulatorUI(QWidget):
             binary_val = format(val & 0xFFFF, "016b")
             item = QTableWidgetItem(binary_val)
             self.register_table.setItem(reg, 0, item)
+        
         memory = result.get("memory", [])
         for addr, val in memory:
             if addr >= self.memory_table.rowCount():
                 self.memory_table.setRowCount(addr + 1)
             binary_val = format(val & 0xFFFF, "016b")
             self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+        
+        # Extract and update the PC
+        pc_val = result.get("pc", None)
+        if pc_val is not None:
+            self.pc_display.setText(f"PC: {pc_val}")
+            self.setWindowTitle(f"ARCH-16: PC={pc_val} | Total Cycles: {result.get('cycle', 0)}")
+        
         cache = result.get("cache", [])
         cache_data = result.get("cache_data", [])
+        
+        # Determine cache type
+        cache_type = self.cache_type.currentText()
+        is_direct_mapped = cache_type == "Direct-Mapped"
+        is_fully_associative = cache_type == "Fully Associative"
+        is_set_associative = cache_type == "Set Associative"
+        
+        # Restructure cache table based on cache type
+        if is_direct_mapped:
+            self.cache_table.setColumnCount(8)
+            self.cache_table.setHorizontalHeaderLabels(
+                ["Index", "Offset", "Valid", "Tag", "Data[0]", "Data[1]", "Data[2]", "Data[3]"]
+            )
+        else:  # For set associative or fully associative
+            self.cache_table.setColumnCount(9)
+            self.cache_table.setHorizontalHeaderLabels(
+                ["Index", "Way", "Offset", "Valid", "Tag", "Data[0]", "Data[1]", "Data[2]", "Data[3]"]
+            )
+        
+        # Process cache entries
         cache_entries = {}
-        for index, offset, valid, tag in cache:
-            key = f"{index}:{offset}"
-            cache_entries[key] = {"index": index, "offset": offset, "valid": valid, "tag": tag, "data": [0,0,0,0]}
-        for index, offset, data_idx, data_val in cache_data:
-            key = f"{index}:{offset}"
+        
+        for cache_entry in cache:
+            if is_direct_mapped:
+                if len(cache_entry) >= 4:
+                    index, offset, valid, tag = cache_entry
+                    key = f"{index}:{offset}"
+                    if key not in cache_entries:
+                        cache_entries[key] = {
+                            "index": index, 
+                            "way": 0,  # Direct-mapped has only one way
+                            "offset": offset,
+                            "valid": valid, 
+                            "tag": tag, 
+                            "data": [0, 0, 0, 0]
+                        }
+            else:  # Set associative or fully associative
+                if len(cache_entry) == 5:  # If way information is included
+                    index, way, offset, valid, tag = cache_entry
+                elif len(cache_entry) == 4:
+                    index, offset, valid, tag = cache_entry
+                    way = 0  # Default way if not provided
+                else:
+                    continue
+                    
+                key = f"{index}:{way}:{offset}"
+                if key not in cache_entries:
+                    cache_entries[key] = {
+                        "index": index,
+                        "way": way,
+                        "offset": offset, 
+                        "valid": valid, 
+                        "tag": tag, 
+                        "data": [0, 0, 0, 0]
+                    }
+        
+        # Process cache data
+        for cache_data_entry in cache_data:
+            if is_direct_mapped:
+                if len(cache_data_entry) == 4:
+                    index, offset, data_idx, data_val = cache_data_entry
+                    key = f"{index}:{offset}"
+                else:
+                    continue
+            else:  # Set associative or fully associative
+                if len(cache_data_entry) == 5:
+                    index, way, offset, data_idx, data_val = cache_data_entry
+                    key = f"{index}:{way}:{offset}"
+                elif len(cache_data_entry) == 4:
+                    index, offset, data_idx, data_val = cache_data_entry
+                    way = 0  # Default way
+                    key = f"{index}:{way}:{offset}"
+                else:
+                    continue
+                    
             if key in cache_entries and 0 <= data_idx < 4:
                 cache_entries[key]["data"][data_idx] = data_val
+        
         self.cache_table.setRowCount(len(cache_entries))
         for i, entry in enumerate(cache_entries.values()):
-            self.cache_table.setItem(i, 0, QTableWidgetItem(str(entry["index"])))
-            self.cache_table.setItem(i, 1, QTableWidgetItem(str(entry["offset"])))
-            self.cache_table.setItem(i, 2, QTableWidgetItem("Valid" if entry["valid"] else "Invalid"))
-            self.cache_table.setItem(i, 3, QTableWidgetItem(str(entry["tag"])))
+            col = 0
+            self.cache_table.setItem(i, col, QTableWidgetItem(str(entry["index"])))
+            col += 1
+            
+            if not is_direct_mapped:
+                self.cache_table.setItem(i, col, QTableWidgetItem(str(entry["way"])))
+                col += 1
+                
+            self.cache_table.setItem(i, col, QTableWidgetItem(str(entry["offset"])))
+            col += 1
+            self.cache_table.setItem(i, col, QTableWidgetItem("Valid" if entry["valid"] else "Invalid"))
+            col += 1
+            self.cache_table.setItem(i, col, QTableWidgetItem(str(entry["tag"])))
+            col += 1
+            
             for j in range(4):
                 self.cache_table.setItem(i, 4+j, QTableWidgetItem(str(entry["data"][j])))
+        
         self.register_table.update()
         self.memory_table.update()
         self.cache_table.update()
         self.update()
+        
+        # Update cycle display if total_cycles is available
+        total_cycles = result.get("cycle", 0)
+        if total_cycles > 0:
+            self.cycle_display.setText(f"Cycle: {total_cycles}")
+            self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - Total Cycles: {total_cycles}")
+        
+        # Instead of showing a popup, just print a message to console
         if "message" in result:
-            QMessageBox.information(self, "Execution Complete", result["message"])
+            message = result["message"]
+            if total_cycles > 0:
+                message += f" Completed in {total_cycles} cycles."
+            print(f"[INFO] {message}")
+            # Also update status bar or window title
+            self.setWindowTitle(f"ARCH-16: {message}")
         else:
-            QMessageBox.information(self, "Execution Complete", "Execution finished without a message.")
+            print("[INFO] Execution complete")
     
     def handle_instruction_result(self, result):
         if "error" in result:
             QMessageBox.information(self, "Error", result["error"])
             return
+            
         binary = result.get("binary", [])
         raw = result.get("raw", [])
         memory = result.get("memory", [])
         self.instruction_table.setRowCount(len(raw))
+        
         for i, (asm, bin_val) in enumerate(zip(raw, binary)):
             self.instruction_table.setItem(i, 0, QTableWidgetItem(str(i)))
             self.instruction_table.setItem(i, 1, QTableWidgetItem(asm))
             self.instruction_table.setItem(i, 2, QTableWidgetItem(bin_val))
+        
         address_labels = [str(i) for i in range(1000)]
         self.memory_table.setVerticalHeaderLabels(address_labels)
+        
         for i in range(1000):
             self.memory_table.setItem(i, 0, QTableWidgetItem("0000000000000000"))
+        
         for addr, val in memory:
             if addr < 1000:
                 binary_val = format(val & 0xFFFF, "016b")
                 self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
-        QMessageBox.information(self, "file loaded", result["message"])
+        
+        # Instead of showing a popup, just update status in the window title
+        message = result.get("message", "File loaded")
+        self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - {message}")
+        print(f"[INFO] {message}")
     
     def step_instruction(self):
         self.step_thread = step_instructionThread(self.api_url)
         self.step_thread.finished.connect(self.handle_step_result)
         self.step_thread.error.connect(self.handle_instruction_error)
         self.step_thread.start()
+    
+    def run_multiple_steps(self):
+        """Run multiple step instructions in sequence"""
+        steps = self.step_count.value()
+        print(f"[INFO] Running {steps} instruction steps...")
+        
+        # Create a progress dialog to show operation is in progress
+        progress = QMessageBox()
+        progress.setWindowTitle("Running Multiple Steps")
+        progress.setText(f"Running {steps} instruction steps...\nPlease wait.")
+        progress.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        progress.show()
+        QApplication.processEvents()  # Make sure UI updates
+        
+        # Run the specified number of steps
+        for i in range(steps):
+            # Update progress every 10 steps
+            if i % 10 == 0:
+                progress.setText(f"Running step {i+1}/{steps}...")
+                QApplication.processEvents()  # Make sure UI updates
+                
+            self.step_thread = step_instructionThread(self.api_url)
+            self.step_thread.finished.connect(self.handle_step_result)
+            self.step_thread.error.connect(self.handle_instruction_error)
+            self.step_thread.start()
+            self.step_thread.wait()  # Wait for thread to finish before next step
+        
+        # Close progress dialog
+        progress.close()
+        
+        # Show completion message
+        QMessageBox.information(self, "Complete", f"Completed {steps} instruction steps.")
     
     def handle_step_result(self, result):
         """Handle the result from a step instruction request"""
@@ -396,28 +559,87 @@ class ISASimulatorUI(QWidget):
         }
         updated = {i: False for i in range(5)}
 
+        # Check for fetch status
+        fetch_busy = False
+        fetch_counter = 0
+        fetch_target = 0
+        
+        fetch_status = result.get("fetch_status", "")
+        if fetch_status and fetch_status.startswith("[FETCH_STATUS]"):
+            parts = fetch_status[14:].split(":")
+            if len(parts) == 3 and parts[0] == "busy":
+                fetch_busy = True
+                fetch_counter = int(parts[1])
+                fetch_target = int(parts[2])
+                print(f"[UI] Detected fetch is busy: {fetch_counter}/{fetch_target}")
+
         for stage, instr, pc in pipeline_state:
             row = stage_to_row.get(stage)
             if row is None:
                 continue
             updated[row] = True
-            is_nop = instr.lower() in ("nop", "bubble")
-            color = QColor(40, 15, 15) if is_nop else QColor(15, 40, 15)
-
+            
+            # Special handling for fetch stage if it's waiting for memory
+            if row == 0 and fetch_busy:
+                # Override with waiting status
+                status_item = QTableWidgetItem("Waiting")
+                status_item.setBackground(QColor(40, 40, 15))  # Special color for waiting
+                status_item.setForeground(QColor(220, 220, 150))
+                self.pipeline_table.setItem(row, 1, status_item)
+                
+                # Update instruction with waiting info
+                instr_text = f"FETCH waiting ({fetch_counter}/{fetch_target})"
+                instr_item = QTableWidgetItem(instr_text)
+                instr_item.setBackground(QColor(40, 40, 15))
+                instr_item.setForeground(QColor(220, 220, 150))
+                self.pipeline_table.setItem(row, 2, instr_item)
+                
+                # PC remains the same while waiting
+                pc_item = QTableWidgetItem(str(pc))
+                pc_item.setBackground(QColor(40, 40, 15))
+                pc_item.setForeground(QColor(220, 220, 150))
+                self.pipeline_table.setItem(row, 3, pc_item)
+                continue
+            
+            # Check for squashed instructions
+            is_squashed = "SQUASHED" in instr.upper()
+            is_nop = instr.lower() in ("nop", "bubble") or "waiting" in instr.lower()
+            
+            # Choose appropriate color based on instruction status
+            if is_squashed:
+                color = QColor(80, 15, 15)  # Darker red for squashed
+                status_text = "Squashed"
+            elif is_nop:
+                color = QColor(40, 15, 15)  # Normal bubble color
+                status_text = "Bubble"
+            else:
+                color = QColor(15, 40, 15)  # Valid instruction color
+                status_text = "Valid"
+                
             # Status cell
-            status_item = QTableWidgetItem("Bubble" if is_nop else "Valid")
+            status_item = QTableWidgetItem(status_text)
             status_item.setBackground(color)
             status_item.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 1, status_item)
 
             # Instruction cell
-            instr_item = QTableWidgetItem("-" if is_nop else instr)
+            instr_text = "-" 
+            if is_squashed:
+                instr_text = instr
+            elif not is_nop or "waiting" in instr.lower():
+                instr_text = instr
+                
+            instr_item = QTableWidgetItem(instr_text)
             instr_item.setBackground(color.darker())
             instr_item.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 2, instr_item)
 
             # PC cell
-            pc_item = QTableWidgetItem("-" if is_nop else str(pc))
+            pc_text = "-"
+            if not is_nop or "waiting" in instr.lower() or is_squashed:
+                pc_text = str(pc)
+                
+            pc_item = QTableWidgetItem(pc_text)
             pc_item.setBackground(color.darker())
             pc_item.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 3, pc_item)
@@ -446,75 +668,203 @@ class ISASimulatorUI(QWidget):
                 self.pc_display.setText(f"PC: {val}")
                 break
 
-        branch = result.get("branch_taken", False)
+        # Update registers/memory/cache WITHOUT showing popup
+        self.update_tables_from_result(result)
 
-        # And finally, update registers/memory/cache
-        self.handle_execution_result(result)
+    def update_tables_from_result(self, result):
+        """Update tables from result without showing popup"""
+        registers = result.get("registers", [])
+        if len(registers) > self.register_table.rowCount():
+            self.register_table.setRowCount(len(registers))
+        
+        for reg, val in registers:
+            binary_val = format(val & 0xFFFF, "016b")
+            item = QTableWidgetItem(binary_val)
+            self.register_table.setItem(reg, 0, item)
+        
+        memory = result.get("memory", [])
+        for addr, val in memory:
+            if addr >= self.memory_table.rowCount():
+                self.memory_table.setRowCount(addr + 1)
+            binary_val = format(val & 0xFFFF, "016b")
+            self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+        
+        cache = result.get("cache", [])
+        cache_data = result.get("cache_data", [])
+        cache_entries = {}
+        
+        for index, offset, valid, tag in cache:
+            key = f"{index}:{offset}"
+            cache_entries[key] = {"index": index, "offset": offset, "valid": valid, "tag": tag, "data": [0,0,0,0]}
+        
+        for index, offset, data_idx, data_val in cache_data:
+            key = f"{index}:{offset}"
+            if key in cache_entries and 0 <= data_idx < 4:
+                cache_entries[key]["data"][data_idx] = data_val
+        
+        self.cache_table.setRowCount(len(cache_entries))
+        for i, entry in enumerate(cache_entries.values()):
+            self.cache_table.setItem(i, 0, QTableWidgetItem(str(entry["index"])))
+            self.cache_table.setItem(i, 1, QTableWidgetItem(str(entry["offset"])))
+            self.cache_table.setItem(i, 2, QTableWidgetItem("Valid" if entry["valid"] else "Invalid"))
+            self.cache_table.setItem(i, 3, QTableWidgetItem(str(entry["tag"])))
+            for j in range(4):
+                self.cache_table.setItem(i, 4+j, QTableWidgetItem(str(entry["data"][j])))
+        
+        self.register_table.update()
+        self.memory_table.update()
+        self.cache_table.update()
+        self.update()
 
-    
     def set_configuration(self):
+        """Send the current configuration settings to the backend API"""
         payload = {
             "cache_enabled": self.cache_enabled.isChecked(),
             "pipeline_enabled": self.pipeline_enabled.isChecked(),
+            "cache_type": self.cache_type.currentText(),
             "dram_delay": self.dram_delay.value(),
             "cache_delay": self.cache_delay.value(),
         }
         try:
             r = requests.post(f"{self.api_url}/set_configuration", json=payload, timeout=5)
             r.raise_for_status()
-            QMessageBox.information(self, "Config applied", r.json().get("message","OK"))
+            # Instead of showing a popup, just print a message
+            message = r.json().get("message", "Configuration applied")
+            print(f"[INFO] {message}")
+            self.setWindowTitle(f"ARCH-16: Instruction Set Architecture - {message}")
         except Exception as e:
+            # Add the missing except block
+            print(f"[ERROR] Configuration error: {e}")
             QMessageBox.information(self, "Error", f"set-configuration failed: {e}")
     
     def reset_simulator(self):
-        self.reset_thread = resetThread(self.api_url)
-        self.reset_thread.finished.connect(self.handle_reset_result)
-        self.reset_thread.error.connect(self.handle_instruction_error)
-        self.reset_thread.start()
-    
-    def handle_reset_result(self, result):
-        """Handle the result from a reset request"""
-        print("[DEBUG] handle_reset_result called with result:", result)
-
-        # Reset cycle count display and window title
+        print("[INFO] Starting simulator reset...")
+        
+        # Make reset more visible to user
+        progress = QMessageBox()
+        progress.setWindowTitle("Resetting Simulator")
+        progress.setText("Resetting simulator state...\nPlease wait.")
+        progress.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        progress.show()
+        QApplication.processEvents()  # Make sure UI updates
+        
+        # First reset UI state
         self.cycle_display.setText("Cycle: 0")
-        self.setWindowTitle("ARCH-16: Instruction Set Architecture")
-
-        # Reset PC and branch displays
         self.pc_display.setText("PC: 0")
-
-        # Clear the instruction table
+        self.setWindowTitle("ARCH-16: Instruction Set Architecture")
+        
+        # Clear tables
         self.clear_table(self.instruction_table)
-
-        # Clear and reset the pipeline table to all “Bubble” rows
+        self.clear_table(self.memory_table)
+        self.clear_table(self.register_table)
+        self.clear_table(self.cache_table)
+        
+        # Reset pipeline visualization
         for row in range(self.pipeline_table.rowCount()):
-            # Status column → “Bubble”
+            # Status column → "Bubble"
+            # Status column → "Bubble"
             status = QTableWidgetItem("Bubble")
             status.setBackground(QColor(40, 15, 15))
             status.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 1, status)
 
-            # Instruction column → “-”
+            # Instruction column → "-"
+            # Instruction column → "-"
             instr = QTableWidgetItem("-")
             instr.setBackground(QColor(35, 10, 10))
             instr.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 2, instr)
 
-            # PC column → “-”
+            # PC column → "-"
+            # PC column → "-"
             pc = QTableWidgetItem("-")
             pc.setBackground(QColor(35, 10, 10))
             pc.setForeground(QColor(180, 180, 180))
             self.pipeline_table.setItem(row, 3, pc)
+        
+        # Now reset backend state via API
+        self.reset_thread = resetThread(self.api_url)
+        self.reset_thread.finished.connect(self.handle_reset_result)
+        self.reset_thread.error.connect(self.handle_instruction_error)
+        self.reset_thread.start()
+        self.reset_thread.wait()  # Wait for reset to complete
+        
+        # Force a configuration reset too to ensure all state is reset
+        try:
+            payload = {
+                "cache_enabled": self.cache_enabled.isChecked(),
+                "pipeline_enabled": self.pipeline_enabled.isChecked(),
+                "dram_delay": self.dram_delay.value(),
+                "cache_delay": self.cache_delay.value(),
+            }
+            requests.post(f"{self.api_url}/set_configuration", json=payload, timeout=5)
+        except Exception as e:
+            print(f"[WARNING] Post-reset configuration failed: {e}")
+        
+        progress.close()
+        print("[INFO] Simulator reset complete")
 
-        # Finally, repopulate registers, memory and cache with the reset state
-        self.handle_execution_result(result)
+    def handle_reset_result(self, result):
+        """Handle the result from a reset request"""
+        print("[DEBUG] handle_reset_result called with result:", result)
 
-
+        # Initialize registers
+        for i in range(16):
+            value = 1 if i == 1 else 0  # R1 should be 1, others 0
+            binary_val = format(value & 0xFFFF, "016b")
+            self.register_table.setItem(i, 0, QTableWidgetItem(binary_val))
+        
+        # Initialize memory
+        if self.memory_table.rowCount() < 1000:
+            self.memory_table.setRowCount(1000)
+        
+        address_labels = [str(i) for i in range(1000)]
+        self.memory_table.setVerticalHeaderLabels(address_labels)
+        
+        for i in range(1000):
+            self.memory_table.setItem(i, 0, QTableWidgetItem("0000000000000000"))
+        
+        # Update with any memory values from backend
+        memory = result.get("memory", [])
+        for addr, val in memory:
+            if addr < 1000:
+                binary_val = format(val & 0xFFFF, "016b")
+                self.memory_table.setItem(addr, 0, QTableWidgetItem(binary_val))
+        
+        # Update cache table if needed
+        self.cache_table.setRowCount(0)
+        
+        # Update everything on screen
+        self.register_table.update()
+        self.memory_table.update()
+        self.cache_table.update()
+        self.pipeline_table.update()
+        self.update()
     
     def clear_table(self, table):
         for row in range(table.rowCount()):
             for col in range(table.columnCount()):
                 table.setItem(row, col, QTableWidgetItem(""))
+
+def start_application():
+    print("Starting ISASimulatorUI...")
+    proc = subprocess.Popen([sys.executable, SCRIPT_PATH])
+    
+    # Set up file watcher
+    observer = Observer()
+    handler = FileChangeHandler(proc)
+    observer.schedule(handler, path=os.path.dirname(SCRIPT_PATH), recursive=False)
+    observer.start()
+    
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("Exiting...")
+        observer.stop()
+        proc.terminate()
+    observer.join()
+    proc.wait()
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--watch":

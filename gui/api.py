@@ -3,7 +3,7 @@ import subprocess
 import threading
 from globals import (
     USER_DRAM_DELAY, USER_CACHE_DELAY,
-    CACHE_ENABLED,  PIPELINE_ENABLED
+    CACHE_ENABLED,  PIPELINE_ENABLED, CACHE_MODE
 )
 
 app = Flask(__name__)
@@ -58,14 +58,21 @@ def set_configuration():
         dram_delay = int(data.get("dram_delay", USER_DRAM_DELAY.value))
         cache_delay = int(data.get("cache_delay", USER_CACHE_DELAY.value))
         
+        # Get Cache Mode
+        cache_type = data.get("cache_type", "Direct-Mapped")
+        cache_mode = 1  # Default to direct-mapped
+        if cache_type == "Set Associative":
+            cache_mode = 2
+        
         # Set global values
         CACHE_ENABLED.value = 1 if cache_enabled else 0
         PIPELINE_ENABLED.value = 1 if pipeline_enabled else 0
         USER_DRAM_DELAY.value = dram_delay
         USER_CACHE_DELAY.value = cache_delay
+        CACHE_MODE.value = cache_mode
 
         # Send explicit config command to C program
-        config_cmd = f"config pipe={1 if pipeline_enabled else 0} cache={1 if cache_enabled else 0} dram={dram_delay} cache_delay={cache_delay}"
+        config_cmd = f"config pipe={1 if pipeline_enabled else 0} cache={1 if cache_enabled else 0} dram={dram_delay} cache_delay={cache_delay} cache_mode={cache_mode}"
         print(f"[DEBUG] Sending config command: {config_cmd}")
         send_command(config_cmd)
 
@@ -74,7 +81,9 @@ def set_configuration():
             "cache_enabled": cache_enabled,
             "pipeline_enabled": pipeline_enabled,
             "dram_delay": dram_delay,
-            "cache_delay": cache_delay
+            "cache_delay": cache_delay,
+            "cache_type": cache_type,
+            "cache_mode": cache_mode
         })
     except (ValueError, TypeError) as e:
         return jsonify({"error": f"bad config value: {e}"}), 400
@@ -118,6 +127,10 @@ def executeInstructions():
     register_contents = []
     cache_contents = []
     cache_data_contents = []
+    pipeline_state = []
+    cycle_count = 0
+    fetch_status = None
+    pc_val = None
 
     response = send_command("start")
     print(f"[DEBUG] Got response: {response}")
@@ -147,6 +160,21 @@ def executeInstructions():
                 index, offset, data_index, data_value = parts
                 cache_data_contents.append((int(index), int(offset), int(data_index), int(data_value)))
                 # print(f"[DEBUG] Found cache data: index={index}, offset={offset}, data_index={data_index}, value={data_value}")
+        elif output.startswith("[PIPELINE]"):
+            parts = output[10:].split(":")
+            if len(parts) >= 3:
+                stage = parts[0]
+                instruction = parts[1]
+                pc = int(parts[2])
+                pc_val = pc
+                pipeline_state.append((stage, instruction, pc))
+                print(f"[DEBUG] Found pipeline state: stage={stage}, instruction={instruction}, pc={pc}")
+        elif output.startswith("[CYCLE]"):
+            cycle_count = int(output[7:])
+            print(f"[DEBUG] Current cycle: {cycle_count}")
+        elif output.startswith("[FETCH_STATUS]"):
+            fetch_status = output
+            print(f"[DEBUG] Found fetch status: {output}")
 
     print(f"[DEBUG] Final register contents: {register_contents}")
     # print(f"[DEBUG] Final memory contents (showing first 10): {memory_content[:10]}")
@@ -158,8 +186,13 @@ def executeInstructions():
         "memory": memory_content,
         "registers": register_contents,
         "cache": cache_contents,
-        "cache_data": cache_data_contents
+        "cache_data": cache_data_contents,
+        "pipeline": pipeline_state,
+        "cycle": cycle_count,
+        "fetch_status": fetch_status,
+        "pc": pc_val
     })
+
 
 @app.route("/step_instruction", methods=["POST"])
 def stepInstruction():
@@ -170,6 +203,7 @@ def stepInstruction():
     cache_data_contents = []
     pipeline_state = []
     cycle_count = 0
+    fetch_status = None
 
     response = send_command("step")
     print(f"[DEBUG] Got response: {response}")
@@ -211,6 +245,10 @@ def stepInstruction():
             # Extract the cycle count
             cycle_count = int(output[7:])
             print(f"[DEBUG] Current cycle: {cycle_count}")
+        elif output.startswith("[FETCH_STATUS]"):
+            # Capture fetch status for UI
+            fetch_status = output
+            print(f"[DEBUG] Found fetch status: {output}")
 
     print(f"[DEBUG] Final pipeline state: {pipeline_state}")
     
@@ -221,7 +259,8 @@ def stepInstruction():
         "cache": cache_contents,
         "cache_data": cache_data_contents,
         "pipeline": pipeline_state,
-        "cycle": cycle_count  # Include actual cycle count
+        "cycle": cycle_count,  # Include actual cycle count
+        "fetch_status": fetch_status  # Include fetch status for UI
     })
 
 @app.route("/reset", methods=["POST"])

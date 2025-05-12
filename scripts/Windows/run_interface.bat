@@ -28,19 +28,18 @@ REM Check if virtual environment exists and create it if it doesn't
 if not exist .venv\ (
     echo Virtual environment not found. Creating it now...
     python -m venv .venv
+)  
+
+REM Activate the virtual environment
+call .venv\Scripts\activate.bat
     
-    REM Activate the virtual environment
-    call .venv\Scripts\activate.bat
-    
-    REM Install required packages
-    pip install -r requirements.txt
-    
-    echo Virtual environment created and activated
+REM Install required packages if necessary
+if exist requirements.txt (
+  echo Installing required packages...
+  pip install -r requirements.txt
 ) else (
-    echo Virtual environment found, activating...
-    call .venv\Scripts\activate.bat
-    pip install -r requirements.txt
-)
+    echo WARNING: requirements.txt not found, skipping package installation
+) 
 
 REM Run the interface script
 echo Running interface.py...
